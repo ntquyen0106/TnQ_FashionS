@@ -1,0 +1,8 @@
+.wrap { max-width: 420px; margin: 40px auto; background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+.h1 { margin: 0 0 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.input { padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+.actions { display: flex; gap: 10px; align-items: center; }
+.link { color: #007bff; text-decoration: none; }
+.err { color: #b00020; margin-top: 8px; }
+.ok { color: #0a7f2e; margin-top: 8px; }
