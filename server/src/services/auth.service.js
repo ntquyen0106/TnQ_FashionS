@@ -23,6 +23,23 @@ export const login = async ({ email, password }) => {
   return { token, user: sanitize(user) };
 };
 
+export const register = async ({ email, password, name }) => {
+  if (!email || !password || !name) {
+    const err = new Error("Thiếu thông tin đăng ký (email, password, name)");
+    err.status = 400;
+    throw err;
+  }
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    const err = new Error("Email đã được sử dụng");
+    err.status = 400;
+    throw err;
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  await User.create({ email, passwordHash, name });
+  return { message: "Đăng ký thành công" };
+};
+
 export const sanitize = (u) => ({
   id: u._id,
   name: u.name,
@@ -32,3 +49,4 @@ export const sanitize = (u) => ({
   createdAt: u.createdAt,
   updatedAt: u.updatedAt
 });
+
