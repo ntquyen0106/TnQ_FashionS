@@ -1,0 +1,28 @@
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.heroText {
+  max-width: 50%;
+}
+
+.title {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.desc {
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.heroImg {
+  max-width: 400px;
+  border-radius: 8px;
+}
