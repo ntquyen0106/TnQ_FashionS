@@ -21,7 +21,6 @@ const UserSchema = new mongoose.Schema(
     role: { type: String, enum: ["user", "admin", "staff"], default: "user" },
     phone: String,
     status: { type: String, enum: ["active", "banned"], default: "active" },
-    addresses: [AddressSchema]
   },
   { timestamps: true }
 );

@@ -20,11 +20,19 @@ export const postLogin = async (req, res, next) => {
 
 //register user
 export const postRegister = async (req, res, next) => {
-  try {
+    try {
     const { email, password, name } = req.body;
-    const { token, user } = await auth.register({ email, password, name });
-    res.cookie("token", token, cookieOpts);
-    res.json({ user });
+    const result = await auth.register({ email, password, name });
+    res.json(result);
+  } catch (e) { next(e); }
+};
+
+//verify otp
+export const postVerifyOtp = async (req, res, next) => {
+  try {
+    const { email, otp, password, name } = req.body;
+    const result = await auth.verifyOtp({ email, otp, password, name });
+    res.json(result);
   } catch (e) { next(e); }
 };
 
@@ -50,6 +58,59 @@ export const postAddAddress = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+//Login bằng firebase
+export const postFirebaseLogin = async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) return res.status(400).json({ message: "Missing idToken" });
+
+    // Xác thực token với Firebase
+    const decoded = await admin.auth().verifyIdToken(idToken);
+
+    // Lấy thông tin user từ Firebase
+    const { email, name, uid, picture } = decoded;
+
+    // Tìm hoặc tạo user trong MongoDB
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        email,
+        name: name || "No Name",
+        passwordHash: uid, // Có thể random hoặc để uid, vì không dùng password
+        avatar: picture,
+        role: "user",
+        status: "active"
+      });
+    }
+
+    // Tạo JWT cho client
+    const token = jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: 60 * 60 * 24 * 7
+    });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7
+    });
+
+    res.json({ user: sanitize(user) });
+  } catch (e) {
+    next(e);
+  }
+};
+
+//Resend OTP
+export const postResendOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const result = await auth.resendOtp({ email });
+    res.json(result);
+  } catch (e) { next(e); }
+};
+
+//Get My information
 export const getMe = async (req, res, next) => {
   try {
     const token = req.cookies?.token;
