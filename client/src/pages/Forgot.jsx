@@ -1,0 +1,58 @@
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { http } from "../api/http";
+import styles from "./LoginRegister.module.css";
+
+export default function Forgot() {
+  const nav = useNavigate();
+  const [email, setEmail] = useState("");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setMsg("");
+    if (!email) return setMsg("Nhập email của bạn");
+
+    try {
+      setLoading(true);
+      const res = await http.post("/auth/forgot", { email });
+      // lưu email để các bước sau dùng (kể cả F5)
+      sessionStorage.setItem("pwResetEmail", email);
+      setMsg(res?.data?.message || "Đã gửi mã OTP vào email của bạn");
+      nav("/verify?flow=reset", { state: { email } });
+    } catch (e) {
+      setMsg(e?.response?.data?.message || "Không gửi được mã. Thử lại sau.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+      <div className="page-center">
+    <div className={`card-narrow ${styles.wrap}`}>
+      <h2 className={styles.h1}>Quên mật khẩu</h2>
+      <form onSubmit={onSubmit}>
+        <div className={styles.field}>
+          <label>Email</label>
+          <input
+            className={styles.input}
+            value={email}
+            onChange={(e)=>setEmail(e.target.value)}
+            placeholder="you@example.com"
+            disabled={loading}
+          />
+        </div>
+        <div className={styles.actions}>
+          <button className="btn" type="submit" disabled={loading}>
+            {loading ? "Đang gửi mã..." : "Gửi mã xác thực"}
+          </button>
+          <Link className={styles.link} to="/login">Quay lại đăng nhập</Link>
+        </div>
+        {msg && <div className={styles.err}>{msg}</div>}
+      </form>
+    </div>
+    </div>
+  );
+}
