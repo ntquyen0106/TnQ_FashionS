@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
-import Products from "./pages/Products"; // hoặc placeholder
+import Products from "./pages/Products";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyCode from "./pages/VerifyCode";   // ✅ sửa tên import
+import Forgot from "./pages/Forgot";
+import ResetPassword from "./pages/ResetPassword";
 
 function Navbar() {
   const nav = useNavigate();
@@ -24,7 +27,7 @@ function Navbar() {
           <Link to="/products">Sản phẩm</Link>
           {user ? (
             <>
-              <span>Xin chào, {user.name}</span>
+              <span>Xin chào, {user.name || user.email}</span>
               <button onClick={logout} className="btn">Đăng xuất</button>
             </>
           ) : (
@@ -45,6 +48,11 @@ export default function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify" element={<VerifyCode />} />       {/* ✅ dùng VerifyCode */}
+        <Route path="/forgot" element={<Forgot />} />
+        <Route path="/forgot/reset" element={<ResetPassword />} />
+        {/* (tuỳ chọn) 404 */}
+        {/* <Route path="*" element={<div>Không tìm thấy trang</div>} /> */}
       </Routes>
     </BrowserRouter>
   );
