@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -27,50 +28,56 @@ export const login = async ({ email, password }) => {
 export const register = async ({ email, password, name }) => {
   if (!email || !password || !name) throw new Error("Thiếu thông tin đăng ký");
 
-  // Kiểm tra email đã tồn tại user active chưa
+  // Nếu đã có user active
   const existing = await User.findOne({ email, status: "active" });
   if (existing) throw new Error("Email đã được sử dụng");
 
   // Tạo OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+  const otpHash = await bcrypt.hash(otp, 10);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const lastSentAt = new Date();
 
-  // Lưu OTP (ghi đè nếu đã có)
+  // Hash password ngay tại đây
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  // Lưu vào Otp
   await Otp.findOneAndUpdate(
     { email },
-    { otp, expiresAt },
+    { otpHash, expiresAt, lastSentAt, passwordHash, name },
     { upsert: true, new: true }
   );
 
-  // Gửi OTP qua email
   await sendMail(email, "Mã xác thực đăng ký", `Mã OTP của bạn là: ${otp}`);
 
   return { message: "Đã gửi OTP xác thực đến email" };
 };
 
-export const verifyOtp = async ({ email, otp, password, name }) => {
+export const verifyOtp = async ({ email, otp }) => {
   const otpDoc = await Otp.findOne({ email });
-  if (!otpDoc || otpDoc.otp !== otp || otpDoc.expiresAt < new Date()) {
+  if (!otpDoc || otpDoc.expiresAt < new Date()) {
     throw new Error("OTP không hợp lệ hoặc đã hết hạn");
   }
 
-  // Xóa OTP sau khi dùng
-  await Otp.deleteOne({ email });
+  const isValid = await bcrypt.compare(otp, otpDoc.otpHash);
+  if (!isValid) throw new Error("OTP không hợp lệ");
 
-  // Tạo user (nếu chưa có)
+  // Tạo/activate user
   let user = await User.findOne({ email });
   if (!user) {
-    const passwordHash = await bcrypt.hash(password, 10);
     user = await User.create({
       email,
-      passwordHash,
-      name,
-      status: "active"
+      passwordHash: otpDoc.passwordHash,
+      name: otpDoc.name,
+      status: "active",
     });
   } else {
     user.status = "active";
     await user.save();
   }
+
+  // Đánh dấu đã dùng
+  await Otp.updateOne({ email }, { $set: { usedAt: new Date() } });
 
   return { message: "Xác thực thành công, tài khoản đã được tạo" };
 };
@@ -79,7 +86,6 @@ export const verifyOtp = async ({ email, otp, password, name }) => {
 export const resendOtp = async ({ email }) => {
   if (!email) throw new Error("Thiếu email");
 
-  // Kiểm tra OTP cũ còn hạn và gửi chưa quá 30s
   const otpDoc = await Otp.findOne({ email });
   if (otpDoc && otpDoc.expiresAt > new Date()) {
     const now = Date.now();
@@ -89,14 +95,14 @@ export const resendOtp = async ({ email }) => {
     }
   }
 
-  // Tạo OTP mới
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+  const otpHash = await bcrypt.hash(otp, 10);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   const lastSentAt = new Date();
 
   await Otp.findOneAndUpdate(
     { email },
-    { otp, expiresAt, lastSentAt },
+    { otpHash, expiresAt, lastSentAt },
     { upsert: true, new: true }
   );
 
@@ -104,6 +110,11 @@ export const resendOtp = async ({ email }) => {
 
   return { message: "Đã gửi lại OTP xác thực đến email" };
 };
+
+console.log('PROVIDER=', process.env.EMAIL_PROVIDER);
+console.log('MAILTRAP_USER exists?', !!process.env.MAILTRAP_USER);
+console.log('MAILTRAP_PASS exists?', !!process.env.MAILTRAP_PASS);
+
 
 
 export const sanitize = (u) => ({
