@@ -1,8 +1,7 @@
 import dotenv from "dotenv";
+dotenv.config();
 import { connectDB } from "./config/db.js";
 import { createApp } from "./app.js";
-
-dotenv.config();
 
 const start = async () => {
   await connectDB(process.env.MONGODB_URI, process.env.DB_NAME);

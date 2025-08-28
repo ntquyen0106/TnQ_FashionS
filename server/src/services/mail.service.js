@@ -1,18 +1,27 @@
 import nodemailer from "nodemailer";
 
-export const sendMail = async (to, subject, text) => {
-  const transporter = nodemailer.createTransport({
-    service: "gmail", 
-    auth: {
-      user: process.env.EMAIL_USER, 
-      pass: process.env.EMAIL_PASS
-    }
-  });
+const provider = process.env.EMAIL_PROVIDER || "gmail";
+const transporter =
+  provider === "mailtrap"
+    ? nodemailer.createTransport({
+        host: process.env.MAILTRAP_HOST,
+        port: Number(process.env.MAILTRAP_PORT || 587),
+        secure: false,
+        auth: { user: process.env.MAILTRAP_USER, pass: process.env.MAILTRAP_PASS },
+      })
+    : nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+export async function sendMail(to, subject, text, html) {
+  return transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER,
     to,
     subject,
-    text
+    text,
+    html: html ?? `<p>${text}</p>`,
   });
-};
+}
