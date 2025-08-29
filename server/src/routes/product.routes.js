@@ -1,11 +1,14 @@
 import { Router } from "express";
-import { list, detail, create, update, remove } from "../controllers/product.controller.js";
+import * as ctrl from "../controllers/product.controller.js";
+import { requireAuth, requireRole } from "../middlewares/requireAuth.js";
 
 const router = Router();
-router.get("/", list);
-router.get("/:id", detail);
-router.post("/", create);
-router.put("/:id", update);
-router.delete("/:id", remove);
+
+router.get("/", ctrl.list);
+router.get("/:id", ctrl.getOne);
+
+router.post("/", requireAuth, requireRole("admin","staff"), ctrl.create);
+router.put("/:id", requireAuth, requireRole("admin","staff"), ctrl.update);
+router.delete("/:id", requireAuth, requireRole("admin"), ctrl.remove);
 
 export default router;
