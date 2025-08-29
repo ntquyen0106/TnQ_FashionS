@@ -126,3 +126,27 @@ export const postLogout = async (req, res) => {
   res.clearCookie("token", { ...cookieOpts, maxAge: 0 });
   res.json({ message: "Logged out" });
 };
+
+export const postForgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const result = await auth.forgotPassword({ email });
+    res.json(result);
+  } catch (e) { next(e); }
+};
+
+export const postForgotVerify = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const result = await auth.forgotVerify({ email, otp });
+    res.json(result);
+  } catch (e) { next(e); }
+};
+
+export const postForgotReset = async (req, res, next) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+    const result = await auth.forgotReset({ resetToken, newPassword });
+    res.json(result);
+  } catch (e) { next(e); }
+};

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -110,6 +111,74 @@ export const resendOtp = async ({ email }) => {
 
   return { message: "Đã gửi lại OTP xác thực đến email" };
 };
+
+//Forgot password
+export const forgotPassword = async ({ email }) => {
+  const user = await User.findOne({ email });
+  if (!user) throw new Error("Email không tồn tại");
+
+  // Rate limit 30s
+  const otpDoc = await Otp.findOne({ email, type: "forgot" });
+  if (otpDoc && otpDoc.lastSentAt && Date.now() - otpDoc.lastSentAt.getTime() < 30 * 1000) {
+    throw new Error("Vui lòng chờ 30 giây trước khi gửi lại OTP");
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpHash = await bcrypt.hash(otp, 10);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+  const lastSentAt = new Date();
+
+  await Otp.findOneAndUpdate(
+    { email, type: "forgot" },
+    { otpHash, expiresAt, lastSentAt, usedAt: null, resetToken: null, resetTokenExpiresAt: null },
+    { upsert: true, new: true }
+  );
+
+  await sendMail(email, "Mã OTP đặt lại mật khẩu", `Mã OTP của bạn là: ${otp}`);
+
+  return { message: "Đã gửi OTP đặt lại mật khẩu về email" };
+};
+
+// Xác thực OTP, trả về resetToken
+export const forgotVerify = async ({ email, otp }) => {
+  const otpDoc = await Otp.findOne({ email, type: "forgot" });
+  if (!otpDoc || otpDoc.expiresAt < new Date() || otpDoc.usedAt) {
+    throw new Error("OTP không hợp lệ hoặc đã hết hạn");
+  }
+  const ok = await bcrypt.compare(otp, otpDoc.otpHash);
+  if (!ok) throw new Error("OTP không hợp lệ hoặc đã hết hạn");
+
+  // Tạo resetToken ngắn hạn (random string)
+  const resetToken = randomBytes(32).toString("hex"); // <-- Sửa dòng này
+  const resetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+
+  otpDoc.resetToken = resetToken;
+  otpDoc.resetTokenExpiresAt = resetTokenExpiresAt;
+  otpDoc.usedAt = new Date(); // đánh dấu đã dùng OTP
+  await otpDoc.save();
+
+  return { resetToken };
+};
+
+// Đổi mật khẩu bằng resetToken
+export const forgotReset = async ({ resetToken, newPassword }) => {
+  const otpDoc = await Otp.findOne({ resetToken, type: "forgot" });
+  if (!otpDoc || otpDoc.resetTokenExpiresAt < new Date()) {
+    throw new Error("resetToken không hợp lệ hoặc đã hết hạn");
+  }
+
+  const user = await User.findOne({ email: otpDoc.email });
+  if (!user) throw new Error("User không tồn tại");
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  // Xóa OTP sau khi dùng
+  await Otp.deleteOne({ _id: otpDoc._id });
+
+  return { message: "Đổi mật khẩu thành công" };
+};
+
 
 console.log('PROVIDER=', process.env.EMAIL_PROVIDER);
 console.log('MAILTRAP_USER exists?', !!process.env.MAILTRAP_USER);
