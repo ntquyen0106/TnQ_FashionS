@@ -101,6 +101,15 @@ export const postFirebaseLogin = async (req, res, next) => {
   }
 };
 
+//Login by Facebook
+export const postFacebookLogin = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const result = await auth.facebookLogin({ token });
+    res.json(result);
+  } catch (e) { next(e); }
+};
+
 //Resend OTP
 export const postResendOtp = async (req, res, next) => {
   try {

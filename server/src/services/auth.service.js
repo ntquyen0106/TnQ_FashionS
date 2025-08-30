@@ -26,6 +26,34 @@ export const login = async ({ email, password }) => {
   return { token, user: sanitize(user) };
 };
 
+export const facebookLogin = async ({ token }) => {
+  if (!token) throw new Error("Thiếu token");
+
+  // Lấy thông tin user từ Facebook Graph API
+  const fbRes = await fetch(`https://graph.facebook.com/me?fields=id,name,email&access_token=${token}`);
+  const fbData = await fbRes.json();
+
+  if (!fbData.id) throw new Error("Token Facebook không hợp lệ");
+
+  // Tìm hoặc tạo user trong database
+  let user = await User.findOne({ email: fbData.email });
+  if (!user) {
+    user = await User.create({
+      email: fbData.email || `${fbData.id}@facebook.com`,
+      name: fbData.name,
+      passwordHash: "", // không có password
+      status: "active",
+      role: "user"
+    });
+  }
+
+  // Tạo JWT hoặc session như login thường
+  // ... (tùy logic của bạn, ví dụ:)
+  // const token = tạoJWT(user);
+
+  return { message: "Đăng nhập Facebook thành công", user };
+};
+
 export const register = async ({ email, password, name }) => {
   if (!email || !password || !name) throw new Error("Thiếu thông tin đăng ký");
 
