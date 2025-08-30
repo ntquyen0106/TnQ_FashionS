@@ -2,32 +2,42 @@ import * as auth from "../services/auth.service.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 
-const cookieOpts = {
+export const COOKIE_NAME = "token";
+
+const ONE_DAY = 1000 * 60 * 60 * 24;
+const SEVEN_DAYS = ONE_DAY * 7;
+const THIRTY_DAYS = ONE_DAY * 30;
+
+export const baseCookieOpts = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  maxAge: 1000 * 60 * 60 * 24 * 7 // 7 ngày
 };
 
+// LOGIN
 export const postLogin = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, remember } = req.body;
     const { token, user } = await auth.login({ email, password });
-    res.cookie("token", token, cookieOpts);
+    const maxAge = remember ? THIRTY_DAYS : SEVEN_DAYS;
+
+    // ✅ thêm path:"/" và dùng baseCookieOpts + COOKIE_NAME
+    res.cookie(COOKIE_NAME, token, { ...baseCookieOpts, path: "/", maxAge });
+
     res.json({ user });
   } catch (e) { next(e); }
 };
 
-//register user
+// REGISTER
 export const postRegister = async (req, res, next) => {
-    try {
+  try {
     const { email, password, name } = req.body;
     const result = await auth.register({ email, password, name });
     res.json(result);
   } catch (e) { next(e); }
 };
 
-//verify otp
+// VERIFY OTP
 export const postVerifyOtp = async (req, res, next) => {
   try {
     const { email, otp, password, name } = req.body;
@@ -36,13 +46,11 @@ export const postVerifyOtp = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-
-//add address if address not exists
+// ADD ADDRESS (nếu chưa dùng thì có thể comment)
 export const postAddAddress = async (req, res, next) => {
   try {
-    const token = req.cookies?.token;
+    const token = req.cookies?.[COOKIE_NAME];
     if (!token) return res.status(401).json({ message: "Unauthenticated" });
-
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(payload.sub);
     if (!user) return res.status(401).json({ message: "Unauthenticated" });
@@ -55,6 +63,18 @@ export const postAddAddress = async (req, res, next) => {
     await user.save();
 
     res.json({ user: auth.sanitize(user) });
+  } catch (e) { next(e); }
+};
+
+// GET ME
+export const getMe = async (req, res, next) => {
+  try {
+    const token = req.cookies?.[COOKIE_NAME];
+    if (!token) return res.status(401).json({ message: "Unauthenticated" });
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const me = await User.findById(payload.sub);
+    if (!me) return res.status(401).json({ message: "Unauthenticated" });
+    res.json({ user: auth.sanitize(me) });
   } catch (e) { next(e); }
 };
 
@@ -119,21 +139,17 @@ export const postResendOtp = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-//Get My information
-export const getMe = async (req, res, next) => {
-  try {
-    const token = req.cookies?.token;
-    if (!token) return res.status(401).json({ message: "Unauthenticated" });
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const me = await User.findById(payload.sub);
-    if (!me) return res.status(401).json({ message: "Unauthenticated" });
-    res.json({ user: auth.sanitize(me) });
-  } catch (e) { next(e); }
-};
-
 export const postLogout = async (req, res) => {
-  res.clearCookie("token", { ...cookieOpts, maxAge: 0 });
-  res.json({ message: "Logged out" });
+  // ❌ bỏ clearCookie(...cookieOpts) cũ
+  // ✅ đặt trống + maxAge 0 + expires về 0 và giữ y chang các option khi set
+  res.cookie(COOKIE_NAME, "", {
+    ...baseCookieOpts,
+    path: "/",            // phải trùng với lúc set
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  res.setHeader("Cache-Control", "no-store");
+  return res.status(200).json({ message: "Logged out" });
 };
 
 export const postForgotPassword = async (req, res, next) => {

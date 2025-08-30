@@ -1,15 +1,9 @@
-import { useEffect, useState } from "react";
-import styles from "./Home.module.css";
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
+import styles from './Home.module.css';
 
 export default function Home() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-  }, []);
+  const { user, loading } = useAuth(); // lấy user từ context
 
   return (
     <div className="container">
@@ -20,20 +14,21 @@ export default function Home() {
             Phong cách đơn giản, chất lượng cao. Bộ sưu tập mới nhất đang chờ bạn.
           </p>
 
-          {/* Nếu có user thì hiện thêm */}
-          {user ? (
-            <p><b>Xin chào, {user.name}</b> ({user.email})</p>
+          {!loading && user ? (
+            <p>
+              <b>Xin chào, {user.name || user.email}</b>
+            </p>
           ) : (
-            <p>Bạn chưa đăng nhập.</p>
+            !loading && <p>Bạn chưa đăng nhập.</p>
           )}
 
-          <a href="/products" className="btn">Xem sản phẩm</a>
+          {/* dùng Link thay vì <a href> để tránh reload trang */}
+          <Link to="/products" className="btn">
+            Xem sản phẩm
+          </Link>
         </div>
-        <img
-          className={styles.heroImg}
-          src="https://via.placeholder.com/400x300"
-          alt="Fashion"
-        />
+
+        <img className={styles.heroImg} src="https://via.placeholder.com/400x300" alt="Fashion" />
       </section>
     </div>
   );

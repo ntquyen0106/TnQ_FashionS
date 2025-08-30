@@ -14,18 +14,27 @@ export const login = async ({ email, password }) => {
     err.status = 401;
     throw err;
   }
+
+  if (user.status !== "active") {              // <-- thêm
+    const err = new Error("Tài khoản bị khóa"); 
+    err.status = 403;
+    throw err;
+  }
+
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
     const err = new Error("Sai email hoặc mật khẩu");
     err.status = 401;
     throw err;
   }
+
   const token = jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: TOKEN_AGE
   });
   return { token, user: sanitize(user) };
 };
 
+ 
 export const facebookLogin = async ({ token }) => {
   if (!token) throw new Error("Thiếu token");
 
@@ -53,6 +62,7 @@ export const facebookLogin = async ({ token }) => {
 
   return { message: "Đăng nhập Facebook thành công", user };
 };
+
 
 export const register = async ({ email, password, name }) => {
   if (!email || !password || !name) throw new Error("Thiếu thông tin đăng ký");
