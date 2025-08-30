@@ -1,4 +1,5 @@
-import * as auth from "../services/auth.service.js";
+import { adminAuth } from '../config/firebase.js';
+import * as auth from '../services/auth.service.js';
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 
@@ -82,10 +83,10 @@ export const getMe = async (req, res, next) => {
 export const postFirebaseLogin = async (req, res, next) => {
   try {
     const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ message: "Missing idToken" });
+    if (!idToken) return res.status(400).json({ message: 'Missing idToken' });
 
     // Xác thực token với Firebase
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    const decoded = await adminAuth.verifyIdToken(idToken);
 
     // Lấy thông tin user từ Firebase
     const { email, name, uid, picture } = decoded;
@@ -95,27 +96,27 @@ export const postFirebaseLogin = async (req, res, next) => {
     if (!user) {
       user = await User.create({
         email,
-        name: name || "No Name",
+        name: name || 'No Name',
         passwordHash: uid, // Có thể random hoặc để uid, vì không dùng password
         avatar: picture,
-        role: "user",
-        status: "active"
+        role: 'user',
+        status: 'active',
       });
     }
 
     // Tạo JWT cho client
     const token = jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: 60 * 60 * 24 * 7
+      expiresIn: 60 * 60 * 24 * 7,
     });
 
-    res.cookie("token", token, {
+    res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 1000 * 60 * 60 * 24 * 7
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
-    res.json({ user: sanitize(user) });
+    res.json({ user: auth.sanitize(user) });
   } catch (e) {
     next(e);
   }
