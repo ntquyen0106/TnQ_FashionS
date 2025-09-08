@@ -83,52 +83,12 @@ export const getMe = async (req, res, next) => {
 export const postFirebaseLogin = async (req, res, next) => {
   try {
     const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ message: 'Missing idToken' });
-
-    // Xác thực token với Firebase
-    const decoded = await adminAuth.verifyIdToken(idToken);
-
-    // Lấy thông tin user từ Firebase
-    const { email, name, uid, picture } = decoded;
-
-    // Tìm hoặc tạo user trong MongoDB
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({
-        email,
-        name: name || 'No Name',
-        passwordHash: uid, // Có thể random hoặc để uid, vì không dùng password
-        avatar: picture,
-        role: 'user',
-        status: 'active',
-      });
-    }
-
-    // Tạo JWT cho client
-    const token = jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: 60 * 60 * 24 * 7,
-    });
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
-
-    res.json({ user: auth.sanitize(user) });
-  } catch (e) {
-    next(e);
-  }
-};
-
-//Login by Facebook
-export const postFacebookLogin = async (req, res, next) => {
-  try {
-    const { token } = req.body;
-    const result = await auth.facebookLogin({ token });
+    const result = await auth.firebaseSocialLogin({ idToken });
     res.json(result);
-  } catch (e) { next(e); }
+  } catch (e) {
+    console.error(e); // Thêm dòng này để xem lỗi chi tiết trên console
+    res.status(400).json({ message: e.message || "Đăng nhập social thất bại" });
+  }
 };
 
 //Resend OTP

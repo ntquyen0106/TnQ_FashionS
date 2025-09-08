@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Otp from "../models/Otp.js";
 import { sendMail } from "./mail.service.js"; 
+import { adminAuth } from '../config/firebase.js';
 const TOKEN_AGE = 60 * 60 * 24 * 7; // 7 ngày
 
 export const login = async ({ email, password }) => {
@@ -35,32 +36,32 @@ export const login = async ({ email, password }) => {
 };
 
  
-export const facebookLogin = async ({ token }) => {
-  if (!token) throw new Error("Thiếu token");
-
-  // Lấy thông tin user từ Facebook Graph API
-  const fbRes = await fetch(`https://graph.facebook.com/me?fields=id,name,email&access_token=${token}`);
-  const fbData = await fbRes.json();
-
-  if (!fbData.id) throw new Error("Token Facebook không hợp lệ");
-
-  // Tìm hoặc tạo user trong database
-  let user = await User.findOne({ email: fbData.email });
+export const firebaseSocialLogin = async ({ idToken }) => {
+  if (!idToken) throw new Error("Thiếu idToken");
+  const decoded = await adminAuth.verifyIdToken(idToken);
+  const { email, name, picture, uid, firebase } = decoded;
+  
+  let user = await User.findOne({ email });
   if (!user) {
     user = await User.create({
-      email: fbData.email || `${fbData.id}@facebook.com`,
-      name: fbData.name,
-      passwordHash: "", // không có password
+      email,
+      name: name || "Social User",
+      avatar: picture,
+      passwordHash: "",
       status: "active",
-      role: "user"
+      role: "user",
+      provider: firebase?.sign_in_provider || "firebase"
     });
   }
+  const JWT_SECRET = process.env.JWT_SECRET
+  // Tạo JWT
+  const token = jwt.sign(
+    { userId: user._id, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
-  // Tạo JWT hoặc session như login thường
-  // ... (tùy logic của bạn, ví dụ:)
-  // const token = tạoJWT(user);
-
-  return { message: "Đăng nhập Facebook thành công", user };
+  return { user, token };
 };
 
 
