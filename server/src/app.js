@@ -6,6 +6,7 @@ import productRoutes from './routes/product.routes.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 import authRoutes from './routes/auth.routes.js'; // phải có .js
 import helmet from 'helmet';
+import categoryRoutes from './routes/category.routes.js';
 
 export const createApp = (clientUrl) => {
   const app = express();
@@ -21,7 +22,7 @@ export const createApp = (clientUrl) => {
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
-
+  app.use('/api/categories', categoryRoutes);
   app.use(errorHandler);
   return app;
 };

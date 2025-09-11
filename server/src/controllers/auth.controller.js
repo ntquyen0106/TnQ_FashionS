@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 import * as auth from '../services/auth.service.js';
 import User from '../models/User.js';
 
@@ -14,16 +13,16 @@ export const baseCookieOpts = {
   secure: isProd,
   sameSite: isProd ? 'none' : 'lax',
   path: '/', // luôn có path
+  // ❗ Thường KHÔNG cần 'domain' ở localhost. Nếu bạn gặp vấn đề cookie không hiện,
+  // có thể mở comment dòng dưới:
+  // domain: "localhost",
 };
 
 function setAuthCookie(res, token, maxAge) {
-  res.cookie(COOKIE_NAME, token, {
-    ...baseCookieOpts,
-    path: '/',
-    maxAge,
-    domain: 'localhost', // thêm
-  });
+  res.cookie(COOKIE_NAME, token, { ...baseCookieOpts, maxAge });
 }
+
+/* -------------------- AUTH CORE -------------------- */
 
 // LOGIN
 export const postLogin = async (req, res, next) => {
@@ -37,19 +36,20 @@ export const postLogin = async (req, res, next) => {
   }
 };
 
-// ME – dùng req.user đã có từ requireAuth
-export const getMe = async (req, res) => {
-  return res.json({ user: req.user });
-};
-
 // LOGOUT
 export const postLogout = async (req, res) => {
   res.cookie(COOKIE_NAME, '', { ...baseCookieOpts, maxAge: 0, expires: new Date(0) });
   res.setHeader('Cache-Control', 'no-store');
-  return res.json({ message: 'Logged out' });
+  res.json({ message: 'Logged out' });
 };
 
-// REGISTER / VERIFY OTP / RESEND OTP / FORGOT...
+// ME (đã có requireAuth ở routes nên dùng req.user)
+export const getMe = async (req, res) => {
+  return res.json({ user: req.user });
+};
+
+/* -------------------- REGISTER + OTP -------------------- */
+
 export const postRegister = async (req, res, next) => {
   try {
     const { email, password, name } = req.body;
@@ -79,6 +79,8 @@ export const postResendOtp = async (req, res, next) => {
     next(e);
   }
 };
+
+/* -------------------- FORGOT PASSWORD FLOW -------------------- */
 
 export const postForgotPassword = async (req, res, next) => {
   try {
@@ -110,7 +112,41 @@ export const postForgotReset = async (req, res, next) => {
   }
 };
 
-// ADD ADDRESS – dùng req.user.id
+/* -------------------- SOCIAL LOGINS -------------------- */
+
+// Firebase (Google)
+export const postFirebaseLogin = async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+
+    // ⚠️ đảm bảo bạn có export hàm 'firebaseLogin' trong services/auth.service.js
+    // (đúng tên như dưới). Nếu bạn đã viết tên khác như 'firebaseSocialLogin'
+    // thì đổi về 'firebaseLogin' hoặc sửa dòng gọi này cho khớp.
+    const { user, token } = await auth.firebaseLogin({ idToken });
+
+    setAuthCookie(res, token, SEVEN_DAYS);
+    res.json({ user });
+  } catch (e) {
+    next(e);
+  }
+};
+
+// Facebook
+export const postFacebookLogin = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const result = await auth.facebookLogin({ token });
+    // Nếu bạn cũng muốn set cookie sau facebookLogin:
+    // setAuthCookie(res, result.token, SEVEN_DAYS);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+/* -------------------- USER UTILITIES -------------------- */
+
+// Thêm địa chỉ cho user (đã có requireAuth -> dùng req.user.id)
 export const postAddAddress = async (req, res, next) => {
   try {
     const { address } = req.body;
@@ -124,28 +160,6 @@ export const postAddAddress = async (req, res, next) => {
     await user.save();
 
     res.json({ user: auth.sanitize(user) });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// Firebase login (nếu dùng) – tạm thời: gọi service để khỏi phụ thuộc admin SDK ở đây
-export const postFirebaseLogin = async (req, res, next) => {
-  try {
-    const { idToken } = req.body;
-    const { user, token } = await auth.firebaseLogin({ idToken }); // triển khai trong services
-    setAuthCookie(res, token, SEVEN_DAYS);
-    res.json({ user });
-  } catch (e) {
-    next(e);
-  }
-};
-
-export const postFacebookLogin = async (req, res, next) => {
-  try {
-    const { token } = req.body;
-    const result = await auth.facebookLogin({ token });
-    res.json(result);
   } catch (e) {
     next(e);
   }
