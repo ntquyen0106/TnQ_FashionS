@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { http } from '../../../api/http';
+import { chatbotApi } from '@/api';
 
 export default function ChatbotPage() {
   const [items, setItems] = useState([]);
@@ -7,8 +7,13 @@ export default function ChatbotPage() {
   const [form, setForm] = useState({ intent: '', question: '', answer: '' });
 
   const load = async () => {
-    const { data } = await http.get('/chatbot/templates', { params: { q: q || undefined } });
-    setItems(data.items || data || []);
+    try {
+      const data = await chatbotApi.listTemplates(q);
+      setItems(data.items || data || []);
+    } catch (e) {
+      console.error(e);
+      setItems([]);
+    }
   };
   useEffect(() => {
     load();
@@ -17,20 +22,19 @@ export default function ChatbotPage() {
   const save = async (e) => {
     e.preventDefault();
     if (!form.intent || !form.answer) return;
-    await http.post('/chatbot/templates', form);
+    await chatbotApi.createTemplate(form);
     setForm({ intent: '', question: '', answer: '' });
     await load();
   };
 
   const remove = async (id) => {
-    await http.delete(`/chatbot/templates/${id}`);
+    await chatbotApi.deleteTemplate(id);
     await load();
   };
 
   return (
     <>
       <h2>Quản lý chatbot (template trả lời)</h2>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
           <h3>Danh sách</h3>
