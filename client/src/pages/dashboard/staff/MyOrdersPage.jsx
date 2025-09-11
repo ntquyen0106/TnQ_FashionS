@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
-import { http } from '../../../api/http';
+import { ordersApi } from '@/api';
 
 export default function MyOrdersPage() {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('');
 
   const load = async () => {
-    const { data } = await http.get('/orders', {
-      params: { assignee: 'me', status: status || undefined },
-    });
-    setItems(data.items || data || []);
+    try {
+      const data = await ordersApi.list({ assignee: 'me', status: status || undefined });
+      setItems(data.items || data || []);
+    } catch (e) {
+      console.error(e);
+      setItems([]);
+    }
   };
+
   useEffect(() => {
     load();
   }, [status]);

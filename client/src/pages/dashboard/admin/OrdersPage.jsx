@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react';
-import { http } from '../../../api/http';
+import { ordersApi, usersApi } from '@/api';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [staffs, setStaffs] = useState([]);
-  const [assigning, setAssigning] = useState({}); // {orderId: true}
+  const [assigning, setAssigning] = useState({});
 
   const load = async () => {
-    const [o, s] = await Promise.all([
-      http.get('/orders', { params: { status: 'new' } }), // đơn mới/chưa gán
-      http.get('/users', { params: { role: 'staff' } }), // danh sách staff
-    ]);
-    setOrders(o.data.items || o.data || []);
-    setStaffs(s.data.items || s.data || []);
+    try {
+      const [o, s] = await Promise.all([
+        ordersApi.list({ status: 'new' }),
+        usersApi.list({ role: 'staff' }),
+      ]);
+      setOrders(o.items || o || []);
+      setStaffs(s.items || s || []);
+    } catch (e) {
+      console.error(e);
+      setOrders([]);
+      setStaffs([]);
+    }
   };
 
   useEffect(() => {
@@ -23,7 +29,7 @@ export default function OrdersPage() {
     if (!staffId) return;
     setAssigning((x) => ({ ...x, [orderId]: true }));
     try {
-      await http.patch(`/orders/${orderId}/assign`, { staffId });
+      await ordersApi.assign(orderId, staffId);
       await load();
     } finally {
       setAssigning((x) => ({ ...x, [orderId]: false }));
@@ -50,7 +56,9 @@ export default function OrdersPage() {
               <tr key={o.id || o._id}>
                 <td>{o.code || o._id}</td>
                 <td>
-                  {o.customerName} <br /> {o.customerPhone}
+                  {o.customerName}
+                  <br />
+                  {o.customerPhone}
                 </td>
                 <td>{(o.total || 0).toLocaleString()} đ</td>
                 <td>{o.status}</td>

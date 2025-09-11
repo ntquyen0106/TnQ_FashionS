@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { http } from '../../../api/http';
+import { ordersApi } from '@/api';
 
 export default function UpdateStatusPage() {
   const [orderId, setOrderId] = useState('');
@@ -10,7 +10,7 @@ export default function UpdateStatusPage() {
     e.preventDefault();
     setMsg('');
     try {
-      await http.patch(`/orders/${orderId}/status`, { status });
+      await ordersApi.updateStatus(orderId, status);
       setMsg('Cập nhật thành công');
       setOrderId('');
     } catch (e) {
