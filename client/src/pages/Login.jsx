@@ -16,14 +16,24 @@ export default function Login() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setMsg('');
-    if (!email || !password) return setMsg('Vui lòng nhập email và mật khẩu');
+    setLoading(true);
     try {
-      setLoading(true);
+      // 1. Gọi login
       await authApi.login({ email, password, remember: true });
-      const me = await authApi.me(); // ✅ sửa lại
-      setUser(me.user);
-      if (me.user.role === 'admin') nav('/dashboard/admin', { replace: true });
-      else if (me.user.role === 'staff') nav('/dashboard', { replace: true });
+
+      // 2. Thử gọi me()
+      let me = null;
+      try {
+        me = await authApi.me();
+        setUser(me);
+      } catch {
+        // nếu cookie chưa kịp sync, AuthProvider sẽ lo gọi lại
+        console.debug('me() sau login chưa kịp có cookie, bỏ qua.');
+      }
+
+      // 3. Điều hướng
+      if (me?.role === 'admin') nav('/dashboard/admin', { replace: true });
+      else if (me?.role === 'staff') nav('/dashboard', { replace: true });
       else nav('/', { replace: true });
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đăng nhập thất bại');
@@ -37,11 +47,13 @@ export default function Login() {
     try {
       setMsg('');
       setLoading(true);
-      const result = await loginWithGoogle(); // Firebase client
-      const idToken = await result.user.getIdToken(); // lấy idToken
-      // Gửi idToken sang BE để BE set cookie + trả user chuẩn
-      const { data } = await authApi.firebaseLogin(idToken);
-      setUser(data.user);
+      const result = await loginWithGoogle();
+      const idToken = await result.user.getIdToken();
+
+      // trả về { user }, không destructure data
+      const { user } = await authApi.firebaseLogin(idToken);
+
+      setUser(user);
       nav('/', { replace: true });
     } catch (err) {
       console.error(err);

@@ -9,11 +9,8 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// Cookie-only: không gắn Authorization
+http.interceptors.request.use((config) => config);
 
 http.interceptors.response.use(
   (res) => {
@@ -25,14 +22,24 @@ http.interceptors.response.use(
     return res;
   },
   (err) => {
+    const reqUrl = err?.config?.url || '';
+    const method = (err?.config?.method || '').toUpperCase();
     const status = err?.response?.status;
     const msg = err?.response?.data?.message || 'Có lỗi xảy ra';
 
+    const onLoginPage = location.pathname.startsWith('/login');
+
+    // ❗️Đừng làm ồn khi 401 từ /auth/me (bootstrap) hoặc đang ở trang login
+    const isAuthMe = reqUrl.includes('/auth/me') && method === 'GET';
     if (status === 401) {
-      localStorage.removeItem('access_token');
-      if (!location.pathname.startsWith('/login')) location.href = '/login';
+      if (!isAuthMe && !onLoginPage) {
+        // Bạn có thể tùy chọn: không toast luôn để khỏi "thất bại" giả
+        // toast.error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
+        location.href = '/login';
+      }
     } else {
-      toast.error(msg);
+      // Tránh toast trùng: không toast lỗi cho /auth/me
+      if (!isAuthMe) toast.error(msg);
     }
     return Promise.reject(err);
   },

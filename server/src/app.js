@@ -12,12 +12,22 @@ export const createApp = (clientUrl) => {
   const app = express();
 
   app.set('trust proxy', 1); // <-- thêm
-  app.use(helmet()); // <-- thêm
+  app.use(
+    helmet({
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   app.use(morgan('dev'));
   app.use(express.json());
   app.use(cookieParser());
 
-  app.use(cors({ origin: clientUrl, credentials: true }));
+  app.use(
+    cors({
+      origin: ['http://localhost:5173', 'http://localhost:3000'], // FE origin
+      credentials: true, // cho phép gửi cookie
+    }),
+  );
 
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
   app.use('/api/auth', authRoutes);

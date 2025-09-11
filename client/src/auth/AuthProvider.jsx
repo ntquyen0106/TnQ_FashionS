@@ -1,7 +1,9 @@
+// src/auth/AuthProvider.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
-import { authApi } from '@/api'; // 👉 import từ barrel
+import { authApi } from '@/api';
 
 const AuthCtx = createContext(null);
+
 export const useAuth = () => useContext(AuthCtx);
 
 export default function AuthProvider({ children }) {
@@ -11,7 +13,7 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     authApi
       .me()
-      .then((data) => setUser(data.user))
+      .then((user) => setUser(user))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
