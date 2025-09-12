@@ -1,16 +1,18 @@
-// client/src/pages/dashboard/staff/OrderQueuePage.jsx
 import { useEffect, useState } from 'react';
-import { http } from '../../../api/http';
+import { ordersApi } from '@/api';
 
 export default function OrderQueuePage() {
   const [queue, setQueue] = useState([]);
   const [claiming, setClaiming] = useState({});
 
   const load = async () => {
-    const { data } = await http.get('/orders', {
-      params: { status: 'new', unassigned: true },
-    });
-    setQueue(data.items || data || []);
+    try {
+      const data = await ordersApi.list({ status: 'new', unassigned: true });
+      setQueue(data.items || data || []);
+    } catch (e) {
+      console.error(e);
+      setQueue([]);
+    }
   };
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function OrderQueuePage() {
   const claim = async (orderId) => {
     setClaiming((x) => ({ ...x, [orderId]: true }));
     try {
-      await http.post(`/orders/${orderId}/claim`);
+      await ordersApi.claim(orderId);
       await load();
     } finally {
       setClaiming((x) => ({ ...x, [orderId]: false }));

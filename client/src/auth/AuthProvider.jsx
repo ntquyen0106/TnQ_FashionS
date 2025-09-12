@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { http } from "../api/http";
+// src/auth/AuthProvider.jsx
+import { createContext, useContext, useEffect, useState } from 'react';
+import { authApi } from '@/api';
 
 const AuthCtx = createContext(null);
+
 export const useAuth = () => useContext(AuthCtx);
 
 export default function AuthProvider({ children }) {
@@ -9,19 +11,19 @@ export default function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    http.get("/auth/me")
-      .then(({ data }) => setUser(data.user))
+    authApi
+      .me()
+      .then((user) => setUser(user))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   const logout = async () => {
-  try { await http.post("/auth/logout"); } catch {}
-  setUser(null);
-};
-  return (
-    <AuthCtx.Provider value={{ user, setUser, loading, logout }}>
-      {children}
-    </AuthCtx.Provider>
-  );
+    try {
+      await authApi.logout();
+    } catch {}
+    setUser(null);
+  };
+
+  return <AuthCtx.Provider value={{ user, setUser, loading, logout }}>{children}</AuthCtx.Provider>;
 }
