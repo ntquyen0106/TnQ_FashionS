@@ -6,6 +6,8 @@ const router = Router();
 
 router.get("/", ctrl.list);
 router.get("/:id", ctrl.getOne);
+router.get("/category/:categoryId", ctrl.getProductsByCategory);
+
 
 router.post("/", requireAuth, requireRole("admin","staff"), ctrl.create);
 router.put("/:id", requireAuth, requireRole("admin","staff"), ctrl.update);

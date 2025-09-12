@@ -1,7 +1,7 @@
 // services/product.service.js
 import mongoose from "mongoose";
 import Product from "../models/Product.js";
-
+import Category from "../models/Category.js";
 // build filter cho aggregate
 const buildFilter = ({ q, categoryId, minPrice, maxPrice, colors, sizes, onlyInStock, status }) => {
   const f = {};
@@ -183,3 +183,13 @@ function parseBool(v) {
   if (v === true || v === "true" || v === "1") return true;
   return false;
 }
+
+export const getProductsByCategory = async (categoryId) => {
+  // Lấy tất cả danh mục con 1 cấp
+  const children = await Category.find({ parentId: categoryId });
+  const childIds = children.map(cat => cat._id.toString());
+  // Lấy tất cả _id cần tìm: chính nó + các con
+  const allCategoryIds = [categoryId, ...childIds];
+  // Lấy sản phẩm thuộc các danh mục này
+  return Product.find({ categoryId: { $in: allCategoryIds } });
+};

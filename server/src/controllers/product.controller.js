@@ -1,4 +1,6 @@
 import * as svc from "../services/product.service.js";
+import Product from "../models/Product.js";
+import Category from "../models/Category.js";
 
 export const list = async (req, res, next) => {
   try { res.json(await svc.search(req.query)); }
@@ -23,4 +25,14 @@ export const update = async (req, res, next) => {
 export const remove = async (req, res, next) => {
   try { res.json(await svc.remove(req.params.id)); }
   catch (e) { next(e); }
+};
+
+export const getProductsByCategory = async (req, res, next) => {
+  try {
+    const { categoryId } = req.params;
+    const products = await svc.getProductsByCategory(categoryId);
+    res.json(products);
+  } catch (err) {
+    next(err);
+  }
 };
