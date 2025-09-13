@@ -20,6 +20,7 @@ const UserSchema = new mongoose.Schema(
     passwordHash: { type: String, required: false },
     role: { type: String, enum: ["user", "admin", "staff"], default: "user" },
     status: { type: String, enum: ["active", "banned"], default: "active" },
+    addresses: { type: [AddressSchema], default: [] } // <-- tối ưu nhất!
   },
   { timestamps: true }
 );

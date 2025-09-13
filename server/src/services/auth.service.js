@@ -226,6 +226,43 @@ export const forgotReset = async ({ resetToken, newPassword }) => {
   return { message: 'Đổi mật khẩu thành công' };
 };
 
+
+//==================================================================================
+// ULtility
+//================================================================================
+
+export const addAddress = async (userId, addressData) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+
+  // Nếu là địa chỉ đầu tiên hoặc addressData.isDefault, set mặc định
+  let isDefault = user.addresses.length === 0;
+  if (addressData.isDefault === true) isDefault = true;
+
+  if (isDefault) {
+    user.addresses.forEach(addr => addr.isDefault = false);
+  }
+
+  user.addresses.push({ ...addressData, isDefault });
+  await user.save();
+  return user;
+};
+
+export const setDefaultAddress = async (userId, addressId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+
+  user.addresses = user.addresses.map(addr => ({
+    ...addr.toObject(),
+    isDefault: addr._id.toString() === addressId,
+  }));
+
+  await user.save();
+  return user;
+};
+//================================================================================= 
+
+
 console.log('PROVIDER=', process.env.EMAIL_PROVIDER);
 console.log('MAILTRAP_USER exists?', !!process.env.MAILTRAP_USER);
 console.log('MAILTRAP_PASS exists?', !!process.env.MAILTRAP_PASS);

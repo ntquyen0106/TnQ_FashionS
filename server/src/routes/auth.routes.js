@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { postLogin, getMe, postLogout, postAddAddress, postRegister, postFirebaseLogin, postVerifyOtp, postResendOtp,postForgotPassword, postForgotVerify, postForgotReset} from "../controllers/auth.controller.js";
+import { postLogin, getMe, postLogout, postAddAddress, postRegister, postFirebaseLogin, postVerifyOtp, postResendOtp,postForgotPassword, postForgotVerify, postForgotReset, postSetDefaultAddress} from "../controllers/auth.controller.js";
 import { requireAuth } from "../middlewares/requireAuth.js";
 const router = Router();
 
@@ -14,4 +14,7 @@ router.post("/resend-otp", postResendOtp);
 router.post("/forgot", postForgotPassword);
 router.post("/forgot/verify", postForgotVerify);
 router.post("/forgot/reset", postForgotReset);
+
+router.post("/add-address", requireAuth, postAddAddress); // body: { address: { name, phone, addressLine1, addressLine2, city, state, country, zip } }
+router.post("/set-default-address", requireAuth, postSetDefaultAddress); // body: { addressId }
 export default router;

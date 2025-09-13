@@ -146,19 +146,18 @@ export const postFacebookLogin = async (req, res, next) => {
 
 /* -------------------- USER UTILITIES -------------------- */
 
-// Thêm địa chỉ cho user (đã có requireAuth -> dùng req.user.id)
 export const postAddAddress = async (req, res, next) => {
   try {
-    const { address } = req.body;
-    if (!address) return res.status(400).json({ message: 'Address is required' });
+    const user = await auth.addAddress(req.user._id, req.body.address);
+    res.json({ user: auth.sanitize(user) });
+  } catch (e) {
+    next(e);
+  }
+};
 
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(401).json({ message: 'Unauthenticated' });
-
-    user.address = user.address || [];
-    user.address.push(address);
-    await user.save();
-
+export const postSetDefaultAddress = async (req, res, next) => {
+  try {
+    const user = await auth.setDefaultAddress(req.user._id, req.body.addressId);
     res.json({ user: auth.sanitize(user) });
   } catch (e) {
     next(e);
