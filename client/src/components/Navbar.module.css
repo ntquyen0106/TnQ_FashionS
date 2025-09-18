@@ -1,0 +1,232 @@
+/* --- Navbar wrapper --- */
+.wrap {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 70px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* --- Logo --- */
+.brand img {
+  height: 55px;
+  width: 55px;
+  display: block;
+}
+
+/* --- Menu chính --- */
+.menu {
+  list-style: none;
+  display: flex;
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  position: relative;
+}
+.link {
+  position: relative;
+  padding: 22px 0;
+  font-weight: 600;
+  font-size: 17px;
+  color: #000000;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.link:hover {
+  color: #e63946;
+}
+.link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 14px;
+  width: 0%;
+  height: 2px;
+  background: #e63946;
+  transition: width 0.25s ease-in-out;
+}
+.link:hover::after {
+  width: 100%;
+}
+
+/* --- Mega menu dropdown --- */
+.hasMega .mega {
+  position: absolute;
+  top: 210%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 550px;
+  padding: 32px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  display: none;
+}
+.item.hasMega:hover .mega {
+  display: block;
+}
+
+/* --- Mega menu inner grid --- */
+.megaInner {
+  background-color: #ffffff;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 32px;
+  justify-content: center;
+}
+.col {
+}
+.colTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #111;
+  font-size: 17px;
+  text-decoration: none;
+  margin-bottom: 8px;
+}
+.arrow {
+  font-size: 17px;
+  opacity: 0.5;
+}
+.colList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.colLink {
+  display: block;
+  padding: 6px 0;
+  font-size: 15px;
+  color: #444;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.colLink:hover {
+  color: #e63946;
+}
+
+/* --- Search & icons --- */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f7f7f7;
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+.search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  min-width: 200px;
+}
+.search button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+.icon {
+  font-size: 20px;
+  color: #333;
+  text-decoration: none;
+  position: relative;
+}
+.icon:hover {
+  color: #e63946;
+}
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: #e63946;
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 999px;
+  padding: 2px 5px;
+  line-height: 1;
+}
+/* Responsive - Tablet */
+@media (max-width: 992px) {
+  .inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 12px 16px;
+  }
+
+  .menu {
+    gap: 16px;
+  }
+
+  .search input {
+    min-width: 120px;
+  }
+
+  .hasMega .mega {
+    width: 90vw; /* thu gọn theo màn hình */
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 20px;
+  }
+
+  .megaInner {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 600px) {
+  .inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .menu {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .link {
+    padding: 10px 0;
+  }
+
+  .hasMega .mega {
+    position: static;
+    transform: none;
+    width: 100%;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .megaInner {
+    display: block;
+  }
+
+  .col {
+    margin-bottom: 16px;
+  }
+}

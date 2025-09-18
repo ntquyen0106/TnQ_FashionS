@@ -8,6 +8,7 @@ import CategoriesPage from './admin/CategoriesPage';
 import UsersPage from './admin/UsersPage';
 import ReportsPage from './admin/ReportsPage';
 import ChatbotPage from './admin/ChatbotPage';
+import AdminProductNew from '@/pages/dashboard/admin/AdminProductNew';
 
 const LINKS = [
   { to: '/dashboard/admin/products', label: 'Quản lý sản phẩm' },
@@ -26,6 +27,11 @@ export default function AdminDashboard() {
       <Route element={<DashboardLayout links={LINKS} />}>
         <Route index element={<Navigate to="products" replace />} />
         <Route path="products" element={<ProductsPage />} />
+        <Route path="products/new" element={<AdminProductNew />} />
+
+        {/* (tuỳ chọn) Sửa sản phẩm theo id hoặc slug */}
+        {/* <Route path="products/:id" element={<AdminProductEdit />} /> */}
+
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="promotions" element={<PromotionsPage />} />

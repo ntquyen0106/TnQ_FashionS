@@ -7,6 +7,7 @@ import { errorHandler } from './middlewares/error.middleware.js';
 import authRoutes from './routes/auth.routes.js'; // phải có .js
 import helmet from 'helmet';
 import categoryRoutes from './routes/category.routes.js';
+import mediaRoute from './routes/media.route.js';
 
 export const createApp = (clientUrl) => {
   const app = express();
@@ -33,6 +34,7 @@ export const createApp = (clientUrl) => {
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/categories', categoryRoutes);
+  app.use('/api', mediaRoute);
   app.use(errorHandler);
   return app;
 };
