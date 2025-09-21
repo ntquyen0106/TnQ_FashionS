@@ -7,17 +7,24 @@ export const postAddToCart = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-export const postApplyPromotion = async (req, res, next) => {
+export const getCartTotal = async (req, res, next) => {
   try {
-    const cart = await cartService.applyPromotion(req.body);
-    res.json(cart);
+    // Hỗ trợ lấy từ body hoặc query (FE gửi selectedItems qua body)
+    const { userId, sessionId, selectedItems } = req.method === 'GET' ? req.query : req.body;
+    const total = await cartService.getCartTotal({
+      userId,
+      sessionId,
+      selectedItems: selectedItems ? JSON.parse(selectedItems) : undefined
+    });
+    res.json(total);
   } catch (e) { next(e); }
 };
 
-export const getCartTotal = async (req, res, next) => {
+export const postApplyPromotion = async (req, res, next) => {
   try {
-    const total = await cartService.getCartTotal(req.query);
-    res.json(total);
+    const { userId, sessionId, code, selectedItems } = req.body;
+    const result = await cartService.applyPromotion({ userId, sessionId, code, selectedItems });
+    res.json(result);
   } catch (e) { next(e); }
 };
 

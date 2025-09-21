@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/add', cartController.postAddToCart);
 router.post('/apply-promo', cartController.postApplyPromotion);
-router.get('/total', cartController.getCartTotal);
 router.post('/merge', cartController.postMergeGuestCart);
+router.post('/total', cartController.getCartTotal);
 
 export default router;

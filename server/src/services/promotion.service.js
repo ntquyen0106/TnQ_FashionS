@@ -1,6 +1,5 @@
 import Promotion from '../models/Promotion.js';
 
-// Lấy danh sách promotion (có thể filter theo status, code...)
 export const listPromotions = async (filter = {}) => {
   return Promotion.find(filter).sort({ createdAt: -1 });
 };
