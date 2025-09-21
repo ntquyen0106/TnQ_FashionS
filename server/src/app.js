@@ -8,6 +8,9 @@ import authRoutes from './routes/auth.routes.js'; // phải có .js
 import helmet from 'helmet';
 import categoryRoutes from './routes/category.routes.js';
 import mediaRoute from './routes/media.route.js';
+import cartRoutes from './routes/cart.routes.js';
+import orderRoutes from './routes/order.routes.js';
+
 
 export const createApp = (clientUrl) => {
   const app = express();
@@ -36,5 +39,7 @@ export const createApp = (clientUrl) => {
   app.use('/api/categories', categoryRoutes);
   app.use('/api', mediaRoute);
   app.use(errorHandler);
+  app.use('/api/cart', cartRoutes);
+  app.use('/api/order', orderRoutes);
   return app;
 };
