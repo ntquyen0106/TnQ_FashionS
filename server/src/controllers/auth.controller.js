@@ -148,8 +148,8 @@ export const postFacebookLogin = async (req, res, next) => {
 
 export const postAddAddress = async (req, res, next) => {
   try {
-    const user = await auth.addAddress(req.user._id, req.body.address);
-    res.json({ user: auth.sanitize(user) });
+    const result = await auth.addAddress(req.user._id, req.body.address);
+    res.json(result); // result: { message, addresses }
   } catch (e) {
     next(e);
   }
@@ -158,8 +158,18 @@ export const postAddAddress = async (req, res, next) => {
 export const postSetDefaultAddress = async (req, res, next) => {
   try {
     const user = await auth.setDefaultAddress(req.user._id, req.body.addressId);
-    res.json({ user: auth.sanitize(user) });
+    res.json({addresses: user.addresses });
   } catch (e) {
     next(e);
   }
 };
+
+//-------------------- ADMIN UTILITIES --------------------
+export const getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find().select('-passwordHash');
+    res.json({ users });
+  } catch (e) {
+    next(e);
+  }
+}

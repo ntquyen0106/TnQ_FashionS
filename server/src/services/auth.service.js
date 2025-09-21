@@ -245,7 +245,10 @@ export const addAddress = async (userId, addressData) => {
 
   user.addresses.push({ ...addressData, isDefault });
   await user.save();
-  return user;
+  return {
+    message: "Thêm địa chỉ thành công",
+    addresses: user.addresses
+  };
 };
 
 export const setDefaultAddress = async (userId, addressId) => {
