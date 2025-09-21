@@ -1,37 +1,42 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { authApi } from '@/api';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { authApi } from '@/api/auth-api';
 import { loginWithGoogle, loginWithFacebook } from '../api/firebase';
 import { useAuth } from '../auth/AuthProvider';
 import styles from './LoginRegister.module.css';
 
 export default function Login() {
   const nav = useNavigate();
+  const location = useLocation();
   const { setUser } = useAuth(); // <-- dùng context
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const fromPath = location.state?.from?.pathname || '/';
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setMsg('');
     setLoading(true);
+
     try {
-      // 1. Gọi login
       await authApi.login({ email, password, remember: true });
 
-      // 2. Thử gọi me()
+      // Đợi cookie được set rồi mới gọi me(); retry nhẹ nếu cần
       let me = null;
-      try {
-        me = await authApi.me();
-        setUser(me);
-      } catch {
-        // nếu cookie chưa kịp sync, AuthProvider sẽ lo gọi lại
-        console.debug('me() sau login chưa kịp có cookie, bỏ qua.');
+      for (let i = 0; i < 2 && !me; i++) {
+        try {
+          me = await authApi.me();
+        } catch {
+          await new Promise((r) => setTimeout(r, 120)); // chờ 120ms rồi thử lại 1 lần
+        }
       }
 
-      // 3. Điều hướng
+      if (me) setUser(me);
+
+      // Điều hướng theo role (nếu me chưa về kịp thì coi như user thường)
       if (me?.role === 'admin') nav('/dashboard/admin', { replace: true });
       else if (me?.role === 'staff') nav('/dashboard', { replace: true });
       else nav('/', { replace: true });

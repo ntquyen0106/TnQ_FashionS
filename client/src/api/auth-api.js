@@ -19,3 +19,4 @@ export const authApi = {
   resetPassword: ({ resetToken, newPassword }) =>
     http.post('/auth/forgot/reset', { resetToken, newPassword }).then((r) => r.data),
 };
+export default authApi;
