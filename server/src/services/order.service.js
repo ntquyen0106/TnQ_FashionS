@@ -1,19 +1,20 @@
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import { getCartTotal } from './cart.service.js';
-// import các SDK/payment service thực tế nếu cần
 
-export const checkout = async ({ userId, sessionId, addressId, paymentMethod }) => {
+export const checkout = async ({ userId, sessionId, addressId, paymentMethod, selectedItems }) => {
   let cart;
   if (userId) {
     cart = await Cart.findOne({ userId, status: 'active' });
   } else if (sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' });
   }
-  if (!cart || cart.items.length === 0) throw new Error('Cart is empty');
+  if (!cart) throw new Error('Cart not found');
 
-  // Lấy tổng tiền từ cart service
-  const { subtotal, discount, total, promotion, items } = await getCartTotal({ userId, sessionId });
+  // Lấy tổng tiền cho các sản phẩm được chọn
+  const { subtotal, discount, total, promotion, items } = await getCartTotal({ userId, sessionId, selectedItems });
+
+  if (!items || items.length === 0) throw new Error('No items selected for checkout');
 
   // Xác định trạng thái đơn hàng ban đầu
   let status = 'pending';
@@ -35,50 +36,15 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod }) 
     status
   });
 
-  // Đánh dấu cart đã đặt hàng
-  cart.status = 'ordered';
+  // Xóa các item đã mua khỏi cart
+  cart.items = cart.items.filter(
+    item => !items.some(
+      sel => item.productId.toString() === sel.productId.toString() && item.variantSku === sel.variantSku
+    )
+  );
   await cart.save();
 
-  // Tạo đơn GHN test (giả lập)
-  const ghnResult = await createGHNOrderTest(order);
+  // (Tùy chọn: Tích hợp payment gateway, GHN...)
 
-  // Nếu là thanh toán online, tạo link thanh toán thật ở đây
-  let paymentUrl = null;
-  if (paymentMethod === 'momo') {
-    paymentUrl = await createMomoPayment(order);
-  } else if (paymentMethod === 'zalopay') {
-    paymentUrl = await createZaloPayPayment(order);
-  } else if (paymentMethod === 'vnpay') {
-    paymentUrl = await createVNPayPayment(order);
-  }
-
-  return {
-    order,
-    ghn: ghnResult,
-    paymentUrl
-  };
+  return order;
 };
-
-// Hàm giả lập tạo đơn GHN (test mode)
-async function createGHNOrderTest(order) {
-  return {
-    success: true,
-    message: 'GHN test order created',
-    ghnOrderCode: 'GHNTEST' + order._id.toString().slice(-6)
-  };
-}
-
-// Các hàm dưới đây bạn cần tích hợp SDK/payment gateway thực tế
-async function createMomoPayment(order) {
-  // Tích hợp SDK hoặc gọi API Momo thực tế ở đây
-  // Trả về paymentUrl thực tế từ Momo
-  return 'https://momo.vn/real-payment-url?orderId=' + order._id;
-}
-async function createZaloPayPayment(order) {
-  // Tích hợp SDK hoặc gọi API ZaloPay thực tế ở đây
-  return 'https://zalopay.vn/real-payment-url?orderId=' + order._id;
-}
-async function createVNPayPayment(order) {
-  // Tích hợp SDK hoặc gọi API VNPay thực tế ở đây
-  return 'https://vnpay.vn/real-payment-url?orderId=' + order._id;
-}
