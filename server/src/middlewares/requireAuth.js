@@ -11,7 +11,7 @@ export const requireAuth = async (req, res, next) => {
     if (!token) return res.status(401).json({ message: 'Unauthenticated' });
 
     const payload = jwt.verify(token, process.env.JWT_SECRET); // { sub, ... }
-
+m
     const user = await User.findById(payload.sub).select('_id name email role status').lean();
 
     if (!user || user.status !== 'active') {

@@ -3,7 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import productRoutes from './routes/product.routes.js';
-import { errorHandler } from './middlewares/error.middleware.js';
+import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 import authRoutes from './routes/auth.routes.js'; // phải có .js
 import helmet from 'helmet';
 import categoryRoutes from './routes/category.routes.js';
@@ -33,6 +33,7 @@ export const createApp = (clientUrl) => {
     }),
   );
 
+  app.use(notFoundHandler);
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
