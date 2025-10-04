@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { postLogin, getMe, postLogout, postAddAddress, postRegister, postFirebaseLogin, postVerifyOtp, postResendOtp,postForgotPassword, postForgotVerify, postForgotReset, postSetDefaultAddress, getAllUsers} from "../controllers/auth.controller.js";
+import { postLogin, getMe, postLogout, postAddAddress, postRegister, postFirebaseLogin, postVerifyOtp, postResendOtp,postForgotPassword, postForgotVerify, postForgotReset, postSetDefaultAddress, getAllUsers, postCreateUser, putUpdateUser, getUser, deleteOneUser} from "../controllers/auth.controller.js";
 import { requireAuth, requireRole } from "../middlewares/requireAuth.js";
 const router = Router();
 
@@ -19,10 +19,10 @@ router.post("/forgot/reset", postForgotReset);
 router.post("/add-address", requireAuth, postAddAddress); // body: { address }
 router.post("/set-default-address", requireAuth, postSetDefaultAddress); // body: { addressId }
 
-//-------------------- ADMIN UTILITIES --------------------
-router.get("/admin/users", requireAuth, requireRole("admin"), getAllUsers);
-// router.post("/admin/change-role/:id", requireAuth, requireRole("admin"), postChangeUserRole); // body: { role }
-// router.post("/admin/create-user", requireAuth, requireRole("admin"), postCreateUser); // body: { email, password, name, role }
-// router.put("/admin/update-user/:id", requireAuth, requireRole("admin"), postUpdateUser); // body: { email, password, name, role }
-// router.delete("/admin/delete-user/:id", requireAuth, requireRole("admin"), postDeleteUser);
+//-------------------- ADMIN UTILITIE,-------------------
+router.post("/admin/create-user", postCreateUser);   // bodyRequest: email, name, password, role, status
+router.put("/admin/update-user/:id", putUpdateUser); //bodyRequest: email, name, role, status (trường nào không nhập thì mặc định là không update nữa)
+router.get("/admin/get-user/:id", getUser);
+router.get("/admin/get-all-users", getAllUsers); //query name, email, role, fromDate, toDate, page=1, limit=10
+router.delete("/admin/delete/:id", deleteOneUser);
 export default router;

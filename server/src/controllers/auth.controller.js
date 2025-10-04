@@ -165,11 +165,81 @@ export const postSetDefaultAddress = async (req, res, next) => {
 };
 
 //-------------------- ADMIN UTILITIES --------------------
-export const getAllUsers = async (req, res, next) => {
+
+export const postCreateUser = async (req, res) => {
   try {
-    const users = await User.find().select('-passwordHash');
-    res.json({ users });
-  } catch (e) {
-    next(e);
+    const result = await auth.createUser(req.body);
+    return res.status(201).json(result);
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      const errors = {};
+      for (const key in err.errors) {
+        errors[key] = err.errors[key].message;
+      }
+      return res.status(400).json({
+        message: "Validation failed",
+        errors,
+      });
+    }
+    return res
+      .status(err.status || 500)
+      .json({ message: err.message, errors: err.errors || null });
   }
-}
+};
+
+export const putUpdateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await auth.updateUser(id, req.body);
+    return res.status(200).json(result);
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      const errors = {};
+      for (const key in err.errors) {
+        errors[key] = err.errors[key].message;
+      }
+      return res.status(400).json({
+        message: "Validation failed",
+        errors,
+      });
+    }
+    return res
+      .status(err.status || 500)
+      .json({ message: err.message, errors: err.errors || null });
+  }
+};
+
+export const getUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await auth.getUserById(id);
+    return res.json(user);
+  } catch (err) {
+    return res
+      .status(err.status)
+      .json({ message: err.message });
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const result = await auth.getUsers(req.query);
+    return res.status(200).json(result);
+  } catch (err) {
+    return res
+      .status(err.status || 500)
+      .json({ message: err.message, errors: err.errors || null });
+  }
+};
+
+export const deleteOneUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await auth.deleteUser(id);
+    return res.status(200).json(result);
+  } catch (err) {
+    return res
+      .status(err.status || 500)
+      .json({ message: err.message, errors: err.errors || null });
+  }
+};
