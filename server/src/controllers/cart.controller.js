@@ -2,9 +2,22 @@ import * as cartService from '../services/cart.service.js';
 
 export const postAddToCart = async (req, res, next) => {
   try {
-    const cart = await cartService.addToCart(req.body);
-    res.json(cart);
-  } catch (e) { next(e); }
+    const { productId, variantSku, qty } = req.body;
+    const userId = req.user?._id; // Nếu đã login
+    const sessionId = req.body.sessionId; // Nếu chưa login
+
+    const result = await cartService.addToCart({
+      userId,
+      sessionId,
+      productId,
+      variantSku,
+      qty: parseInt(qty)
+    });
+
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
 };
 
 export const getCartTotal = async (req, res, next) => {

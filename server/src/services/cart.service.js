@@ -2,23 +2,33 @@ import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Promotion from '../models/Promotion.js';
 
-/**
- * Thêm sản phẩm vào giỏ hàng (user hoặc guest)
- */
 export const addToCart = async ({ userId, sessionId, productId, variantSku, qty }) => {
-  const product = await Product.findById(productId);
-  if (!product) throw new Error('Product not found');
-
-  // Nếu có nhiều biến thể, lấy giá đúng biến thể
-  let priceSnapshot = product.price;
-  if (product.variants && Array.isArray(product.variants)) {
-    const variant = product.variants.find(v => v.sku === variantSku);
-    if (variant) priceSnapshot = variant.price;
+  // 1. Validate input
+  if (!productId || !variantSku || !qty) {
+    throw new Error('Vui lòng cung cấp đầy đủ thông tin');
+  }
+  if (qty <= 0) {
+    throw new Error('Số lượng phải lớn hơn 0');
   }
 
-  const nameSnapshot = product.name;
-  const imageSnapshot = product.images?.[0] || '';
+  // 2. Kiểm tra sản phẩm tồn tại
+  const product = await Product.findById(productId).select('name price images variants');
+  if (!product) throw new Error('Sản phẩm không tồn tại');
 
+  // 3. Kiểm tra và lấy giá biến thể
+  let priceSnapshot = product.price;
+  let variant = null;
+  if (product.variants && Array.isArray(product.variants)) {
+    variant = product.variants.find(v => v.sku === variantSku);
+    if (variant) {
+      if (variant.stock < qty) {
+        throw new Error('Không đủ hàng trong kho');
+      }
+      priceSnapshot = variant.price;
+    }
+  }
+
+  // 4. Tìm hoặc tạo cart
   let cart;
   if (userId) {
     cart = await Cart.findOne({ userId, status: 'active' });
@@ -30,6 +40,7 @@ export const addToCart = async ({ userId, sessionId, productId, variantSku, qty 
     throw new Error('userId hoặc sessionId là bắt buộc');
   }
 
+  // 5. Thêm/cập nhật item trong cart
   const idx = cart.items.findIndex(
     i => i.productId.toString() === productId && i.variantSku === variantSku
   );
@@ -40,14 +51,19 @@ export const addToCart = async ({ userId, sessionId, productId, variantSku, qty 
       productId,
       variantSku,
       qty,
-      priceSnapshot,   // Đảm bảo luôn có giá trị
-      nameSnapshot,
-      imageSnapshot
+      priceSnapshot,
+      nameSnapshot: product.name,
+      imageSnapshot: product.images?.[0] || ''
     });
   }
 
+  // 6. Lưu và trả về kết quả
   await cart.save();
-  return cart;
+  return {
+    message: 'Thêm vào giỏ thành công',
+    cart: await Cart.findById(cart._id)
+      .populate('items.productId', 'name images')
+  };
 };
 
 /**
@@ -60,7 +76,7 @@ export const getCartTotal = async ({ userId, sessionId, selectedItems }) => {
   } else if (sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' }).populate('promotion');
   }
-  if (!cart) throw new Error('Cart not found');
+  if (!cart) throw new Error('Giỏ hàng không tồn tại');
 
   let items = cart.items;
   if (Array.isArray(selectedItems) && selectedItems.length > 0) {
