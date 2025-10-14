@@ -16,7 +16,9 @@ http.interceptors.response.use(
   (res) => {
     const method = (res.config.method || '').toUpperCase();
     const msg = res?.data?.message;
-    if (msg && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    // Cho phép tắt auto toast bằng config._noAutoToast
+    const noToast = res?.config?._noAutoToast === true;
+    if (!noToast && msg && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       toast.success(msg);
     }
     return res;
@@ -26,6 +28,7 @@ http.interceptors.response.use(
     const method = (err?.config?.method || '').toUpperCase();
     const status = err?.response?.status;
     const msg = err?.response?.data?.message || 'Có lỗi xảy ra';
+    const noToast = err?.config?._noAutoToast === true;
 
     const onLoginPage = location.pathname.startsWith('/login');
 
@@ -39,7 +42,7 @@ http.interceptors.response.use(
       }
     } else {
       // Tránh toast trùng: không toast lỗi cho /auth/me
-      if (!isAuthMe) toast.error(msg);
+      if (!isAuthMe && !noToast) toast.error(msg);
     }
     return Promise.reject(err);
   },

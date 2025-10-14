@@ -5,6 +5,7 @@ import { getCategories } from '@/api/category'; // <-- dùng file api/category.j
 import { authApi } from '@/api/auth-api'; // <-- dùng file api/auth-api.js bạn đã tạo
 import AccountModal from '@/components/AccountModal/AccountModal';
 import { useAuth } from '@/auth/AuthProvider';
+import { useCart } from '@/contexts/CartProvider';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const LOGO_ID = 'ChatGPT_Image_22_23_22_17_thg_9_2025_hhh7c9'; // đổi thành publicId logo của bạn
@@ -14,6 +15,70 @@ const logoUrl = CLOUD
 
 // helper build link theo path
 const P = (path) => `/products?path=${encodeURIComponent(path)}`;
+
+// --- Inline SVG icons (stroke inherits currentColor) ---
+function IconUser(props) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M4 19.5c0-4.1421 3.3579-7.5 7.5-7.5h1c4.1421 0 7.5 3.3579 7.5 7.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconCart(props) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <path
+        d="M3 4h2l1.6 9.2a2 2 0 0 0 2 1.8h7.9a2 2 0 0 0 1.9-1.4L21 7H6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="19" r="1.8" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="17" cy="19" r="1.8" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function IconSearch(props) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 // tìm node theo path trong cây category
 const findByPath = (nodes, path) => {
@@ -44,6 +109,13 @@ export default function Navbar({
   const { user, setUser } = useAuth();
   const [loadingMe, setLoadingMe] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
+  const { cart } = useCart();
+
+  const cartQty = useMemo(() => {
+    const items = Array.isArray(cart?.items) ? cart.items : [];
+    const total = items.reduce((s, it) => s + (Number(it.qty) || 1), 0);
+    return total > 99 ? 99 : total; // cap hiển thị 99+
+  }, [cart]);
 
   useEffect(() => {
     let mounted = true;
@@ -196,7 +268,7 @@ export default function Navbar({
                 aria-label="Tìm kiếm"
               />
               <button type="submit" aria-label="Tìm kiếm">
-                🔍
+                <IconSearch />
               </button>
             </form>
           )}
@@ -208,11 +280,16 @@ export default function Navbar({
             aria-label="Tài khoản"
             onClick={() => setShowAccount(true)}
           >
-            👤
+            <IconUser />
           </button>
           {showCart && (
             <Link to="/cart" className={s.icon} aria-label="Giỏ hàng">
-              🛍️<span className={s.badge}>0</span>
+              <IconCart />
+              {cartQty > 0 && (
+                <span className={s.badge} aria-live="polite">
+                  {cartQty}
+                </span>
+              )}
             </Link>
           )}
         </div>

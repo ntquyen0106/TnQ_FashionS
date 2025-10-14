@@ -36,46 +36,56 @@ export default function Register() {
   };
 
   return (
-    <div className="page-center">
-      <div className={`card-narrow ${styles.wrap}`}>
+    <div className={styles.authPage}>
+      <div className={styles.wrap}>
         <h2 className={styles.h1}>Đăng ký</h2>
+        <p className={styles.sub}>Tạo tài khoản để trải nghiệm mua sắm tốt hơn.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
-            <label>Họ tên</label>
-            <input
-              className={styles.input}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nguyễn Văn A"
-              disabled={loading}
-            />
+            <label className={styles.label}>Họ tên</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>👤</span>
+              <input
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nguyễn Văn A"
+                disabled={loading}
+              />
+            </div>
           </div>
 
           <div className={styles.field}>
-            <label>Email</label>
-            <input
-              className={styles.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              disabled={loading}
-            />
+            <label className={styles.label}>Email</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>@</span>
+              <input
+                className={styles.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={loading}
+              />
+            </div>
           </div>
 
           <div className={styles.field}>
-            <label>Mật khẩu</label>
-            <input
-              className={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
-              disabled={loading}
-            />
+            <label className={styles.label}>Mật khẩu</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>🔒</span>
+              <input
+                className={styles.input}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                disabled={loading}
+              />
+            </div>
           </div>
 
           <div className={styles.actions}>
-            <button className="btn" type="submit" disabled={loading}>
+            <button className={styles.btnPrimary} type="submit" disabled={loading}>
               {loading ? 'Đang gửi mã...' : 'Tạo tài khoản'}
             </button>
             <Link className={styles.link} to="/login">

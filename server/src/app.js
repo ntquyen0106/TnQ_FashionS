@@ -10,7 +10,7 @@ import categoryRoutes from './routes/category.routes.js';
 import mediaRoute from './routes/media.route.js';
 import cartRoutes from './routes/cart.routes.js';
 import orderRoutes from './routes/order.routes.js';
-
+import promotionRoutes from './routes/promotion.routes.js';
 
 export const createApp = (clientUrl) => {
   const app = express();
@@ -33,14 +33,15 @@ export const createApp = (clientUrl) => {
     }),
   );
 
-  app.use(notFoundHandler);
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
   app.use('/api/auth', authRoutes);
   app.use('/api/products', productRoutes);
   app.use('/api/categories', categoryRoutes);
-  app.use('/api', mediaRoute);
-  app.use(errorHandler);
+  app.use('/api/media', mediaRoute);
   app.use('/api/cart', cartRoutes);
   app.use('/api/order', orderRoutes);
+  app.use('/api/promotions', promotionRoutes);
+  app.use(notFoundHandler);
+  app.use(errorHandler);
   return app;
 };

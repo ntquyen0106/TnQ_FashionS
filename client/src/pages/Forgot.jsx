@@ -29,22 +29,26 @@ export default function Forgot() {
   };
 
   return (
-    <div className="page-center">
-      <div className={`card-narrow ${styles.wrap}`}>
+    <div className={styles.authPage}>
+      <div className={styles.wrap}>
         <h2 className={styles.h1}>Quên mật khẩu</h2>
+        <p className={styles.sub}>Nhập email để nhận mã xác thực đặt lại mật khẩu.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
-            <label>Email</label>
-            <input
-              className={styles.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              disabled={loading}
-            />
+            <label className={styles.label}>Email</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>@</span>
+              <input
+                className={styles.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={loading}
+              />
+            </div>
           </div>
           <div className={styles.actions}>
-            <button className="btn" type="submit" disabled={loading}>
+            <button className={styles.btnPrimary} type="submit" disabled={loading}>
               {loading ? 'Đang gửi mã...' : 'Gửi mã xác thực'}
             </button>
             <Link className={styles.link} to="/login">
