@@ -1,28 +1,29 @@
-import mongoose from "mongoose";
+// models/Cart.js
+import mongoose from 'mongoose';
 
-const CartItemSchema = new mongoose.Schema(
-  {
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    variantSku: { type: String, required: true },
-    qty: { type: Number, required: true, min: 1 },
-    priceSnapshot: { type: Number, required: true, min: 0 },
-    nameSnapshot: { type: String, required: true },
-    imageSnapshot: String
-  },
-  { _id: false }
-);
+const CartItemSchema = new mongoose.Schema({
+  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  variantSku: { type: String, required: true },
+  qty: { type: Number, required: true, min: 1 },
+  priceSnapshot: { type: Number, required: true, min: 0 },
+  nameSnapshot: { type: String, required: true },
+  imageSnapshot: String,
+});
 
 const CartSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    sessionId: { type: String, default: null }, // cho guest
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    sessionId: { type: String, default: null },
     items: { type: [CartItemSchema], default: [] },
-    status: { type: String, enum: ["active", "ordered"], default: "active" }
+    status: { type: String, enum: ['active', 'ordered'], default: 'active' },
+
+    // 👇 THÊM DÒNG NÀY
+    promotion: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion', default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 CartSchema.index({ userId: 1, status: 1 });
 CartSchema.index({ sessionId: 1, status: 1 });
 
-export default mongoose.model("Cart", CartSchema);
+export default mongoose.model('Cart', CartSchema);

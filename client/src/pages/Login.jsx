@@ -87,32 +87,39 @@ export default function Login() {
   };
 
   return (
-    <div className="page-center">
-      <div className={`card-narrow ${styles.wrap}`}>
+    <div className={styles.authPage}>
+      <div className={styles.wrap}>
         <h2 className={styles.h1}>Đăng nhập</h2>
+        <p className={styles.sub}>Chào mừng bạn quay lại.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
-            <label>Email</label>
-            <input
-              className={styles.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              type="email"
-            />
+            <label className={styles.label}>Email</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>@</span>
+              <input
+                className={styles.input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+              />
+            </div>
           </div>
           <div className={styles.field}>
-            <label>Mật khẩu</label>
-            <input
-              className={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
-            />
+            <label className={styles.label}>Mật khẩu</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>🔒</span>
+              <input
+                className={styles.input}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+              />
+            </div>
           </div>
           <div className={styles.actions}>
-            <button className="btn" type="submit" disabled={loading}>
+            <button className={styles.btnPrimary} type="submit" disabled={loading}>
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
             <Link className={styles.link} to="/register">
@@ -125,12 +132,12 @@ export default function Login() {
         </form>
 
         {/* Social login: chỉ bật nếu BE đang mở /auth/firebase-login */}
-        <div style={{ marginTop: 20, textAlign: 'center' }}>
-          <button className="btn" style={{ marginBottom: 10 }} onClick={handleGoogleLogin}>
+        <div className={styles.divider}>Hoặc</div>
+        <div className={styles.social}>
+          <button className={styles.btnGoogle} onClick={handleGoogleLogin} type="button">
             Đăng nhập với Google
           </button>
-          <br />
-          <button className="btn" onClick={handleFacebookLogin}>
+          <button className={styles.btnFacebook} onClick={handleFacebookLogin} type="button">
             Đăng nhập với Facebook
           </button>
         </div>

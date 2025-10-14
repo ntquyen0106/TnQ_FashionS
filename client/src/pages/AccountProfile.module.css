@@ -1,0 +1,129 @@
+/* Premium account profile styles */
+.wrap {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+.subtitle {
+  color: #6b7280;
+  font-size: 13.5px;
+}
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 14px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  color: #374151;
+  font-size: 13.5px;
+}
+.input {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+}
+.input:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.btnGhost {
+  background: #fff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.btnGhost:hover {
+  background: #f9fafb;
+}
+.btnPrimary {
+  background: linear-gradient(135deg, #0ea5e9 0%, #22d3ee 100%);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btnPrimary[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.note {
+  color: #6b7280;
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+.info {
+  display: grid;
+  gap: 8px;
+}
+.infoRow {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.k {
+  color: #6b7280;
+}
+.v {
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+}

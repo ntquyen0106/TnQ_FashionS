@@ -6,23 +6,22 @@ export const requireAuth = async (req, res, next) => {
   try {
     const h = req.headers.authorization || '';
     const bearer = h.startsWith('Bearer ') ? h.slice(7) : null;
-    const token = req.cookies?.token || bearer; // cookie FE, Bearer cho Postman
+    const token = req.cookies?.token || bearer;
 
     if (!token) return res.status(401).json({ message: 'Unauthenticated' });
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET); // { sub, ... }
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const uid = payload.sub || payload._id || payload.id || payload.userId;
+    if (!uid) return res.status(401).json({ message: 'Invalid token' });
 
-    const user = await User.findById(payload.sub).select('_id name email role status').lean();
-
+    const user = await User.findById(uid).select('_id name email role status').lean();
     if (!user || user.status !== 'active') {
       return res.status(401).json({ message: 'Unauthenticated' });
     }
 
-    // tương thích cũ + tiện ích mới
     req.userId = String(user._id);
     req.userRole = user.role;
     req.user = user;
-
     next();
   } catch (e) {
     if (e.name === 'TokenExpiredError') {
@@ -31,7 +30,6 @@ export const requireAuth = async (req, res, next) => {
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
-
 export const requireRole =
   (...roles) =>
   (req, res, next) => {
@@ -40,3 +38,27 @@ export const requireRole =
     }
     next();
   };
+
+export const optionalAuth = async (req, res, next) => {
+  try {
+    const h = req.headers.authorization || '';
+    const bearer = h.startsWith('Bearer ') ? h.slice(7) : null;
+    const token = req.cookies?.token || bearer; // đọc cả cookie và bearer
+    if (!token) return next();
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const uid = payload.sub || payload._id || payload.id || payload.userId;
+    if (!uid) return next();
+
+    const user = await User.findById(uid).select('_id name email role status').lean();
+    if (user && user.status === 'active') {
+      req.userId = String(user._id);
+      req.userRole = user.role;
+      req.user = user;
+    }
+    next();
+  } catch {
+    // optional -> không chặn request nếu token lỗi
+    next();
+  }
+};

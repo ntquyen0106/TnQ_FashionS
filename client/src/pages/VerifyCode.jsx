@@ -90,37 +90,40 @@ export default function VerifyCode() {
   if (!email) return null;
 
   return (
-    <div className="page-center">
-      <div className={`card-narrow ${styles.wrap}`}>
+    <div className={styles.authPage}>
+      <div className={styles.wrap}>
         <h2 className={styles.h1}>
           {flow === 'signup' ? 'Xác thực email' : 'Xác thực OTP quên mật khẩu'}
         </h2>
-        <p style={{ marginBottom: 12 }}>
+        <p className={styles.sub}>
           Mã xác thực đã được gửi tới <b>{email}</b>.
         </p>
 
         <form onSubmit={onVerify}>
           <div className={styles.field}>
-            <label>Mã OTP</label>
-            <input
-              className={styles.input}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Nhập 6 số"
-              inputMode="numeric"
-              maxLength={6}
-              disabled={loading}
-            />
+            <label className={styles.label}>Mã OTP</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>#</span>
+              <input
+                className={styles.input}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="Nhập 6 số"
+                inputMode="numeric"
+                maxLength={6}
+                disabled={loading}
+              />
+            </div>
           </div>
 
           <div className={styles.actions}>
-            <button className="btn" type="submit" disabled={loading}>
+            <button className={styles.btnPrimary} type="submit" disabled={loading}>
               {loading ? 'Đang xác thực...' : 'Xác nhận'}
             </button>
 
             <button
               type="button"
-              className="btn"
+              className={styles.btnGhost}
               onClick={onResend}
               disabled={resending || countdown > 0}
               style={{ marginLeft: 8 }}

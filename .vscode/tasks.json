@@ -1,0 +1,41 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "dev: quick sanity check build (client)",
+			"type": "shell",
+			"command": "npm -v >nul 2>&1 && if exist client\\package.json (cd client && npm run -s build) else echo \"no client\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start dev servers (client & server)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"Start-Process powershell -ArgumentList '-NoProfile -NoLogo -Command cd \"c:\\Users\\PC\\TnQ_FashionS\\server\"; npm run dev' ; Start-Process powershell -ArgumentList '-NoProfile -NoLogo -Command cd \"c:\\Users\\PC\\TnQ_FashionS\\client\"; npm run dev'"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Restart dev servers to validate voucher changes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"Start-Process powershell -ArgumentList '-NoProfile -NoLogo -Command cd \"c:\\Users\\PC\\TnQ_FashionS\\server\"; npm run dev' ; Start-Process powershell -ArgumentList '-NoProfile -NoLogo -Command cd \"c:\\Users\\PC\\TnQ_FashionS\\client\"; npm run dev'"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
