@@ -44,13 +44,13 @@
   background: #ecfeff;
   color: #0369a1;
 }
-.chip.st_PACKING {
-  background: #f5f3ff;
-  color: #6d28d9;
-}
 .chip.st_SHIPPING {
   background: #eff6ff;
   color: #1d4ed8;
+}
+.chip.st_DELIVERING {
+  background: #f0fdf4;
+  color: #166534;
 }
 .chip.st_DONE {
   background: #ecfdf5;
@@ -60,12 +60,28 @@
   background: #fef2f2;
   color: #b91c1c;
 }
+.chip.st_RETURNED {
+  background: #fff7ed;
+  color: #9a3412;
+}
 
 .grid {
   max-width: 1100px;
   margin: 0 auto;
   display: grid;
   gap: 14px;
+}
+.infoBanner {
+  max-width: 1100px;
+  margin: 0 auto 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .card {
   background: #fff;
@@ -142,6 +158,51 @@
 .grand {
   font-weight: 700;
   font-size: 16px;
+}
+
+/* Cancel reasons modal content */
+.cancelReasons {
+  display: grid;
+  gap: 10px;
+}
+.cancelReasonItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cancelOther {
+  display: grid;
+  gap: 6px;
+}
+.cancelOther input {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+/* Bottom action area */
+.bottomActions {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0;
+}
+.btnDanger {
+  background: #ca1414 !important;
+  color: #fff !important;
+  border-color: #ca1414 !important;
+}
+.btnDanger:hover {
+  background: #e70e0e !important;
+  border-color: #e70e0e !important;
+}
+.btnPrimary {
+  background: #111827;
+  color: #fff;
+}
+.btnPrimary:hover {
+  background: #0b1220;
 }
 
 @media (max-width: 720px) {

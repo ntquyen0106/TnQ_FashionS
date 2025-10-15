@@ -205,6 +205,15 @@ export default function Navbar({
           <span className={s.logoSecondary}>Fashion</span>
         </Link>
 
+        {/* Center role/name for staff/admin */}
+        <div className={s.centerInfo} aria-live="polite">
+          {user && (user.role === 'staff' || user.role === 'admin') ? (
+            <span className={s.roleBadge}>
+              {user.role === 'admin' ? 'Quản lý' : 'Nhân viên'}: {user.name || user.email}
+            </span>
+          ) : null}
+        </div>
+
         {/* Menu (ẩn nếu muốn dùng trên dashboard) */}
         {!hideMenu && (
           <nav className={s.nav} aria-label="Main">

@@ -10,7 +10,9 @@ import categoryRoutes from './routes/category.routes.js';
 import mediaRoute from './routes/media.route.js';
 import cartRoutes from './routes/cart.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import staffOrdersRoutes from './routes/orders.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
+import inventoryRoutes from './routes/inventory.routes.js';
 
 export const createApp = (clientUrl) => {
   const app = express();
@@ -26,10 +28,18 @@ export const createApp = (clientUrl) => {
   app.use(express.json());
   app.use(cookieParser());
 
+  const allowList = [clientUrl, 'http://localhost:5173', 'http://localhost:3000'].filter(Boolean);
+  const allowPatterns = [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/];
   app.use(
     cors({
-      origin: ['http://localhost:5173', 'http://localhost:3000'], // FE origin
-      credentials: true, // cho phép gửi cookie
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true); // allow non-browser or same-origin
+        if (allowList.includes(origin) || allowPatterns.some((re) => re.test(origin))) {
+          return cb(null, true);
+        }
+        return cb(new Error('CORS not allowed'), false);
+      },
+      credentials: true, // allow cookies
     }),
   );
 
@@ -39,8 +49,10 @@ export const createApp = (clientUrl) => {
   app.use('/api/categories', categoryRoutes);
   app.use('/api/media', mediaRoute);
   app.use('/api/cart', cartRoutes);
-  app.use('/api/order', orderRoutes);
+  app.use('/api/order', orderRoutes); // user-facing
+  app.use('/api/orders', staffOrdersRoutes); // staff/admin management
   app.use('/api/promotions', promotionRoutes);
+  app.use('/api/inventory', inventoryRoutes);
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;

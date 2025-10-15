@@ -4,10 +4,8 @@ import { authApi } from '@/api';
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
 
-// tiện ích nhỏ: tránh gọi /me khi chưa có cookie 'token'
-function hasCookie(name) {
-  return document.cookie.split(';').some((c) => c.trim().startsWith(name + '='));
-}
+// Lưu ý: Cookie HttpOnly sẽ không hiển thị trong document.cookie.
+// Vì vậy luôn gọi /auth/me để kiểm tra phiên thay vì dựa vào document.cookie.
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -19,11 +17,7 @@ export default function AuthProvider({ children }) {
     meInFlight.current = true;
 
     try {
-      // chỉ gọi /me nếu đã có cookie -> tránh 401 lần đầu khi chưa login
-      if (!hasCookie('token')) {
-        setUser(null);
-        return;
-      }
+      // Gọi /auth/me để xác thực phiên dựa trên cookie HttpOnly
       const u = await authApi.me(); // trả về r.data.user
       setUser(u || null);
     } catch {
