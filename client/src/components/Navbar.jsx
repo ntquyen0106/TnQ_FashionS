@@ -7,12 +7,6 @@ import AccountModal from '@/components/AccountModal/AccountModal';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCart } from '@/contexts/CartProvider';
 
-const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const LOGO_ID = 'ChatGPT_Image_22_23_22_17_thg_9_2025_hhh7c9'; // đổi thành publicId logo của bạn
-const logoUrl = CLOUD
-  ? `https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto,dpr_auto,h_40/${LOGO_ID}`
-  : '';
-
 // helper build link theo path
 const P = (path) => `/products?path=${encodeURIComponent(path)}`;
 
@@ -206,8 +200,9 @@ export default function Navbar({
     <header className={`${s.wrap} ${compact ? s.compact : ''}`}>
       <div className={`container ${s.inner}`}>
         {/* Logo */}
-        <Link to="/" className={s.brand} aria-label="TnQ Fashion">
-          {logoUrl ? <img src={logoUrl} alt="TnQ Fashion" /> : <strong>TnQ</strong>}
+        <Link to="/" className={s.brand} aria-label="TNQ Fashion">
+          <span className={s.logoPrimary}>TNQ</span>
+          <span className={s.logoSecondary}>Fashion</span>
         </Link>
 
         {/* Menu (ẩn nếu muốn dùng trên dashboard) */}

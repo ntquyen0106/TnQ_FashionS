@@ -17,11 +17,37 @@
   padding: 0 24px;
 }
 
-/* --- Logo --- */
-.brand img {
-  height: 55px;
-  width: 55px;
-  display: block;
+/* --- Logo (Text-based) --- */
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  text-decoration: none;
+}
+.logoPrimary {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  font-size: 28px;
+  line-height: 1;
+  color: #111827; /* gray-900 */
+}
+.logoSecondary {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1;
+  color: #0084e2; /* brand accent */
+}
+@media (max-width: 600px) {
+  .logoPrimary {
+    font-size: 22px;
+  }
+  .logoSecondary {
+    font-size: 16px;
+  }
 }
 
 /* --- Menu chính --- */

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import s from './HeroSlider.module.css';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -31,6 +32,10 @@ export default function HeroSlider({ slides = [], interval = 3000 }) {
       className={`${s.slider} ${s.fullBleed}`}
       onMouseEnter={() => (pausedRef.current = true)}
       onMouseLeave={() => (pausedRef.current = false)}
+      onPointerEnter={() => (pausedRef.current = true)}
+      onPointerLeave={() => (pausedRef.current = false)}
+      onFocusCapture={() => (pausedRef.current = true)}
+      onBlurCapture={() => (pausedRef.current = false)}
       onKeyDown={(e) => {
         if (e.key === 'ArrowRight') go(true);
         if (e.key === 'ArrowLeft') go(false);
@@ -59,18 +64,87 @@ export default function HeroSlider({ slides = [], interval = 3000 }) {
               <div className={s.fallback} />
             )}
 
-            <div className={s.overlay}>
-              <div className={s.overlayInner}>
-                {slide.kicker && <span className={s.kicker}>{slide.kicker}</span>}
-                {slide.title && <h1 className={s.title}>{slide.title}</h1>}
-                {slide.desc && <p className={s.desc}>{slide.desc}</p>}
-                {slide.ctaHref && (
-                  <a className={`${s.btn} ${s.btnPrimary}`} href={slide.ctaHref}>
-                    {slide.ctaText || 'Xem ngay'}
-                  </a>
-                )}
-              </div>
-            </div>
+            {(() => {
+              // New: absolute positioning support with slide.pos { top,left,right,bottom } and slide.align
+              if (slide.pos && typeof slide.pos === 'object') {
+                const style = {};
+                for (const k of ['top', 'left', 'right', 'bottom']) {
+                  if (slide.pos[k] != null) style[k] = slide.pos[k];
+                }
+                const align = slide.align || 'left';
+                const aCls =
+                  align === 'right' ? s.tRight : align === 'center' ? s.tCenter : s.tLeft;
+                return (
+                  <div
+                    className={s.overlayAbs}
+                    style={{ ...style, ...(slide.containerStyle || {}) }}
+                  >
+                    <div className={aCls}>
+                      {slide.kicker && (
+                        <span className={s.kicker} style={slide.kickerStyle}>
+                          {slide.kicker}
+                        </span>
+                      )}
+                      {slide.title && (
+                        <h1 className={s.title} style={slide.titleStyle}>
+                          {slide.title}
+                        </h1>
+                      )}
+                      {slide.desc && (
+                        <p className={s.desc} style={slide.descStyle}>
+                          {slide.desc}
+                        </p>
+                      )}
+                      {slide.ctaHref && (
+                        <Link
+                          className={`${s.btn} ${s.btnPrimary}`}
+                          style={slide.ctaStyle}
+                          to={slide.ctaHref}
+                        >
+                          {slide.ctaText || 'Xem ngay'}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Back-compat: flex alignment via v/h
+              const v = slide.v || 'center';
+              const h = slide.h || 'left';
+              const vCls = v === 'top' ? s.vTop : v === 'bottom' ? s.vBottom : s.vCenter;
+              const hCls = h === 'right' ? s.hRight : h === 'center' ? s.hCenter : s.hLeft;
+              return (
+                <div className={`${s.overlay} ${vCls}`}>
+                  <div className={`${s.overlayInner} ${hCls}`} style={slide.containerStyle}>
+                    {slide.kicker && (
+                      <span className={s.kicker} style={slide.kickerStyle}>
+                        {slide.kicker}
+                      </span>
+                    )}
+                    {slide.title && (
+                      <h1 className={s.title} style={slide.titleStyle}>
+                        {slide.title}
+                      </h1>
+                    )}
+                    {slide.desc && (
+                      <p className={s.desc} style={slide.descStyle}>
+                        {slide.desc}
+                      </p>
+                    )}
+                    {slide.ctaHref && (
+                      <Link
+                        className={`${s.btn} ${s.btnPrimary}`}
+                        style={slide.ctaStyle}
+                        to={slide.ctaHref}
+                      >
+                        {slide.ctaText || 'Xem ngay'}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })}
