@@ -151,7 +151,7 @@ export const putChangePassword = async (req, res) => {
     const { id } = req.params;
     const { oldPassword, newPassword, confirmNewPassword } = req.body;
 
-    const result = await authService.changePassword(id, {
+    const result = await auth.changePassword(id, {
       oldPassword,
       newPassword,
       confirmNewPassword,

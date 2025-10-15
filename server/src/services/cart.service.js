@@ -30,6 +30,7 @@ export const getCart = async ({
       if (guestCart && mergeFallback) {
         const userCart = await findCart({ userId });
         if (userCart) {
+          // Merge guest cart vào user cart
           guestCart.items.forEach((g) => {
             const i = userCart.items.findIndex(
               (u) => String(u.productId) === String(g.productId) && u.variantSku === g.variantSku,
@@ -38,9 +39,11 @@ export const getCart = async ({
             else userCart.items.push(g.toObject());
           });
           await userCart.save();
+          //  XÓA guest cart sau khi merge để tránh merge lại
           await Cart.deleteOne({ _id: guestCart._id });
           cart = await findCart({ userId });
         } else {
+          // Chưa có user cart, chuyển guest cart thành user cart
           guestCart.userId = userId;
           guestCart.sessionId = null;
           await guestCart.save();
@@ -238,7 +241,7 @@ export const getCartTotal = async ({ userId, sessionId, selectedItems }) => {
   } else if (sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' }).populate('promotion');
   }
-  // Trường hợp chưa có giỏ hàng trong DB: coi như giỏ rỗng, không ném lỗi để tránh spam toast
+  
   if (!cart) return { items: [], subtotal: 0, discount: 0, total: 0, promotion: null };
 
   let items = cart.items;
@@ -335,21 +338,29 @@ export const applyPromotion = async ({ userId, sessionId, code, selectedItems })
 
 /**
  * Hợp nhất cart guest (sessionId) vào cart user (userId)
+ *  Chú ý: Nếu getCart() đã merge với mergeFallback=true, 
+ * thì guest cart đã bị xóa rồi, không cần gọi lại hàm này
  */
 export const mergeGuestCartToUser = async ({ userId, sessionId }) => {
   if (!userId || !sessionId) return;
 
   const guestCart = await Cart.findOne({ sessionId, status: 'active' });
-  if (!guestCart) return;
+  //  Nếu không tìm thấy guest cart (đã được merge trước đó), return luôn
+  if (!guestCart) {
+    console.log('Guest cart not found or already merged');
+    return;
+  }
 
   let userCart = await Cart.findOne({ userId, status: 'active' });
   if (!userCart) {
+    // Chưa có user cart, chuyển guest cart thành user cart
     guestCart.userId = userId;
     guestCart.sessionId = null;
     await guestCart.save();
     return guestCart;
   }
 
+  // Merge items từ guest cart vào user cart
   guestCart.items.forEach((guestItem) => {
     const idx = userCart.items.findIndex(
       (i) =>
@@ -364,6 +375,7 @@ export const mergeGuestCartToUser = async ({ userId, sessionId }) => {
   });
 
   await userCart.save();
+  //  Xóa guest cart sau khi merge
   await Cart.deleteOne({ _id: guestCart._id });
   return userCart;
 };
