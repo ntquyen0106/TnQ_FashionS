@@ -7,13 +7,12 @@ import Otp from '../models/Otp.js';
 import { sendMail } from './mail.service.js';
 import { adminAuth } from '../config/firebase.js';
 import mongoose from 'mongoose';
-import { error } from 'console';
 const TOKEN_AGE = 60 * 60 * 24 * 7; // 7 ngày
 
 export const login = async ({ email, password }) => {
   const user = await User.findOne({ email });
   if (!user) {
-    const err = new Error('Sai email hoặc mật khẩu');
+    const err = new Error('Không tìm thấy email');
     err.status = 401;
     throw err;
   }
@@ -24,9 +23,9 @@ export const login = async ({ email, password }) => {
     throw err;
   }
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
+  const ok = bcrypt.compare(password, user.passwordHash);
   if (!ok) {
-    const err = new Error('Sai email hoặc mật khẩu');
+    const err = new Error('Sai mật khẩu');
     err.status = 401;
     throw err;
   }
@@ -108,7 +107,7 @@ export const verifyOtp = async ({ email, otp }) => {
     throw new Error('OTP không hợp lệ hoặc đã hết hạn');
   }
 
-  const isValid = await bcrypt.compare(otp, otpDoc.otpHash);
+  const isValid = bcrypt.compare(otp, otpDoc.otpHash);
   if (!isValid) throw new Error('OTP không hợp lệ');
 
   // Tạo/activate user
@@ -193,7 +192,7 @@ export const forgotVerify = async ({ email, otp }) => {
   if (!otpDoc || otpDoc.expiresAt < new Date() || otpDoc.usedAt) {
     throw new Error('OTP không hợp lệ hoặc đã hết hạn');
   }
-  const ok = await bcrypt.compare(otp, otpDoc.otpHash);
+  const ok = bcrypt.compare(otp, otpDoc.otpHash);
   if (!ok) throw new Error('OTP không hợp lệ hoặc đã hết hạn');
 
   // Tạo resetToken ngắn hạn (random string)
@@ -265,41 +264,82 @@ export const setDefaultAddress = async (userId, addressId) => {
   return user;
 };
 
-export const changePassword = async (id, { oldPassword, newPassword }) => {
-  const errors = {};
+/**
+ * Change password for a user
+ * @param {string} id - User ID
+ * @param {Object} payload - { oldPassword, newPassword, confirmNewPassword }
+ */
+export const changePassword = async (id, { oldPassword, newPassword, confirmNewPassword }) => {
+  try {
+    const errors = {};
 
-  if (!id || !mongoose.isValidObjectId(id)) {
-    errors.id = "User id is invalid";
-  }
-  if (!oldPassword) {
-    errors.oldPassword = "Old password is required";
-  }
-  if (!newPassword) {
-    errors.newPassword = "New password is required";
-  } else if (newPassword.length < 6) {
-    errors.newPassword = "New password must be at least 6 characters";
-  }
+    // --- Validate input ---
+    if (!id || !mongoose.isValidObjectId(id)) {
+      errors.id = "Invalid user id";
+    }
 
-  if (Object.keys(errors).length > 0) {
-    throw { status: 400, message: "Validation failed", errors };
+    if (!oldPassword) {
+      errors.oldPassword = "Old password is required";
+    }
+
+    if (!newPassword) {
+      errors.newPassword = "New password is required";
+    } else if (newPassword.length < 6) {
+      errors.newPassword = "New password must be at least 6 characters";
+    }
+
+    if (!confirmNewPassword) {
+      errors.confirmNewPassword = "Confirm new password is required";
+    } else if (newPassword !== confirmNewPassword) {
+      errors.confirmNewPassword = "New password and confirm password do not match";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      const err = new Error("Validation failed");
+      err.status = 400;
+      err.errors = errors;
+      throw err;
+    }
+
+    // --- Check user existence ---
+    const user = await User.findById(id);
+    if (!user) {
+      const err = new Error("User not found");
+      err.status = 404;
+      err.errors = { id: "User not found" };
+      throw err;
+    }
+
+    // --- Check old password ---
+    const isMatch = bcrypt.compare(oldPassword, user.passwordHash);
+    if (!isMatch) {
+      const err = new Error("Incorrect old password");
+      err.status = 400;
+      err.errors = { oldPassword: "Incorrect old password" };
+      throw err;
+    }
+
+    // --- Check new password ≠ old password ---
+    if (newPassword === oldPassword) {
+      const err = new Error("New password must be different from old password");
+      err.status = 400;
+      err.errors = { newPassword: "New password must be different from old password" };
+      throw err;
+    }
+
+    // --- Hash and save ---
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = hashed;
+    await user.save();
+
+    return { message: "Password updated successfully" };
+
+  } catch (error) {
+    // Re-throw để controller bắt và gửi response
+    throw error;
   }
-
-  const user = await User.findById(id);
-  if (!user) {
-    throw { status: 404, message: "User not found", errors: { id: "User not found" } };
-  }
-
-  const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
-  if (!isMatch) {
-    throw { status: 400, message: "Incorrect old password", errors: { oldPassword: "Incorrect old password" } };
-  }
-
-  const hashed = await bcrypt.hash(newPassword, 10);
-  user.passwordHash = hashed;
-  await user.save();
-
-  return { message: "Password updated successfully" };
 };
+
 
 //====================================CRUD=========================================
 export const createUser = async (data) => {

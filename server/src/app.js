@@ -10,7 +10,8 @@ import categoryRoutes from './routes/category.routes.js';
 import mediaRoute from './routes/media.route.js';
 import cartRoutes from './routes/cart.routes.js';
 import orderRoutes from './routes/order.routes.js';
-
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger.js';
 
 export const createApp = (clientUrl) => {
   const app = express();
@@ -42,5 +43,6 @@ export const createApp = (clientUrl) => {
   app.use(errorHandler);
   app.use('/api/cart', cartRoutes);
   app.use('/api/order', orderRoutes);
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
   return app;
 };
