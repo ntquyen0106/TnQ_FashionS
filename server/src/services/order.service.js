@@ -3,6 +3,7 @@ import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import { getCartTotal } from './cart.service.js';
 import { computeShippingFee } from '../utils/shipping.js';
+import { createPayOSPayment } from './payment.service.js';
 
 export const checkout = async ({ userId, sessionId, addressId, paymentMethod, selectedItems }) => {
   // 1) Lấy cart
@@ -54,10 +55,8 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
 
   // 6) Chuẩn hoá phương thức thanh toán + trạng thái
   const methodUpper = String(paymentMethod || 'COD').toUpperCase();
-  // Tạm map các ví điện tử về BANK cho tới khi tích hợp cổng thanh toán
-  const walletToBank = new Set(['MOMO', 'ZALOPAY', 'VNPAY']);
-  const pm = methodUpper === 'COD' ? 'COD' : walletToBank.has(methodUpper) ? 'BANK' : 'BANK';
-  const status = 'PENDING';
+  const pm = methodUpper === 'COD' ? 'COD' : 'BANK';
+  const status = pm === 'COD' ? 'PENDING' : 'AWAITING_PAYMENT';
 
   // 7) Tạo order
   const order = await Order.create({
@@ -70,7 +69,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     history: [
       {
         action: 'CREATE',
-        note: 'Order created',
+        note: pm === 'COD' ? 'Order created' : 'Order created, awaiting payment',
         fromStatus: null,
         toStatus: status,
         byUserId: userId,
@@ -78,7 +77,29 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     ],
   });
 
-  // 8) Xoá các item đã mua khỏi cart
+  // 8) Nếu thanh toán chuyển khoản, tạo link PayOS
+  let paymentData = null;
+  if (pm === 'BANK') {
+    try {
+      paymentData = await createPayOSPayment({
+        orderId: order._id.toString(),
+        amount: amounts.grandTotal,
+        // Không truyền description, để payment.service.js tự tạo (tối đa 25 ký tự)
+        returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
+        cancelUrl: `${process.env.CLIENT_URL}/checkout?cancelled=true`,
+      });
+      
+      // Lưu orderCode vào order để tracking
+      order.paymentOrderCode = paymentData.orderCode;
+      await order.save();
+    } catch (error) {
+      console.error('Error creating PayOS payment:', error);
+      // Vẫn tạo order nhưng báo lỗi không tạo được link thanh toán
+      throw new Error('Không thể tạo link thanh toán. Vui lòng thử lại sau.');
+    }
+  }
+
+  // 9) Xoá các item đã mua khỏi cart
   cart.items = cart.items.filter(
     (ci) =>
       !orderItems.some(
@@ -87,5 +108,8 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
   );
   await cart.save();
 
-  return order;
+  return {
+    order,
+    paymentData,
+  };
 };

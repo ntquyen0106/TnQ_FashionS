@@ -18,10 +18,15 @@ router.post("/forgot/reset", authController.postForgotReset);
 router.post("/add-address", requireAuth, authController.postAddAddress); // body: { address }
 router.post("/set-default-address", requireAuth, authController.postSetDefaultAddress); // body: { addressId }
 router.put("/change-password", requireAuth, authController.putChangePassword); // body: { oldPassword, newPassword, confirmNewPassword }
+router.get('/addresses', requireAuth, authController.getAddresses);
+router.put('/addresses/:addressId', requireAuth, authController.putUpdateAddress);
+router.delete('/addresses/:addressId', requireAuth, authController.deleteAddress);
+router.delete('/addresses', requireAuth, authController.clearAddresses);
+router.put('/profile', requireAuth, authController.putProfile);
 //-------------------- ADMIN UTILITIE,-------------------
-router.post("/admin/create-user", requireAuth, authController.postCreateUser);   // bodyRequest: email, name, password, role, status
-router.put("/admin/update-user/:id", requireAuth, authController.putUpdateUser); //bodyRequest: email, name, role, status (trường nào không nhập thì mặc định là không update nữa)
-router.get("/admin/get-user/:id", requireAuth, authController.getUser);
-router.get("/admin/get-all-users", requireAuth, authController.getAllUsers); //query name, email, role, fromDate, toDate, page=1, limit=10
-router.delete("/admin/delete/:id", requireAuth, authController.deleteOneUser);
+router.post("/admin/create-user", requireAuth, requireRole('admin'), authController.postCreateUser);   // bodyRequest: email, name, password, role, status
+router.put("/admin/update-user/:id", requireAuth, requireRole('admin'), authController.putUpdateUser); //bodyRequest: email, name, role, status (trường nào không nhập thì mặc định là không update nữa)
+router.get("/admin/get-user/:id", requireAuth, requireRole('admin'), authController.getUser);
+router.get("/admin/get-all-users", requireAuth, requireRole('admin'), authController.getAllUsers); //query name, email, role, fromDate, toDate, page=1, limit=10
+router.delete("/admin/delete/:id", requireAuth, requireRole('admin'), authController.deleteOneUser);
 export default router;

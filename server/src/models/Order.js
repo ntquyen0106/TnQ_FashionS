@@ -40,8 +40,8 @@ const OrderHistorySchema = new mongoose.Schema(
     at: { type: Date, default: Date.now },
     byUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     action: { type: String, required: true }, // CREATE/STATUS_CHANGE/EDIT/CANCEL...
-    fromStatus: { type: String, enum: ["PENDING","CONFIRMED","PACKING","SHIPPING","DONE","CANCELLED"], default: null },
-    toStatus: { type: String, enum: ["PENDING","CONFIRMED","PACKING","SHIPPING","DONE","CANCELLED"], default: null },
+    fromStatus: { type: String, enum: ["PENDING","AWAITING_PAYMENT","CONFIRMED","PACKING","SHIPPING","DONE","CANCELLED"], default: null },
+    toStatus: { type: String, enum: ["PENDING","AWAITING_PAYMENT","CONFIRMED","PACKING","SHIPPING","DONE","CANCELLED"], default: null },
     note: String
   },
   { _id: false }
@@ -56,10 +56,11 @@ const OrderSchema = new mongoose.Schema(
     paymentMethod: { type: String, enum: ["COD", "BANK"], required: true, default: "COD" },
     status: {
       type: String,
-      enum: ["PENDING","CONFIRMED","PACKING","SHIPPING","DONE","CANCELLED"],
+      enum: ["PENDING","AWAITING_PAYMENT","CONFIRMED","PACKING","SHIPPING","DONE","CANCELLED"],
       default: "PENDING",
       index: true
     },
+    paymentOrderCode: { type: Number, default: null }, // PayOS orderCode
     assignedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     trackingCode: { type: String, default: null },
     history: { type: [OrderHistorySchema], default: [] }
