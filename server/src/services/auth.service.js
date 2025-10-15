@@ -23,7 +23,16 @@ export const login = async ({ email, password }) => {
     throw err;
   }
 
-  const ok = bcrypt.compare(password, user.passwordHash);
+  // Nếu là tài khoản đăng nhập bằng Google (không có passwordHash), báo lỗi rõ ràng
+  if (!user.passwordHash) {
+    const err = new Error(
+      'Tài khoản này đăng nhập bằng Google. Vui lòng dùng nút Google để đăng nhập.',
+    );
+    err.status = 400;
+    throw err;
+  }
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
     const err = new Error('Sai mật khẩu');
     err.status = 401;
@@ -50,7 +59,6 @@ export const firebaseSocialLogin = async ({ idToken }) => {
       email,
       name: name || 'Social User',
       avatar: picture,
-      passwordHash: '',
       status: 'active',
       role: 'user',
       provider: firebase?.sign_in_provider || 'firebase',
@@ -226,36 +234,35 @@ export const forgotReset = async ({ resetToken, newPassword }) => {
   return { message: 'Đổi mật khẩu thành công' };
 };
 
-
 //==================================================================================
 // ULtility
 //================================================================================
 
 export const addAddress = async (userId, addressData) => {
   const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
+  if (!user) throw new Error('User not found');
 
   // Nếu là địa chỉ đầu tiên hoặc addressData.isDefault, set mặc định
   let isDefault = user.addresses.length === 0;
   if (addressData.isDefault === true) isDefault = true;
 
   if (isDefault) {
-    user.addresses.forEach(addr => addr.isDefault = false);
+    user.addresses.forEach((addr) => (addr.isDefault = false));
   }
 
   user.addresses.push({ ...addressData, isDefault });
   await user.save();
   return {
-    message: "Thêm địa chỉ thành công",
-    addresses: user.addresses
+    message: 'Thêm địa chỉ thành công',
+    addresses: user.addresses,
   };
 };
 
 export const setDefaultAddress = async (userId, addressId) => {
   const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
+  if (!user) throw new Error('User not found');
 
-  user.addresses = user.addresses.map(addr => ({
+  user.addresses = user.addresses.map((addr) => ({
     ...addr.toObject(),
     isDefault: addr._id.toString() === addressId,
   }));
@@ -264,35 +271,82 @@ export const setDefaultAddress = async (userId, addressId) => {
   return user;
 };
 
-/**
- * Change password for a user
- * @param {string} id - User ID
- * @param {Object} payload - { oldPassword, newPassword, confirmNewPassword }
- */
-export const changePassword = async (id, { oldPassword, newPassword, confirmNewPassword }) => {
-  try {
-    const errors = {};
+export const getAddresses = async (userId) => {
+  const user = await User.findById(userId).select('addresses').lean();
+  if (!user) throw { status: 404, message: 'User not found' };
+  return user.addresses || [];
+};
 
-    // --- Validate input ---
-    if (!id || !mongoose.isValidObjectId(id)) {
-      errors.id = "Invalid user id";
-    }
+export const updateAddress = async (userId, addressId, data) => {
+  const user = await User.findById(userId);
+  if (!user) throw { status: 404, message: 'User not found' };
+  const addr = user.addresses.id(addressId);
+  if (!addr) throw { status: 404, message: 'Address not found' };
 
-    if (!oldPassword) {
-      errors.oldPassword = "Old password is required";
-    }
+  const allowed = ['fullName', 'phone', 'line1', 'ward', 'district', 'city', 'isDefault'];
+  for (const k of allowed) if (k in data) addr[k] = data[k];
 
-    if (!newPassword) {
-      errors.newPassword = "New password is required";
-    } else if (newPassword.length < 6) {
-      errors.newPassword = "New password must be at least 6 characters";
-    }
+  // nếu đặt mặc định
+  if (data.isDefault === true) {
+    user.addresses.forEach((a) => {
+      if (String(a._id) !== String(addressId)) a.isDefault = false;
+    });
+  }
 
-    if (!confirmNewPassword) {
-      errors.confirmNewPassword = "Confirm new password is required";
-    } else if (newPassword !== confirmNewPassword) {
-      errors.confirmNewPassword = "New password and confirm password do not match";
-    }
+  await user.save();
+  return { message: 'Address updated', addresses: user.addresses };
+};
+
+export const deleteAddress = async (userId, addressId) => {
+  const user = await User.findById(userId);
+  if (!user) throw { status: 404, message: 'User not found' };
+  const addr = user.addresses.id(addressId);
+  if (!addr) throw { status: 404, message: 'Address not found' };
+  addr.deleteOne();
+  await user.save();
+  return { message: 'Address deleted', addresses: user.addresses };
+};
+
+export const clearAddresses = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw { status: 404, message: 'User not found' };
+  user.addresses = [];
+  await user.save();
+  return { message: 'All addresses deleted', addresses: [] };
+};
+
+export const changePassword = async (id, { oldPassword, newPassword }) => {
+  const errors = {};
+
+  if (!id || !mongoose.isValidObjectId(id)) {
+    errors.id = 'User id is invalid';
+  }
+  if (!oldPassword) {
+    errors.oldPassword = 'Old password is required';
+  }
+  if (!newPassword) {
+    errors.newPassword = 'New password is required';
+  } else if (newPassword.length < 6) {
+    errors.newPassword = 'New password must be at least 6 characters';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw { status: 400, message: 'Validation failed', errors };
+  }
+
+  const user = await User.findById(id);
+  if (!user) {
+    throw { status: 404, message: 'User not found', errors: { id: 'User not found' } };
+  }
+
+  const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+  if (!isMatch) {
+    throw {
+      status: 400,
+      message: 'Incorrect old password',
+      errors: { oldPassword: 'Incorrect old password' },
+    };
+  }
 
     if (Object.keys(errors).length > 0) {
       const err = new Error("Validation failed");
@@ -349,16 +403,16 @@ export const createUser = async (data) => {
   if (existed) {
     throw {
       status: 400,
-      message: "Email already exists",
-      errors: { email: "Email already exists" },
+      message: 'Email already exists',
+      errors: { email: 'Email already exists' },
     };
   }
 
   if (!password) {
     throw {
       status: 400,
-      message: "password is required",
-      errors: { "password": "Password is required" }
+      message: 'password is required',
+      errors: { password: 'Password is required' },
     };
   }
   const passwordHash = password ? await bcrypt.hash(password, 10) : undefined;
@@ -366,14 +420,14 @@ export const createUser = async (data) => {
     name,
     email,
     passwordHash,
-    role: role || "user",
-    status: status || "active",
+    role: role || 'user',
+    status: status || 'active',
   });
 
   await user.save();
 
   return {
-    message: "User created successfully",
+    message: 'User created successfully',
     data: {
       id: user._id,
       name: user.name,
@@ -387,13 +441,13 @@ export const createUser = async (data) => {
 //  UPDATE USER — chỉ cập nhật trường có nhập
 export const updateUser = async (id, updates) => {
   if (!mongoose.isValidObjectId(id)) {
-    throw { status: 400, message: "Validation failed", errors: { id: "User ID is invalid" } };
+    throw { status: 400, message: 'Validation failed', errors: { id: 'User ID is invalid' } };
   }
 
-  const allowed = ["name", "email", "role", "status"];
+  const allowed = ['name', 'email', 'role', 'status'];
   const payload = {};
   for (const key of allowed) {
-    if (updates[key] !== undefined && updates[key] !== null && updates[key] !== "") {
+    if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '') {
       payload[key] = updates[key];
     }
   }
@@ -402,47 +456,45 @@ export const updateUser = async (id, updates) => {
     const user = await User.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,
-      context: "query",
-    }).select("-passwordHash");
+      context: 'query',
+    }).select('-passwordHash');
 
     if (!user) {
-      throw { status: 404, message: "User not found", errors: { id: "User not found" } };
+      throw { status: 404, message: 'User not found', errors: { id: 'User not found' } };
     }
 
-    return { message: "User updated successfully", data: user };
+    return { message: 'User updated successfully', data: user };
   } catch (error) {
     const errors = {};
 
     // Duplicate email
     if (error.code === 11000 && error.keyPattern?.email) {
-      errors.email = "Email already exists";
+      errors.email = 'Email already exists';
     }
 
     // Validation errors
-    if (error.name === "ValidationError") {
+    if (error.name === 'ValidationError') {
       for (const field in error.errors) {
         errors[field] = error.errors[field].message;
       }
     }
 
     if (Object.keys(errors).length > 0) {
-      throw { status: 400, message: "Validation failed", errors };
+      throw { status: 400, message: 'Validation failed', errors };
     }
 
     throw { status: 500, message: error.message };
   }
 };
 
-
-
 export const getUserById = async (id) => {
   if (!mongoose.isValidObjectId(id)) {
-    throw { status: 400, message: "Invalid user id" };
+    throw { status: 400, message: 'Invalid user id' };
   }
 
-  const user = await User.findById(id).select("-passwordHash");
+  const user = await User.findById(id).select('-passwordHash');
   if (!user) {
-    throw { status: 404, message: "User not found" };
+    throw { status: 404, message: 'User not found' };
   }
 
   return user;
@@ -452,9 +504,9 @@ export const getUsers = async (query) => {
   const { name, email, role, fromDate, toDate, page = 1, limit = 10 } = query;
 
   const filter = {};
-  if (name) filter.name = new RegExp(name, "i");
-  
-  if (email) filter.email = new RegExp(email, "i");
+  if (name) filter.name = new RegExp(name, 'i');
+
+  if (email) filter.email = new RegExp(email, 'i');
   if (role) filter.role = role;
   if (fromDate || toDate) {
     filter.createdAt = {};
@@ -466,7 +518,7 @@ export const getUsers = async (query) => {
 
   const [users, total] = await Promise.all([
     User.find(filter)
-      .select("-passwordHash -addresses")
+      .select('-passwordHash -addresses')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit)),
@@ -483,19 +535,18 @@ export const getUsers = async (query) => {
 
 export const deleteUser = async (id) => {
   if (!mongoose.isValidObjectId(id)) {
-    throw { status: 400, message: "Invalid user id" };
+    throw { status: 400, message: 'Invalid user id' };
   }
 
   const user = await User.findByIdAndDelete(id);
   if (!user) {
-    throw { status: 404, message: "User not found" };
+    throw { status: 404, message: 'User not found' };
   }
 
-  return { message: "User deleted successfully" };
+  return { message: 'User deleted successfully' };
 };
 
-//================================================================================= 
-
+//=================================================================================
 
 console.log('PROVIDER=', process.env.EMAIL_PROVIDER);
 console.log('MAILTRAP_USER exists?', !!process.env.MAILTRAP_USER);

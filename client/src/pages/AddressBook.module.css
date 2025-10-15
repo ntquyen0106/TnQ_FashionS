@@ -1,0 +1,174 @@
+.wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #2563eb;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-self: end;
+}
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02);
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  font-size: 12px;
+  color: #6b7280;
+}
+.formGrid input {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.formGrid select,
+.select {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.formGrid input:focus,
+.formGrid select:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.35);
+}
+.selectRow {
+  display: contents;
+}
+.formActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.list {
+  display: grid;
+  gap: 12px;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card:hover {
+  box-shadow: 0 4px 16px rgba(2, 6, 23, 0.06);
+  border-color: #d1d5db;
+}
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.addrName {
+  font-size: 14px;
+  color: #111827;
+}
+.addrLine {
+  color: #374151;
+}
+.badgeDefault {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid #c7d2fe;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.cardActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.primaryBtn {
+  background: #4da3ff;
+  border: 1px solid #3a8be0;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.primaryBtn:hover {
+  background: #3a8be0;
+}
+.secondaryBtn {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.secondaryBtn:hover {
+  background: #f3f4f6;
+}
+.dangerBtn {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.dangerBtn:hover {
+  background: #fecaca;
+}
+.linkBtn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+}
+.center {
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}

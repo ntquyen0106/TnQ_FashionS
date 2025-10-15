@@ -41,34 +41,41 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="page-center">
-      <div className={`card-narrow ${styles.wrap}`}>
+    <div className={styles.authPage}>
+      <div className={styles.wrap}>
         <h2 className={styles.h1}>Tạo mật khẩu mới</h2>
+        <p className={styles.sub}>Mật khẩu cần tối thiểu 6 ký tự và dễ nhớ với bạn.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
-            <label>Mật khẩu mới</label>
-            <input
-              className={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
-              disabled={loading}
-            />
+            <label className={styles.label}>Mật khẩu mới</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>🔒</span>
+              <input
+                className={styles.input}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                disabled={loading}
+              />
+            </div>
           </div>
           <div className={styles.field}>
-            <label>Nhập lại mật khẩu</label>
-            <input
-              className={styles.input}
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••"
-              disabled={loading}
-            />
+            <label className={styles.label}>Nhập lại mật khẩu</label>
+            <div className={styles.inputWrap}>
+              <span className={styles.inputIcon}>🔒</span>
+              <input
+                className={styles.input}
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="••••••"
+                disabled={loading}
+              />
+            </div>
           </div>
           <div className={styles.actions}>
-            <button className="btn" type="submit" disabled={loading}>
+            <button className={styles.btnPrimary} type="submit" disabled={loading}>
               {loading ? 'Đang đổi...' : 'Đổi mật khẩu'}
             </button>
             <Link className={styles.link} to="/login">

@@ -3,7 +3,6 @@ import * as authController from "../controllers/auth.controller.js";
 import { requireAuth, requireRole } from "../middlewares/requireAuth.js";
 const router = Router();
 
-
 //Basic routes
 router.post("/login", authController.postLogin);  // body: { email, password }
 router.get("/me", requireAuth, authController.getMe);

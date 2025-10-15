@@ -1,5 +1,6 @@
 import * as auth from '../services/auth.service.js';
 import User from '../models/User.js';
+import validator from 'validator';
 
 export const COOKIE_NAME = 'token';
 const ONE_DAY = 1000 * 60 * 60 * 24;
@@ -179,7 +180,45 @@ export const postAddAddress = async (req, res, next) => {
 export const postSetDefaultAddress = async (req, res, next) => {
   try {
     const user = await auth.setDefaultAddress(req.user._id, req.body.addressId);
-    res.json({addresses: user.addresses });
+    res.json({ addresses: user.addresses });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getAddresses = async (req, res, next) => {
+  try {
+    const list = await auth.getAddresses(req.user._id);
+    res.json({ addresses: list });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const putUpdateAddress = async (req, res, next) => {
+  try {
+    const { addressId } = req.params;
+    const result = await auth.updateAddress(req.user._id, addressId, req.body);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const deleteAddress = async (req, res, next) => {
+  try {
+    const { addressId } = req.params;
+    const result = await auth.deleteAddress(req.user._id, addressId);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const clearAddresses = async (req, res, next) => {
+  try {
+    const result = await auth.clearAddresses(req.user._id);
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -192,19 +231,17 @@ export const postCreateUser = async (req, res) => {
     const result = await auth.createUser(req.body);
     return res.status(201).json(result);
   } catch (err) {
-    if (err.name === "ValidationError") {
+    if (err.name === 'ValidationError') {
       const errors = {};
       for (const key in err.errors) {
         errors[key] = err.errors[key].message;
       }
       return res.status(400).json({
-        message: "Validation failed",
+        message: 'Validation failed',
         errors,
       });
     }
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message, errors: err.errors || null });
+    return res.status(err.status || 500).json({ message: err.message, errors: err.errors || null });
   }
 };
 
@@ -214,19 +251,17 @@ export const putUpdateUser = async (req, res) => {
     const result = await auth.updateUser(id, req.body);
     return res.status(200).json(result);
   } catch (err) {
-    if (err.name === "ValidationError") {
+    if (err.name === 'ValidationError') {
       const errors = {};
       for (const key in err.errors) {
         errors[key] = err.errors[key].message;
       }
       return res.status(400).json({
-        message: "Validation failed",
+        message: 'Validation failed',
         errors,
       });
     }
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message, errors: err.errors || null });
+    return res.status(err.status || 500).json({ message: err.message, errors: err.errors || null });
   }
 };
 
@@ -236,9 +271,7 @@ export const getUser = async (req, res) => {
     const user = await auth.getUserById(id);
     return res.json(user);
   } catch (err) {
-    return res
-      .status(err.status)
-      .json({ message: err.message });
+    return res.status(err.status).json({ message: err.message });
   }
 };
 
@@ -247,9 +280,7 @@ export const getAllUsers = async (req, res) => {
     const result = await auth.getUsers(req.query);
     return res.status(200).json(result);
   } catch (err) {
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message, errors: err.errors || null });
+    return res.status(err.status || 500).json({ message: err.message, errors: err.errors || null });
   }
 };
 
@@ -259,8 +290,36 @@ export const deleteOneUser = async (req, res) => {
     const result = await auth.deleteUser(id);
     return res.status(200).json(result);
   } catch (err) {
-    return res
-      .status(err.status || 500)
-      .json({ message: err.message, errors: err.errors || null });
+    return res.status(err.status || 500).json({ message: err.message, errors: err.errors || null });
+  }
+};
+
+// ---- Profile update (name, maybe phone later) ----
+export const putProfile = async (req, res, next) => {
+  try {
+    const { name, email } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (typeof name === 'string' && name.trim()) {
+      user.name = name.trim();
+    }
+
+    if (typeof email === 'string' && email.trim()) {
+      const emailNorm = email.trim().toLowerCase();
+      if (!validator.isEmail(emailNorm)) {
+        return res.status(400).json({ message: 'Email không hợp lệ' });
+      }
+      const exists = await User.findOne({ email: emailNorm, _id: { $ne: user._id } });
+      if (exists) {
+        return res.status(409).json({ message: 'Email đã được sử dụng' });
+      }
+      user.email = emailNorm;
+    }
+
+    await user.save();
+    res.json({ user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (e) {
+    next(e);
   }
 };

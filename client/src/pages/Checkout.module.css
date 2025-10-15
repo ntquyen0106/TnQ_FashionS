@@ -1,0 +1,141 @@
+.wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 25px rgba(17, 24, 39, 0.06);
+}
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.linkBtn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+}
+.addressCard {
+  line-height: 1.6;
+}
+.addrLine {
+  color: #374151;
+}
+.voucherRow {
+  display: flex;
+  gap: 8px;
+}
+.voucherRow input {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.secondaryBtn {
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.items {
+  display: grid;
+  gap: 12px;
+}
+.itemRow {
+  display: grid;
+  grid-template-columns: 64px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+}
+.itemRow img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+}
+.itemName {
+  font-weight: 600;
+}
+.itemMeta {
+  color: #6b7280;
+  font-size: 13px;
+}
+.itemQty {
+  color: #374151;
+}
+.itemPrice {
+  font-weight: 600;
+}
+.payMethods {
+  display: grid;
+  gap: 8px;
+}
+.radio {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.note {
+  color: #6b7280;
+  font-size: 13px;
+}
+.shipInfo {
+  line-height: 1.6;
+}
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-left: 6px;
+}
+.totals {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.row,
+.rowGrand {
+  display: flex;
+  justify-content: space-between;
+}
+.rowGrand {
+  font-size: 18px;
+  font-weight: 700;
+}
+.placeBtn {
+  width: 100%;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #3a8be0 0%, #4da3ff 100%);
+  border: 1px solid #3a8be0;
+  border-radius: 14px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.placeBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (min-width: 800px) {
+  .section:last-child {
+    position: sticky;
+    bottom: 12px;
+  }
+}
