@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import s from './Navbar.module.css';
 import { getCategories } from '@/api/category'; // <-- dùng file api/category.js bạn đã tạo
@@ -94,6 +94,7 @@ export default function Navbar({
   showCart = true,
 }) {
   const nav = useNavigate();
+  const location = useLocation();
   const [q, setQ] = useState('');
 
   // ====== NEW: lấy danh mục từ API ======
@@ -104,6 +105,9 @@ export default function Navbar({
   const [loadingMe, setLoadingMe] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
   const { cart } = useCart();
+
+  const isDashboard = location.pathname.startsWith('/dashboard');
+  const isStaffOrAdmin = user && (user.role === 'staff' || user.role === 'admin');
 
   const cartQty = useMemo(() => {
     const items = Array.isArray(cart?.items) ? cart.items : [];
@@ -207,7 +211,7 @@ export default function Navbar({
 
         {/* Center role/name for staff/admin */}
         <div className={s.centerInfo} aria-live="polite">
-          {user && (user.role === 'staff' || user.role === 'admin') ? (
+          {isStaffOrAdmin && isDashboard ? (
             <span className={s.roleBadge}>
               {user.role === 'admin' ? 'Quản lý' : 'Nhân viên'}: {user.name || user.email}
             </span>
@@ -215,7 +219,7 @@ export default function Navbar({
         </div>
 
         {/* Menu (ẩn nếu muốn dùng trên dashboard) */}
-        {!hideMenu && (
+        {!isDashboard && !hideMenu && (
           <nav className={s.nav} aria-label="Main">
             <ul className={s.menu}>
               {loadingCats && (
