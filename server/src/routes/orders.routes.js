@@ -22,4 +22,13 @@ router.patch('/:id/assign', requireAuth, requireRole('admin'), orderCtl.assign);
 // Update status (staff/admin)
 router.patch('/:id/status', requireAuth, requireRole('staff', 'admin'), orderCtl.updateStatus);
 
+// Update a specific item's variant (size/color) within an order (staff/admin)
+// Body: { sku?: string, color?: string, size?: string }
+router.patch(
+  '/:id/items/:index',
+  requireAuth,
+  requireRole('staff', 'admin'),
+  orderCtl.updateItemVariant,
+);
+
 export default router;

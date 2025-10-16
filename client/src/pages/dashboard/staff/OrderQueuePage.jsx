@@ -6,6 +6,7 @@ import styles from './OrderQueuePage.module.css';
 
 export default function OrderQueuePage() {
   const [queue, setQueue] = useState([]);
+  const [q, setQ] = useState('');
   const [claiming, setClaiming] = useState({});
   const [err, setErr] = useState('');
   const [confirm, setConfirm] = useState({ open: false, id: null });
@@ -55,6 +56,30 @@ export default function OrderQueuePage() {
     }
   };
 
+  // Search/filter by code, customer name, phone, item name/SKU
+  const term = q.trim().toLowerCase();
+  const filteredQueue = term
+    ? (queue || []).filter((o) => {
+        const code = String(o.code || o._id || '').toLowerCase();
+        const name = String(
+          (o.shippingAddress && o.shippingAddress.fullName) || o.customerName || '',
+        ).toLowerCase();
+        const phone = String(
+          (o.shippingAddress && o.shippingAddress.phone) || o.customerPhone || '',
+        ).toLowerCase();
+        const itemText = (o.items || [])
+          .map((it) => `${it?.nameSnapshot || it?.name || ''} ${it?.variantSku || ''}`)
+          .join(' ')
+          .toLowerCase();
+        return (
+          code.includes(term) ||
+          name.includes(term) ||
+          phone.includes(term) ||
+          itemText.includes(term)
+        );
+      })
+    : queue;
+
   return (
     <div className={styles.wrap}>
       <div className={styles.head}>
@@ -66,6 +91,29 @@ export default function OrderQueuePage() {
           <span className={styles.hint}>Đơn PENDING: {queue.length}</span>
         </div>
         <div className={styles.toolRight}>
+          <div className={styles.searchBox}>
+            <svg
+              className={styles.searchIcon}
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm mã đơn, tên, SĐT, SKU..."
+            />
+          </div>
           {err && <span style={{ color: 'crimson' }}>{err}</span>}
           <button className={`btn ${styles.btnSecondary}`} onClick={load}>
             Tải lại
@@ -82,7 +130,7 @@ export default function OrderQueuePage() {
           <div className={`${styles.cell} ${styles.th}`} />
         </div>
 
-        {queue.map((o) => {
+        {filteredQueue.map((o) => {
           const id = o.id || o._id;
           return (
             <div
@@ -135,7 +183,11 @@ export default function OrderQueuePage() {
           );
         })}
 
-        {queue.length === 0 && <div className={styles.empty}>Không có đơn PENDING.</div>}
+        {filteredQueue.length === 0 && (
+          <div className={styles.empty}>
+            {q ? 'Không có đơn phù hợp.' : 'Không có đơn PENDING.'}
+          </div>
+        )}
       </div>
       <ConfirmModal
         open={confirm.open}

@@ -32,6 +32,27 @@
   gap: 8px;
   align-items: center;
 }
+.searchBox {
+  position: relative;
+}
+.searchBox input {
+  padding: 8px 10px 8px 30px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  min-width: 220px;
+  background: #fff;
+}
+.searchBox input:focus {
+  outline: none;
+  border-color: #bbb;
+}
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+}
 .hint {
   color: #888;
   font-size: 13px;

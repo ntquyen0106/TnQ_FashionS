@@ -1,6 +1,8 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ordersApi from '@/api/orders-api';
+import { productsApi } from '@/api/products-api';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/auth/AuthProvider';
 import styles from './OrderDetail.module.css';
@@ -38,12 +40,23 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState({ claim: false, cancel: false });
+  const [editing, setEditing] = useState({ open: false, index: -1 });
+  const [variants, setVariants] = useState([]);
+  const [editSel, setEditSel] = useState({ color: '', size: '', sku: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [qConfirm, setQConfirm] = useState({ claim: false, cancel: false });
   const [reasons, setReasons] = useState([]);
   const [reasonOther, setReasonOther] = useState('');
   const buildImageUrl = useCloudImage();
   const { user } = useAuth();
+
+  // Bulk edit states
+  const [bulkVariantsByProduct, setBulkVariantsByProduct] = useState({}); // { [productId]: variants[] }
+  const [bulkSel, setBulkSel] = useState([]); // per-index { color, size }
+  const [bulkSearch, setBulkSearch] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [savingIdx, setSavingIdx] = useState(-1);
 
   useEffect(() => {
     (async () => {
@@ -75,23 +88,35 @@ export default function OrderDetail() {
   const canCancel = String(order.status || 'PENDING').toUpperCase() === 'PENDING';
   const isStaff = user && (user.role === 'staff' || user.role === 'admin');
   const inQueue = isStaff && loc.state?.from === 'staff' && loc.state?.queue;
+  const canEditItems = isStaff && String(order.status).toUpperCase() === 'PENDING';
 
-  const nextStatus = (s) => {
+  // Next status: use code for API, label for UI
+  const nextStatusCode = (s) => {
     const cur = String(s || '').toLowerCase();
     const map = {
-      pending: 'Xác nhận', // PENDING -> CONFIRMED
-      confirmed: 'Đang vận chuyển', // CONFIRMED -> SHIPPING
-      shipping: 'Đang giao', // SHIPPING -> DELIVERING
-      delivering: 'Hoàn tất', // DELIVERING -> DONE
+      pending: 'confirmed',
+      confirmed: 'shipping',
+      shipping: 'delivering',
+      delivering: 'done',
+    };
+    return map[cur] || '';
+  };
+  const nextStatusLabel = (s) => {
+    const cur = String(s || '').toLowerCase();
+    const map = {
+      pending: 'Đã xác nhận',
+      confirmed: 'Đang vận chuyển',
+      shipping: 'Đang giao',
+      delivering: 'Hoàn tất',
     };
     return map[cur] || '';
   };
 
   const updateToNext = async () => {
-    const to = nextStatus(order.status);
-    if (!to) return;
+    const toCode = nextStatusCode(order.status);
+    if (!toCode) return;
     try {
-      await ordersApi.updateStatus(order._id || order.id, to);
+      await ordersApi.updateStatus(order._id || order.id, toCode);
       const refreshed = await (loc.state?.from === 'staff'
         ? ordersApi.getAny(id)
         : ordersApi.get(id));
@@ -105,10 +130,36 @@ export default function OrderDetail() {
       await ordersApi.claim(order._id || order.id);
       nav('/dashboard/my-orders');
     } catch (e) {
-      // optional: show an alert on failure
       alert(e?.response?.data?.message || 'Không thể nhận đơn.');
     } finally {
       setActing((x) => ({ ...x, claim: false }));
+    }
+  };
+
+  const openBulkUpdateModal = async () => {
+    if (String(order.status).toUpperCase() !== 'PENDING') return;
+    setEditing({ open: true, index: -1 });
+    setBulkSearch('');
+    setBulkLoading(true);
+    try {
+      const items = order.items || [];
+      const uniqIds = [...new Set(items.map((it) => it.productId))];
+      const details = await Promise.all(
+        uniqIds.map((pid) => productsApi.detail(pid).catch(() => null)),
+      );
+      const map = {};
+      uniqIds.forEach((pid, i) => {
+        map[pid] = details[i]?.variants || [];
+      });
+      setBulkVariantsByProduct(map);
+      const initSel = items.map((it) => {
+        const vs = map[it.productId] || [];
+        const cur = vs.find((v) => v.sku === it.variantSku) || vs[0] || {};
+        return { color: cur.color || '', size: cur.size || '' };
+      });
+      setBulkSel(initSel);
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -136,6 +187,18 @@ export default function OrderDetail() {
     }
   };
 
+  // Derived for modal validation (single-item edit mode)
+  const currentItem = editing.open ? (order.items || [])[editing.index] : null;
+  const allVariants = variants || [];
+  const validVariant = allVariants.find(
+    (x) =>
+      String(x.color || '') === String(editSel.color || '') &&
+      String(x.size || '') === String(editSel.size || ''),
+  );
+  const isSamePrice = validVariant
+    ? Number(validVariant.price) === Number(currentItem?.price ?? Number.NaN)
+    : false;
+
   return (
     <div className={styles.wrap}>
       {inQueue && (
@@ -150,7 +213,6 @@ export default function OrderDetail() {
             const target =
               loc.state?.backTo ||
               (loc.state?.from === 'staff' ? '/dashboard/my-orders' : '/orders');
-            // Try history first; if it returns to same page, force navigate
             if (history.length > 1) nav(-1);
             else nav(target);
           }}
@@ -239,14 +301,29 @@ export default function OrderDetail() {
           </div>
         </section>
       </div>
-      {!inQueue && isStaff && nextStatus(order.status) && (
+
+      {/* Staff (non-queue): combine actions into one row with Cancel | Cập nhật | Chuyển */}
+      {!inQueue && isStaff && (
         <div className={styles.bottomActions}>
-          <button className={`btn ${styles.btnPrimary}`} onClick={updateToNext}>
-            Chuyển → {nextStatus(order.status)}
-          </button>
+          {canCancel && (
+            <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
+              Hủy đơn
+            </button>
+          )}
+          {canEditItems && (
+            <button className="btn" onClick={openBulkUpdateModal} disabled={!canEditItems}>
+              Cập nhật
+            </button>
+          )}
+          {nextStatusCode(order.status) && (
+            <button className={`btn ${styles.btnPrimary}`} onClick={updateToNext}>
+              Chuyển → {nextStatusLabel(order.status)}
+            </button>
+          )}
         </div>
       )}
-      {!inQueue && canCancel && (
+      {/* Customer (non-staff): keep cancel button as before */}
+      {!inQueue && !isStaff && canCancel && (
         <div className={styles.bottomActions}>
           <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
             Hủy đơn
@@ -262,6 +339,13 @@ export default function OrderDetail() {
             disabled={acting.cancel}
           >
             {acting.cancel ? 'Đang hủy…' : 'Hủy đơn'}
+          </button>
+          <button
+            className="btn"
+            onClick={openBulkUpdateModal}
+            disabled={String(order.status).toUpperCase() !== 'PENDING'}
+          >
+            Cập nhật
           </button>
           <button
             className={`btn ${styles.btnPrimary}`}
@@ -296,7 +380,6 @@ export default function OrderDetail() {
         cancelText="Quay lại"
         onConfirm={async () => {
           await claimFromDetail();
-          setQConfirm((s) => ({ ...s, claim: false }));
         }}
         onCancel={() => setQConfirm((s) => ({ ...s, claim: false }))}
         disabled={acting.claim}
@@ -379,6 +462,318 @@ export default function OrderDetail() {
         confirmType="danger"
         onConfirm={doCancel}
         onCancel={() => setConfirm(false)}
+      />
+
+      {/* Edit item variant modal */}
+      <ConfirmModal
+        open={editing.open}
+        title="Cập nhật sản phẩm trong đơn"
+        contentClassName={styles.modalTightContent}
+        message={
+          <div style={{ display: 'grid', gap: 14 }}>
+            {editing.index < 0 ? (
+              <>
+                <div className={`${styles.modalSection} ${styles.stickyBar}`}>
+                  <label>Tìm kiếm sản phẩm</label>
+                  <input
+                    value={bulkSearch}
+                    onChange={(e) => setBulkSearch(e.target.value)}
+                    placeholder="Nhập tên hoặc SKU để tìm…"
+                    style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }}
+                  />
+                </div>
+                {bulkLoading ? (
+                  <div className={styles.modalSection}>Đang tải biến thể…</div>
+                ) : (
+                  <div className={styles.modalSection}>
+                    <div style={{ display: 'grid', gap: 12 }}>
+                      {(order.items || [])
+                        .map((it, idx) => ({ it, idx }))
+                        .filter(({ it }) => {
+                          const q = bulkSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (
+                            String(it.nameSnapshot || '')
+                              .toLowerCase()
+                              .includes(q) ||
+                            String(it.variantSku || '')
+                              .toLowerCase()
+                              .includes(q)
+                          );
+                        })
+                        .map(({ it, idx }) => {
+                          const vs = bulkVariantsByProduct[it.productId] || [];
+                          const sel = bulkSel[idx] || { color: '', size: '' };
+                          const currentPrice = Number(it.price || 0);
+
+                          const colors = [...new Set(vs.map((v) => v.color || ''))];
+                          const anyDiffByColor = (c) =>
+                            vs.some(
+                              (v) =>
+                                String(v.color || '') === String(c) &&
+                                Number(v.price) !== currentPrice,
+                            );
+                          const sizesForColor = vs.filter(
+                            (v) => String(v.color || '') === String(sel.color || ''),
+                          );
+                          const uniqSizes = [...new Set(sizesForColor.map((v) => v.size || ''))];
+                          const variantForSel = vs.find(
+                            (v) =>
+                              String(v.color || '') === String(sel.color || '') &&
+                              String(v.size || '') === String(sel.size || ''),
+                          );
+                          const samePrice = variantForSel
+                            ? Number(variantForSel.price) === currentPrice
+                            : false;
+
+                          return (
+                            <div
+                              key={idx}
+                              style={{ border: '1px solid #eee', borderRadius: 8, padding: 12 }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: 12,
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 12,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  <img
+                                    src={buildImageUrl(it.imageSnapshot, 64)}
+                                    alt={it.nameSnapshot}
+                                    style={{
+                                      width: 48,
+                                      height: 48,
+                                      objectFit: 'cover',
+                                      borderRadius: 6,
+                                      flex: '0 0 auto',
+                                    }}
+                                  />
+                                  <div style={{ display: 'grid', minWidth: 0 }}>
+                                    <strong
+                                      style={{
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {it.nameSnapshot}
+                                    </strong>
+                                    {it.variantSku ? (
+                                      <small style={{ opacity: 0.7 }}>
+                                        SKU hiện tại: {it.variantSku}
+                                      </small>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <div className={styles.unit}>{fmtVND(it.price)}₫</div>
+                              </div>
+
+                              <div className={styles.optionRow} style={{ marginTop: 8 }}>
+                                {colors.map((c) => {
+                                  const cls = [styles.pill];
+                                  if (String(sel.color || '') === String(c))
+                                    cls.push(styles.pillActive);
+                                  if (anyDiffByColor(c)) cls.push(styles.pillWarn);
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={c}
+                                      className={cls.join(' ')}
+                                      onClick={() =>
+                                        setBulkSel((arr) => {
+                                          const next = [...arr];
+                                          next[idx] = { ...(next[idx] || {}), color: c };
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      {c || '—'}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              <div className={styles.optionRow}>
+                                {uniqSizes.map((sz) => {
+                                  const v = sizesForColor.find(
+                                    (x) => String(x.size || '') === String(sz),
+                                  );
+                                  const same = v && Number(v.price) === currentPrice;
+                                  const cls = [styles.pill];
+                                  if (String(sel.size || '') === String(sz))
+                                    cls.push(styles.pillActive);
+                                  if (!same) cls.push(styles.pillWarn);
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={sz}
+                                      className={cls.join(' ')}
+                                      onClick={() =>
+                                        setBulkSel((arr) => {
+                                          const next = [...arr];
+                                          next[idx] = { ...(next[idx] || {}), size: sz };
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      {sz || '—'}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              <div className={styles.hint}>
+                                {variantForSel
+                                  ? `SKU: ${variantForSel.sku} — Giá: ${fmtVND(
+                                      variantForSel.price,
+                                    )}₫${samePrice ? '' : ' (khác giá với sản phẩm trong đơn)'}`
+                                  : 'Hãy chọn Màu + Size.'}
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                  className="btn"
+                                  disabled={savingIdx === idx || !variantForSel || !samePrice}
+                                  onClick={async () => {
+                                    if (!variantForSel) return;
+                                    setSavingIdx(idx);
+                                    try {
+                                      const oid = order._id || order.id;
+                                      await ordersApi.updateItemVariant(oid, idx, {
+                                        color: sel.color,
+                                        size: sel.size,
+                                      });
+                                      const refreshed = await (loc.state?.from === 'staff'
+                                        ? ordersApi.getAny(id)
+                                        : ordersApi.get(id));
+                                      setOrder(refreshed || null);
+                                    } catch (e) {
+                                      alert(
+                                        e?.response?.data?.message || 'Cập nhật không thành công',
+                                      );
+                                    } finally {
+                                      setSavingIdx(-1);
+                                    }
+                                  }}
+                                >
+                                  {savingIdx === idx ? 'Đang lưu…' : 'Cập nhật'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className={styles.modalSection}>
+                  <label>Màu sắc</label>
+                  <div className={styles.optionRow}>
+                    {[...new Set(allVariants.map((v) => v.color || ''))].map((c) => {
+                      const anyDiff = allVariants.some(
+                        (v) =>
+                          String(v.color || '') === String(c) &&
+                          Number(v.price) !== Number(currentItem?.price ?? Number.NaN),
+                      );
+                      const cls = [styles.pill];
+                      if (String(editSel.color || '') === String(c)) cls.push(styles.pillActive);
+                      if (anyDiff) cls.push(styles.pillWarn);
+                      return (
+                        <button
+                          type="button"
+                          key={c}
+                          className={cls.join(' ')}
+                          onClick={() => setEditSel((s) => ({ ...s, color: c }))}
+                        >
+                          {c || '—'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className={styles.modalSection}>
+                  <label>Size</label>
+                  <div className={styles.optionRow}>
+                    {(() => {
+                      const sizesForColor = allVariants.filter(
+                        (v) => String(v.color || '') === String(editSel.color || ''),
+                      );
+                      const uniqSizes = [...new Set(sizesForColor.map((v) => v.size || ''))];
+                      return uniqSizes.map((sz) => {
+                        const v = sizesForColor.find((x) => String(x.size || '') === String(sz));
+                        const same =
+                          v && Number(v.price) === Number(currentItem?.price ?? Number.NaN);
+                        const cls = [styles.pill];
+                        if (String(editSel.size || '') === String(sz)) cls.push(styles.pillActive);
+                        if (!same) cls.push(styles.pillWarn);
+                        return (
+                          <button
+                            type="button"
+                            key={sz}
+                            className={cls.join(' ')}
+                            onClick={() => setEditSel((s) => ({ ...s, size: sz }))}
+                          >
+                            {sz || '—'}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                <div className={styles.hint}>
+                  {validVariant
+                    ? `SKU: ${validVariant.sku} — Giá: ${fmtVND(validVariant.price)}₫${
+                        isSamePrice ? '' : ' (khác giá với sản phẩm trong đơn)'
+                      }`
+                    : 'Hãy chọn tổ hợp Màu + Size.'}
+                </div>
+              </>
+            )}
+          </div>
+        }
+        confirmText={editing.index < 0 ? 'Đóng' : 'Lưu'}
+        cancelText="Hủy"
+        onConfirm={async () => {
+          if (editing.index < 0) {
+            setEditing({ open: false, index: -1 });
+            return;
+          }
+          if (!validVariant || !isSamePrice) return;
+          setSavingEdit(true);
+          try {
+            const oid = order._id || order.id;
+            await ordersApi.updateItemVariant(oid, editing.index, {
+              color: editSel.color,
+              size: editSel.size,
+            });
+            const refreshed = await (loc.state?.from === 'staff'
+              ? ordersApi.getAny(id)
+              : ordersApi.get(id));
+            setOrder(refreshed || null);
+          } catch (e) {
+            alert(e?.response?.data?.message || 'Cập nhật không thành công');
+          } finally {
+            setSavingEdit(false);
+            setEditing({ open: false, index: -1 });
+          }
+        }}
+        onCancel={() => setEditing({ open: false, index: -1 })}
+        disabled={editing.index < 0 ? false : savingEdit || !validVariant || !isSamePrice}
+        hideCancel={editing.index < 0}
       />
     </div>
   );
