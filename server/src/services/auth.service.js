@@ -7,13 +7,12 @@ import Otp from '../models/Otp.js';
 import { sendMail } from './mail.service.js';
 import { adminAuth } from '../config/firebase.js';
 import mongoose from 'mongoose';
-import { error } from 'console';
 const TOKEN_AGE = 60 * 60 * 24 * 7; // 7 ngày
 
 export const login = async ({ email, password }) => {
   const user = await User.findOne({ email });
   if (!user) {
-    const err = new Error('Sai email hoặc mật khẩu');
+    const err = new Error('Không tìm thấy email');
     err.status = 401;
     throw err;
   }
@@ -35,7 +34,7 @@ export const login = async ({ email, password }) => {
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
-    const err = new Error('Sai email hoặc mật khẩu');
+    const err = new Error('Sai mật khẩu');
     err.status = 401;
     throw err;
   }
@@ -116,7 +115,7 @@ export const verifyOtp = async ({ email, otp }) => {
     throw new Error('OTP không hợp lệ hoặc đã hết hạn');
   }
 
-  const isValid = await bcrypt.compare(otp, otpDoc.otpHash);
+  const isValid = bcrypt.compare(otp, otpDoc.otpHash);
   if (!isValid) throw new Error('OTP không hợp lệ');
 
   // Tạo/activate user
@@ -201,7 +200,7 @@ export const forgotVerify = async ({ email, otp }) => {
   if (!otpDoc || otpDoc.expiresAt < new Date() || otpDoc.usedAt) {
     throw new Error('OTP không hợp lệ hoặc đã hết hạn');
   }
-  const ok = await bcrypt.compare(otp, otpDoc.otpHash);
+  const ok = bcrypt.compare(otp, otpDoc.otpHash);
   if (!ok) throw new Error('OTP không hợp lệ hoặc đã hết hạn');
 
   // Tạo resetToken ngắn hạn (random string)
@@ -317,44 +316,67 @@ export const clearAddresses = async (userId) => {
 };
 
 export const changePassword = async (id, { oldPassword, newPassword }) => {
+  // --- Validation ---
   const errors = {};
 
   if (!id || !mongoose.isValidObjectId(id)) {
-    errors.id = 'User id is invalid';
+    errors.id = 'ID người dùng không hợp lệ';
   }
   if (!oldPassword) {
-    errors.oldPassword = 'Old password is required';
+    errors.oldPassword = 'Vui lòng nhập mật khẩu cũ';
   }
   if (!newPassword) {
-    errors.newPassword = 'New password is required';
+    errors.newPassword = 'Vui lòng nhập mật khẩu mới';
   } else if (newPassword.length < 6) {
-    errors.newPassword = 'New password must be at least 6 characters';
+    errors.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
   }
 
-  if (Object.keys(errors).length > 0) {
-    throw { status: 400, message: 'Validation failed', errors };
-  }
-
+  // --- Kiểm tra user tồn tại ---
   const user = await User.findById(id);
   if (!user) {
-    throw { status: 404, message: 'User not found', errors: { id: 'User not found' } };
+    throw { status: 404, message: 'Không tìm thấy người dùng', errors: { id: 'Không tìm thấy người dùng' } };
   }
 
+  // --- Kiểm tra user có password không (không phải đăng nhập bằng Google) ---
+  if (!user.passwordHash) {
+    throw {
+      status: 400,
+      message: 'Không thể đổi mật khẩu cho tài khoản đăng nhập bằng Google',
+      errors: { oldPassword: 'Tài khoản này đăng nhập bằng Google' },
+    };
+  }
+
+  // --- Kiểm tra mật khẩu cũ ---
   const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
   if (!isMatch) {
     throw {
       status: 400,
-      message: 'Incorrect old password',
-      errors: { oldPassword: 'Incorrect old password' },
+      message: 'Mật khẩu cũ không chính xác',
+      errors: { oldPassword: 'Mật khẩu cũ không chính xác' },
     };
   }
 
+  // --- Kiểm tra mật khẩu mới phải khác mật khẩu cũ ---
+  if (newPassword === oldPassword) {
+    throw {
+      status: 400,
+      message: 'Mật khẩu mới phải khác mật khẩu cũ',
+      errors: { newPassword: 'Mật khẩu mới phải khác mật khẩu cũ' },
+    };
+  }
+  
+    if (Object.keys(errors).length > 0) {
+    throw { status: 400, message: 'Dữ liệu không hợp lệ', errors };
+  }
+
+  // --- Hash và lưu ---
   const hashed = await bcrypt.hash(newPassword, 10);
   user.passwordHash = hashed;
   await user.save();
 
-  return { message: 'Password updated successfully' };
+  return { message: 'Đổi mật khẩu thành công' };
 };
+
 
 //====================================CRUD=========================================
 export const createUser = async (data) => {

@@ -146,6 +146,27 @@ export const postFacebookLogin = async (req, res, next) => {
 };
 
 /* -------------------- USER UTILITIES -------------------- */
+export const putChangePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+    const result = await auth.changePassword(id, {
+      oldPassword,
+      newPassword,
+      confirmNewPassword,
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("Change password error:", err);
+
+    return res.status(err.status || 500).json({
+      message: err.message || "Internal server error",
+      errors: err.errors || null,
+    });
+  }
+};
 
 export const postAddAddress = async (req, res, next) => {
   try {

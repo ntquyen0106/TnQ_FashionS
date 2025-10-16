@@ -1,15 +1,19 @@
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import { getCartTotal } from './cart.service.js';
 import { computeShippingFee } from '../utils/shipping.js';
-import mongoose from 'mongoose';
+import { createPayOSPayment } from './payment.service.js';
 
-// Map FE status tokens to model statuses
+// FE → Model status mapping (giữ theo FE của bạn)
 const FE_TO_MODEL = {
   new: 'PENDING',
   pending: 'PENDING',
+  awaiting_payment: 'AWAITING_PAYMENT',
+  confirmed: 'CONFIRMED',
   processing: 'CONFIRMED',
+  packing: 'PACKING',
   shipping: 'SHIPPING',
   delivering: 'DELIVERING',
   delivered: 'DONE',
@@ -23,7 +27,7 @@ const FE_TO_MODEL = {
 const toModelStatus = (s) => {
   if (!s) return undefined;
   const key = String(s).toLowerCase();
-  return FE_TO_MODEL[key] || s; // allow passing model status directly
+  return FE_TO_MODEL[key] || s; // cho phép truyền trực tiếp model token
 };
 
 export const checkout = async ({ userId, sessionId, addressId, paymentMethod, selectedItems }) => {
@@ -54,7 +58,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     city: addr.city,
   };
 
-  // 4) Build items snapshot theo Order schema
+  // 4) Items snapshot theo Order schema
   const orderItems = items.map((it) => ({
     productId: it.productId,
     variantSku: it.variantSku,
@@ -65,7 +69,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     lineTotal: Number(it.price) * Number(it.quantity),
   }));
 
-  // 5) Amounts theo schema (tính phí ship theo địa chỉ: HCM <=15km free, >15km theo bưu điện; vùng khác theo tier)
+  // 5) Amounts theo schema
   const shippingFee = computeShippingFee(shippingAddress.city, shippingAddress.district, subtotal);
   const amounts = {
     subtotal: Number(subtotal),
@@ -74,12 +78,10 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     grandTotal: Math.max(Number(subtotal) - (Number(discount) || 0) + shippingFee, 0),
   };
 
-  // 6) Chuẩn hoá phương thức thanh toán + trạng thái
+  // 6) Chuẩn hoá payment + status ban đầu
   const methodUpper = String(paymentMethod || 'COD').toUpperCase();
-  // Tạm map các ví điện tử về BANK cho tới khi tích hợp cổng thanh toán
-  const walletToBank = new Set(['MOMO', 'ZALOPAY', 'VNPAY']);
-  const pm = methodUpper === 'COD' ? 'COD' : walletToBank.has(methodUpper) ? 'BANK' : 'BANK';
-  const status = 'PENDING';
+  const pm = methodUpper === 'COD' ? 'COD' : 'BANK';
+  const status = pm === 'COD' ? 'PENDING' : 'AWAITING_PAYMENT';
 
   // 7) Tạo order
   const order = await Order.create({
@@ -92,7 +94,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     history: [
       {
         action: 'CREATE',
-        note: 'Order created',
+        note: pm === 'COD' ? 'Order created' : 'Order created, awaiting payment',
         fromStatus: null,
         toStatus: status,
         byUserId: userId,
@@ -100,7 +102,25 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     ],
   });
 
-  // 8) Xoá các item đã mua khỏi cart
+  // 8) Nếu BANK → tạo link PayOS
+  let paymentData = null;
+  if (pm === 'BANK') {
+    try {
+      paymentData = await createPayOSPayment({
+        orderId: order._id.toString(),
+        amount: amounts.grandTotal,
+        returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
+        cancelUrl: `${process.env.CLIENT_URL}/checkout?cancelled=true`,
+      });
+      order.paymentOrderCode = paymentData.orderCode;
+      await order.save();
+    } catch (error) {
+      console.error('Error creating PayOS payment:', error);
+      throw new Error('Không thể tạo link thanh toán. Vui lòng thử lại sau.');
+    }
+  }
+
+  // 9) Xoá item đã mua khỏi cart
   cart.items = cart.items.filter(
     (ci) =>
       !orderItems.some(
@@ -109,13 +129,14 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
   );
   await cart.save();
 
-  return order;
+  return { order, paymentData };
 };
 
 export const list = async ({ status, unassigned, assignee, meId, limit = 100 }) => {
   const query = {};
   const ms = toModelStatus(status);
   if (ms) {
+    // chấp nhận cả lowercase nếu DB cũ có dữ liệu thường
     query.status = { $in: [ms, String(ms).toLowerCase()] };
   }
   if (unassigned) query.assignedStaffId = null;
@@ -128,7 +149,9 @@ export const claim = async ({ orderId, staffId }) => {
   const order = await Order.findOne({ _id: orderId }).lean();
   if (!order) throw new Error('Order not found');
   if (order.assignedStaffId) throw new Error('Order already assigned');
-  if (order.status !== 'PENDING') throw new Error('Only PENDING orders can be claimed');
+  if (!['PENDING', 'pending'].includes(order.status)) {
+    throw new Error('Only PENDING orders can be claimed');
+  }
 
   const updated = await Order.findOneAndUpdate(
     { _id: orderId, assignedStaffId: null, status: { $in: ['PENDING', 'pending'] } },
@@ -146,6 +169,7 @@ export const claim = async ({ orderId, staffId }) => {
     },
     { new: true },
   ).lean();
+
   if (!updated) throw new Error('Failed to claim');
   return updated;
 };
@@ -166,6 +190,7 @@ export const assign = async ({ orderId, staffId, byUserId }) => {
 export const updateStatus = async ({ orderId, status, byUserId }) => {
   const to = toModelStatus(status);
   if (!to) throw new Error('Invalid status');
+
   const order = await Order.findById(orderId).lean();
   if (!order) throw new Error('Order not found');
 
@@ -174,31 +199,29 @@ export const updateStatus = async ({ orderId, status, byUserId }) => {
     orderId,
     {
       $set: { status: to },
-      $push: {
-        history: { action: 'STATUS_CHANGE', fromStatus: from, toStatus: to, byUserId },
-      },
+      $push: { history: { action: 'STATUS_CHANGE', fromStatus: from, toStatus: to, byUserId } },
     },
     { new: true },
   ).lean();
+
   return updated;
 };
 
 export const statsForUser = async ({ staffId, from, to, status }) => {
   const match = { assignedStaffId: new mongoose.Types.ObjectId(staffId) };
-  // Date range: from/to are ISO date strings (yyyy-mm-dd)
+
   if (from || to) {
     match.createdAt = {};
     if (from) match.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
     if (to) match.createdAt.$lte = new Date(to + 'T23:59:59.999Z');
   }
-  // Status filter: allow comma-separated list, and accept FE aliases
+
   if (status) {
     const list = String(status)
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
     if (list.length) {
-      // Map FE to model tokens when possible; also allow raw model tokens
       const mapped = list.map((s) => (FE_TO_MODEL[String(s).toLowerCase()] || s).toUpperCase());
       match.status = { $in: mapped };
     }
