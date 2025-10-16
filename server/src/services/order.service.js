@@ -237,3 +237,94 @@ export const statsForUser = async ({ staffId, from, to, status }) => {
     pending: byStatus.PENDING || 0,
   };
 };
+
+// Update a specific order item's variant (size/color)
+// Options: pass exact sku OR pass color+size to resolve a variant sku by product
+export const updateItemVariant = async ({ orderId, index, sku, color, size, byUserId }) => {
+  if (!Number.isInteger(index) || index < 0) {
+    const err = new Error('Invalid item index');
+    err.status = 400;
+    throw err;
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) throw new Error('Order not found');
+  if (!order.items || !order.items[index]) {
+    const err = new Error('Order item not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const item = order.items[index];
+
+  // Only allow edit when order is PENDING
+  const st = String(order.status).toUpperCase();
+  if (st !== 'PENDING') {
+    const err = new Error('Chỉ có thể cập nhật sản phẩm khi đơn đang ở trạng thái CHỜ XÁC NHẬN');
+    err.status = 400;
+    throw err;
+  }
+
+  // Resolve target variant
+  let targetVariant = null;
+  let product = null;
+  if (sku) {
+    product = await mongoose
+      .model('Product')
+      .findOne({ 'variants.sku': sku }, { name: 1, variants: 1, images: 1 });
+    if (product) targetVariant = (product.variants || []).find((v) => v.sku === sku) || null;
+  } else {
+    // resolve by productId + color + size; if one missing, keep from current variant
+    product = await mongoose
+      .model('Product')
+      .findById(item.productId)
+      .select('variants images name');
+    if (product) {
+      const variants = product.variants || [];
+      const current = variants.find((v) => v.sku === item.variantSku) || null;
+      const effColor = color != null && color !== '' ? String(color) : String(current?.color || '');
+      const effSize = size != null && size !== '' ? String(size) : String(current?.size || '');
+      targetVariant =
+        variants.find(
+          (v) => String(v.color || '') === effColor && String(v.size || '') === effSize,
+        ) || null;
+    }
+  }
+  if (!product || !targetVariant) {
+    const err = new Error('Không tìm thấy biến thể phù hợp');
+    err.status = 404;
+    throw err;
+  }
+
+  // Update snapshot fields
+  item.variantSku = targetVariant.sku;
+  // Keep nameSnapshot; update imageSnapshot if variant has image
+  const vImg =
+    targetVariant.imagePublicId ||
+    (product.images || []).find((x) => x.isPrimary)?.publicId ||
+    item.imageSnapshot;
+  item.imageSnapshot = vImg;
+  // Update price, lineTotal
+  item.price = Number(targetVariant.price || item.price);
+  item.lineTotal = Number(item.price) * Number(item.qty);
+
+  // Recompute amounts
+  const subtotal = order.items.reduce((s, it) => s + Number(it.lineTotal || 0), 0);
+  order.amounts.subtotal = subtotal;
+  order.amounts.grandTotal = Math.max(
+    subtotal - Number(order.amounts.discount || 0) + Number(order.amounts.shippingFee || 0),
+    0,
+  );
+
+  // Push history
+  order.history.push({
+    action: 'EDIT',
+    byUserId,
+    note: `Update item #${index + 1} to SKU ${targetVariant.sku}${
+      color || size ? ` (${color || ''}${color && size ? ' / ' : ''}${size || ''})` : ''
+    }`,
+  });
+
+  await order.save();
+  return order.toObject();
+};

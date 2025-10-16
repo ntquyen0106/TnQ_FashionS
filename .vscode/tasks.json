@@ -165,6 +165,347 @@
 				"$eslint-stylish"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Start dev servers (client & server) [foreground]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"cd \"c:\\Users\\PC\\TnQ_FashionS\\server\"; npm run dev;"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick sanity check build (client) [ps]",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after form styling",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint - stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after combobox & sku changes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after centralizing options",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build for simple mode & variant image upload",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build for hiding advanced fields",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Start dev servers (server only foreground)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"cd \"c:\\Users\\PC\\TnQ_FashionS\\server\"; npm run dev;"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Restart server after env fix",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"cd \"c:\\Users\\PC\\TnQ_FashionS\\server\"; npm run dev;"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

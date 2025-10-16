@@ -8,6 +8,7 @@ export default function MyOrdersPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState(''); // <= bộ lọc trạng thái
+  const [q, setQ] = useState(''); // <= tìm theo mã đơn
   const [saving, setSaving] = useState({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
@@ -50,7 +51,31 @@ export default function MyOrdersPage() {
         assignee: 'me',
         status: status || undefined,
       });
-      const list = data.items || data || [];
+      let list = data.items || data || [];
+      // lọc theo nhiều trường nếu có q: mã đơn/_id, tên KH, SĐT, tên SP, SKU
+      const term = q.trim().toLowerCase();
+      if (term) {
+        list = list.filter((o) => {
+          const code = String(o.code || o._id || '').toLowerCase();
+          const name = String(
+            (o.shippingAddress && o.shippingAddress.fullName) || o.customerName || '',
+          ).toLowerCase();
+          const phone = String(
+            (o.shippingAddress && o.shippingAddress.phone) || o.customerPhone || '',
+          ).toLowerCase();
+          const itemsArr = o.items || o.lineItems || [];
+          const itemText = itemsArr
+            .map((it) => `${it?.nameSnapshot || it?.name || ''} ${it?.variantSku || ''}`)
+            .join(' ')
+            .toLowerCase();
+          return (
+            code.includes(term) ||
+            name.includes(term) ||
+            phone.includes(term) ||
+            itemText.includes(term)
+          );
+        });
+      }
       list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       setItems(list);
     } catch (e) {
@@ -65,7 +90,7 @@ export default function MyOrdersPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]); // tự load khi đổi filter
+  }, [status, q]); // tự load khi đổi filter/tìm kiếm
 
   // Trạng thái kế tiếp cho nút “Chuyển → …”
   const nextStatus = (s) => {
@@ -149,6 +174,29 @@ export default function MyOrdersPage() {
         </div>
 
         <div className={styles.right}>
+          <div className={styles.searchBox}>
+            <svg
+              className={styles.searchIcon}
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm mã đơn, tên, SĐT, SKU..."
+            />
+          </div>
           {err && <span style={{ color: 'crimson' }}>{err}</span>}
           <button className={`btn ${styles.btnSecondary}`} onClick={load} disabled={loading}>
             {loading ? 'Đang tải...' : 'Tải lại'}

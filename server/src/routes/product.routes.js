@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as ctrl from '../controllers/product.controller.js';
-import { requireAuth, requireRole } from '../middlewares/requireAuth.js';
+import { requireAuth, requireRole, optionalAuth } from '../middlewares/requireAuth.js';
 
 const router = Router();
 
@@ -8,8 +8,7 @@ const router = Router();
 router.get('/', ctrl.list);
 router.get('/slug/:slug', ctrl.getOneBySlug);
 router.get('/category/:categoryId', ctrl.listByCategory ?? ctrl.getProductsByCategory);
-router.get('/:id', ctrl.getOne);
-
+router.get('/:id', optionalAuth, ctrl.getOne);
 
 //admin, staff role
 router.post('/', requireAuth, requireRole('admin', 'staff'), ctrl.create);

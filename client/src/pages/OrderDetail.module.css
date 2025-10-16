@@ -160,6 +160,112 @@
   font-size: 16px;
 }
 
+/* Variant editor modal */
+.modalSection {
+  display: grid;
+  gap: 8px;
+}
+.optionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pill {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+.pill:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.pillActive {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+.pillDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pillWarn {
+  border-color: #f59e0b;
+  color: #92400e;
+  background: #fffbeb;
+}
+.hint {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* Sticky search bar inside modal content */
+.stickyBar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  padding-top: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Bulk modal item card */
+.modalItem {
+  border: 2px solid #d1d5db; /* thicker border for stronger separation */
+  border-radius: 12px;
+  padding: 12px;
+  background: #f9fafb; /* neutral light background to distinguish from modal */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); /* subtle resting shadow */
+}
+.modalItem:hover {
+  border-color: #9ca3af;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+.modalItemHead {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+.modalItemHeadInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.modalItemText {
+  display: grid;
+  min-width: 0;
+}
+.modalItemName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.modalItemSku {
+  opacity: 0.7;
+  font-size: 12.5px;
+}
+.modalItemBody {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.modalItemActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* Tighter padding for bulk modal content (remove extra gap above sticky search) */
+.modalTightContent {
+  padding-top: 0; /* remove top padding to eliminate gap above sticky search */
+}
+
 /* Cancel reasons modal content */
 .cancelReasons {
   display: grid;
@@ -186,6 +292,7 @@
   margin: 0 auto;
   display: flex;
   justify-content: flex-end;
+  gap: 10px; /* add spacing between the three buttons */
   padding: 8px 0;
 }
 .btnDanger {

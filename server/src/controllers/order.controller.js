@@ -141,3 +141,23 @@ export const statsMe = async (req, res, next) => {
     next(e);
   }
 };
+
+// PATCH /api/orders/:id/items/:index
+// body: { sku?: string, color?: string, size?: string }
+export const updateItemVariant = async (req, res, next) => {
+  try {
+    const { id, index } = req.params;
+    const { sku, color, size } = req.body || {};
+    const out = await orderService.updateItemVariant({
+      orderId: id,
+      index: Number(index),
+      sku,
+      color,
+      size,
+      byUserId: req.userId,
+    });
+    res.json(out);
+  } catch (e) {
+    next(e);
+  }
+};

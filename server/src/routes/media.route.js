@@ -1,6 +1,8 @@
+import 'dotenv/config';
 import { Router } from 'express';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
+import { requireAuth, requireRole } from '../middlewares/requireAuth.js';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -12,7 +14,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // POST /api/media/upload
-router.post('/media/upload', upload.single('file'), async (req, res, next) => {
+router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Missing file' });
 
@@ -37,6 +39,31 @@ router.post('/media/upload', upload.single('file'), async (req, res, next) => {
       height: result.height,
       format: result.format,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /api/media/search?prefix=products&page=1&pageSize=30
+router.get('/search', requireAuth, requireRole('admin', 'staff'), async (req, res, next) => {
+  try {
+    const { prefix = 'products', nextCursor, max = 30 } = req.query;
+    const result = await cloudinary.search
+      .expression(`folder:${prefix} AND resource_type:image`)
+      .sort_by('created_at', 'desc')
+      .max_results(Math.min(100, Number(max) || 30))
+      .next_cursor(nextCursor || undefined)
+      .execute();
+
+    const items = result.resources.map((r) => ({
+      publicId: r.public_id,
+      format: r.format,
+      width: r.width,
+      height: r.height,
+      url: r.secure_url,
+      createdAt: r.created_at,
+    }));
+    res.json({ items, nextCursor: result.next_cursor || null });
   } catch (e) {
     next(e);
   }
