@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 import { getCategories } from '@/api/category'; // đã có sẵn bên bạn
 // Nếu bạn dùng toast, import vào và dùng ở onError
 import { mediaApi } from '@/api/media-api';
+import styles from './AdminProductForm.module.css';
+import { SHOP_COLORS, SHOP_SIZES } from '@/constants/product-options';
+// Đã loại bỏ MediaPicker để chỉ dùng một nút tải tệp
 
 // util: tạo slug không dấu
 const slugify = (s = '') =>
@@ -28,6 +32,9 @@ function flattenTree(nodes = [], depth = 0) {
 }
 
 export default function AdminProductForm({ onSubmit, initial }) {
+  // Gợi ý màu/size phổ biến
+  const COLOR_OPTIONS = useMemo(() => SHOP_COLORS, []);
+  const SIZE_OPTIONS = useMemo(() => SHOP_SIZES, []);
   // ====== state sản phẩm ======
   const [name, setName] = useState(initial?.name || '');
   const [slug, setSlug] = useState(initial?.slug || '');
@@ -55,6 +62,11 @@ export default function AdminProductForm({ onSubmit, initial }) {
   // ====== danh mục ======
   const [catTree, setCatTree] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(0); // đếm số upload đang chạy
+  const [errors, setErrors] = useState([]);
+  const topRef = useRef(null);
+  const [errorOpen, setErrorOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -92,6 +104,17 @@ export default function AdminProductForm({ onSubmit, initial }) {
   const setPrimary = (idx) =>
     setImages((arr) => arr.map((im, i) => ({ ...im, isPrimary: i === idx })));
 
+  const moveImage = (from, to) =>
+    setImages((arr) => {
+      if (to < 0 || to >= arr.length) return arr;
+      const next = arr.slice();
+      const [it] = next.splice(from, 1);
+      next.splice(to, 0, it);
+      return next;
+    });
+
+  // Bỏ MediaPicker nên không cần state chọn từ thư viện
+
   // ====== handlers variants ======
   const addVariant = () =>
     setVariants((arr) => [
@@ -104,8 +127,63 @@ export default function AdminProductForm({ onSubmit, initial }) {
   const updateVariant = (idx, patch) =>
     setVariants((arr) => arr.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
 
+  // ====== SKU generator ======
+  const code = (s = '') => slugify(String(s)).replace(/-/g, '').toUpperCase();
+  const genSkuCandidate = (v) => {
+    const base = code(name).slice(0, 6);
+    const c = code(v.color).slice(0, 3);
+    const sz = code(v.size);
+    return [base, c, sz].filter(Boolean).join('-');
+  };
+  const ensureUniqueSku = (candidate, used) => {
+    let sku = candidate || 'SKU';
+    let i = 1;
+    while (used.has(sku)) {
+      i++;
+      sku = `${candidate}-${i}`;
+    }
+    used.add(sku);
+    return sku;
+  };
+  const generateSkuForIndex = (idx) => {
+    setVariants((arr) => {
+      const used = new Set(
+        arr.map((x, i) => (i === idx ? null : String(x.sku || ''))).filter(Boolean),
+      );
+      const v = arr[idx];
+      const cand = genSkuCandidate(v);
+      const sku = ensureUniqueSku(cand, used);
+      const next = arr.slice();
+      next[idx] = { ...v, sku };
+      return next;
+    });
+  };
+  const bulkGenerateSku = () => {
+    setVariants((arr) => {
+      const used = new Set(arr.map((x) => String(x.sku || '')).filter(Boolean));
+      return arr.map((v) => {
+        if (v.sku) return v;
+        const cand = genSkuCandidate(v);
+        const sku = ensureUniqueSku(cand, used);
+        return { ...v, sku };
+      });
+    });
+  };
+
   // ====== attributes (key-value) ======
-  const addAttr = () => setAttributes((obj) => ({ ...obj, '': '' }));
+  const addAttr = () => {
+    setAttributes((obj) => {
+      const keys = Object.keys(obj);
+      const base = 'attr';
+      let i = 1;
+      let candidate = 'brand';
+      if (keys.includes('brand')) {
+        while (keys.includes(`${base}${i}`)) i++;
+        candidate = `${base}${i}`;
+      }
+      return { ...obj, [candidate]: '' };
+    });
+  };
 
   const updateAttrKey = (oldKey, newKey) => {
     setAttributes((obj) => {
@@ -130,338 +208,472 @@ export default function AdminProductForm({ onSubmit, initial }) {
   };
 
   // ====== validate & submit ======
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // validate đơn giản
-    if (!name.trim()) return alert('Vui lòng nhập tên sản phẩm');
-    if (!slug.trim()) return alert('Vui lòng nhập slug');
-    if (!categoryId) return alert('Vui lòng chọn danh mục');
+    if (saving) return;
+
+    const errs = [];
+    if (uploading > 0) errs.push('Đang tải ảnh, vui lòng đợi hoàn tất trước khi lưu.');
+
+    // validate cơ bản
+    if (!name.trim()) errs.push('Vui lòng nhập tên sản phẩm.');
+    if (!categoryId) errs.push('Vui lòng chọn danh mục.');
     if (!images.length || !images.some((im) => im.publicId)) {
-      return alert('Cần ít nhất 1 ảnh có publicId');
+      errs.push('Cần ít nhất 1 ảnh sản phẩm.');
     }
     if (!variants.length) {
-      return alert('Cần ít nhất 1 biến thể (SKU/giá/stock...)');
+      errs.push('Cần ít nhất 1 biến thể.');
     }
-    // ép kiểu giá/stock thành số
-    const normVariants = variants.map((v) => ({
+
+    // tự tạo SKU cho biến thể thiếu
+    let filledVariants = variants;
+    {
+      const used = new Set(variants.map((x) => String(x.sku || '')).filter(Boolean));
+      filledVariants = variants.map((v) => {
+        if (v.sku) return v;
+        const cand = genSkuCandidate(v);
+        const sku = ensureUniqueSku(cand, used);
+        return { ...v, sku };
+      });
+      if (JSON.stringify(filledVariants) !== JSON.stringify(variants)) {
+        setVariants(filledVariants);
+      }
+    }
+
+    // ép kiểu và kiểm tra biến thể
+    const normVariants = filledVariants.map((v) => ({
       ...v,
+      sku: String(v.sku || '').trim(),
       price: Number(v.price ?? 0),
       stock: Number(v.stock ?? 0),
     }));
+    if (normVariants.some((v) => !v.sku)) errs.push('Mỗi biến thể cần SKU.');
+    if (normVariants.some((v) => v.price <= 0)) errs.push('Giá mỗi biến thể phải lớn hơn 0.');
+    if (normVariants.some((v) => v.stock < 0)) errs.push('Tồn kho mỗi biến thể phải ≥ 0.');
+    const skus = normVariants.map((v) => v.sku);
+    if (new Set(skus).size !== skus.length) errs.push('SKU của các biến thể phải khác nhau.');
+
+    if (errs.length) {
+      setErrors(errs);
+      setErrorOpen(true);
+      return;
+    }
+
+    // đảm bảo có 1 ảnh isPrimary
+    let primaryMarked = images.some((im) => im.isPrimary);
+    const finalImages = images.map((im, idx) => ({
+      publicId: String(im.publicId || '').trim(),
+      alt: String((im.alt || name).trim()),
+      isPrimary: primaryMarked ? Boolean(im.isPrimary) : idx === 0,
+    }));
+
+    // loại bỏ thuộc tính key trống
+    const attributesClean = Object.fromEntries(
+      Object.entries(attributes)
+        .map(([k, v]) => [String(k || '').trim(), String(v ?? '')])
+        .filter(([k]) => !!k),
+    );
+
+    // đảm bảo slug tự sinh nếu rỗng
+    const finalSlug = (slug || slugify(name)).trim();
 
     const payload = {
       name: name.trim(),
-      slug: slug.trim(),
+      slug: finalSlug,
       description,
       categoryId,
-      attributes,
-      images: images.map((im) => ({
-        publicId: String(im.publicId || '').trim(),
-        alt: String(im.alt || ''),
-        isPrimary: Boolean(im.isPrimary),
-      })),
+      attributes: attributesClean,
+      images: finalImages,
       variants: normVariants,
-      status: 'active',
+      status: initial?.status || 'active',
     };
 
-    onSubmit?.(payload);
+    try {
+      setSaving(true);
+      setErrors([]);
+      await onSubmit?.(payload);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16 }}>
-      {/* Thông tin cơ bản */}
-      <section style={{ border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Thông tin cơ bản</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <label>
-            Tên sản phẩm
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nhập tên..."
-              style={{ width: '100%', padding: 8, marginTop: 6 }}
-              required
-            />
-          </label>
-          <label>
-            Slug
-            <input
-              value={slug}
-              onChange={(e) => setSlug(slugify(e.target.value))}
-              placeholder="ao-khoac-du-2"
-              style={{ width: '100%', padding: 8, marginTop: 6 }}
-              required
-            />
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <label>
-            Danh mục
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              style={{ width: '100%', padding: 8, marginTop: 6 }}
-              required
-            >
-              <option value="">-- Chọn danh mục --</option>
-              {loadingCats ? (
-                <option value="">Đang tải…</option>
-              ) : (
-                catOptions.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {'— '.repeat(c.depth) + c.name} ({c.path})
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-        </div>
-
-        <label style={{ marginTop: 12, display: 'block' }}>
-          Mô tả
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={5}
-            style={{ width: '100%', padding: 8, marginTop: 6 }}
-            placeholder="Mô tả ngắn gọn..."
-          />
-        </label>
-      </section>
-
-      {/* Ảnh */}
-      <section style={{ border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ marginTop: 0 }}>Hình ảnh</h3>
-          <button type="button" onClick={addImage}>
-            + Thêm ảnh
-          </button>
-        </div>
-
-        {!images.length ? (
-          <div style={{ color: '#777' }}>Chưa có ảnh nào.</div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {images.map((im, idx) => (
-              <div key={idx} style={{ border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <label>
-                    Public ID
-                    <input
-                      value={im.publicId || ''}
-                      onChange={(e) => updateImage(idx, { publicId: e.target.value })}
-                      placeholder="folder/ten-anh"
-                      style={{ width: '100%', padding: 8, marginTop: 6 }}
-                    />
-                  </label>
-                  <label>
-                    Alt
-                    <input
-                      value={im.alt || ''}
-                      onChange={(e) => updateImage(idx, { alt: e.target.value })}
-                      placeholder="Mô tả ảnh"
-                      style={{ width: '100%', padding: 8, marginTop: 6 }}
-                    />
-                  </label>
-                </div>
-
-                {/* chọn file từ máy */}
-                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <fieldset disabled={saving} style={{ border: 'none', padding: 0, margin: 0 }}>
+        <div ref={topRef} />
+        {/* Hiển thị lỗi qua modal, không render hộp lỗi inline */}
+        {/* Thông tin cơ bản */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>Thông tin cơ bản</div>
+          <div className={styles.cardBody}>
+            <div className={styles.grid2}>
+              <label>
+                <span className={`${styles.label} ${styles.labelStrong}`}>Tên sản phẩm</span>
+                <input
+                  className={styles.input}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nhập tên..."
+                  required
+                />
+              </label>
+              {/* Ẩn trường Slug để tránh rườm rà, hệ thống sẽ tự sinh theo tên */}
+              <div style={{ display: 'none' }}>
+                <label>
+                  <span className={styles.label}>Slug</span>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      try {
-                        // (tuỳ chọn) preview local
-                        const preview = URL.createObjectURL(f);
-                        updateImage(idx, { _previewUrl: preview });
-
-                        const r = await mediaApi.upload(f);
-                        // Lưu publicId để submit về DB
-                        updateImage(idx, { publicId: r.publicId });
-                      } catch (err) {
-                        alert('Upload lỗi: ' + err.message);
-                      }
-                    }}
+                    className={styles.input}
+                    value={slug}
+                    onChange={(e) => setSlug(slugify(e.target.value))}
+                    placeholder="ao-khoac-du-2"
                   />
-                  <button type="button" onClick={() => setPrimary(idx)}>
-                    {im.isPrimary ? '✓ Ảnh chính' : 'Đặt làm ảnh chính'}
-                  </button>
-                  <button type="button" onClick={() => removeImage(idx)}>
-                    Xóa
-                  </button>
-                </div>
-
-                {/* hiển thị preview nếu có */}
-                {(im._previewUrl || im.publicId) && (
-                  <div style={{ marginTop: 8 }}>
-                    <img
-                      src={
-                        im._previewUrl ||
-                        `https://res.cloudinary.com/${
-                          import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-                        }/image/upload/f_auto,q_auto,w_400/${encodeURIComponent(im.publicId)}`
-                      }
-                      alt=""
-                      style={{ maxWidth: 220, borderRadius: 8 }}
-                    />
-                  </div>
-                )}
+                </label>
               </div>
-            ))}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <label>
+                <span className={`${styles.label} ${styles.labelStrong}`}>Danh mục</span>
+                <select
+                  className={styles.select}
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Chọn danh mục --</option>
+                  {loadingCats ? (
+                    <option value="">Đang tải…</option>
+                  ) : (
+                    catOptions.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {'— '.repeat(c.depth) + c.name} ({c.path})
+                      </option>
+                    ))
+                  )}
+                </select>
+                {/* Ẩn ghi chú không cần thiết để giao diện gọn gàng */}
+                <div style={{ display: 'none' }} className={styles.help}></div>
+              </label>
+            </div>
+            <label style={{ marginTop: 12, display: 'block' }}>
+              <span className={`${styles.label} ${styles.labelStrong}`}>Mô tả</span>
+              <textarea
+                className={styles.textarea}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                placeholder="Mô tả ngắn gọn..."
+              />
+            </label>
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* Variants */}
-      <section style={{ border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ marginTop: 0 }}>Biến thể</h3>
-          <button type="button" onClick={addVariant}>
-            + Thêm biến thể
-          </button>
-        </div>
-
-        {!variants.length ? (
-          <div style={{ color: '#777' }}>Chưa có biến thể nào.</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#fafafa' }}>
-                  <th style={th}>SKU*</th>
-                  <th style={th}>Màu</th>
-                  <th style={th}>Size</th>
-                  <th style={th}>Giá*</th>
-                  <th style={th}>Tồn*</th>
-                  <th style={th}>imagePublicId</th>
-                  <th style={th}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {variants.map((v, idx) => (
-                  <tr key={idx}>
-                    <td style={td}>
+        {/* Ảnh */}
+        <section className={styles.card}>
+          <div
+            className={styles.cardHeader}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <div>Hình ảnh</div>
+            <button className={styles.btn} type="button" onClick={addImage}>
+              + Thêm ảnh
+            </button>
+          </div>
+          <div className={styles.cardBody}>
+            {!images.length ? (
+              <div style={{ color: '#777' }}>Chưa có ảnh nào.</div>
+            ) : (
+              <div className={styles.imagesGrid}>
+                {images.map((im, idx) => (
+                  <div key={idx} className={styles.imageItem}>
+                    <div className={styles.imageActions}>
                       <input
-                        value={v.sku || ''}
-                        onChange={(e) => updateVariant(idx, { sku: e.target.value })}
-                        placeholder="AKD2-NAU-S"
-                        style={inp}
-                        required
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          try {
+                            const preview = URL.createObjectURL(f);
+                            updateImage(idx, { _previewUrl: preview });
+                            setUploading((u) => u + 1);
+                            const r = await mediaApi.upload(f);
+                            updateImage(idx, { publicId: r.publicId });
+                          } catch (err) {
+                            alert('Upload lỗi: ' + err.message);
+                          } finally {
+                            setUploading((u) => Math.max(0, u - 1));
+                          }
+                        }}
                       />
-                    </td>
-                    <td style={td}>
-                      <input
-                        value={v.color || ''}
-                        onChange={(e) => updateVariant(idx, { color: e.target.value })}
-                        placeholder="Nâu nhạt"
-                        style={inp}
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
-                        value={v.size || ''}
-                        onChange={(e) => updateVariant(idx, { size: e.target.value })}
-                        placeholder="S"
-                        style={inp}
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
-                        type="number"
-                        value={v.price ?? 0}
-                        onChange={(e) => updateVariant(idx, { price: Number(e.target.value || 0) })}
-                        placeholder="399000"
-                        style={inp}
-                        required
-                        min={0}
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
-                        type="number"
-                        value={v.stock ?? 0}
-                        onChange={(e) => updateVariant(idx, { stock: Number(e.target.value || 0) })}
-                        placeholder="10"
-                        style={inp}
-                        required
-                        min={0}
-                      />
-                    </td>
-                    <td style={td}>
-                      <input
-                        value={v.imagePublicId || ''}
-                        onChange={(e) => updateVariant(idx, { imagePublicId: e.target.value })}
-                        placeholder="folder/anh-bien-the"
-                        style={inp}
-                      />
-                    </td>
-                    <td style={td}>
-                      <button type="button" onClick={() => removeVariant(idx)}>
+                      {/* Chỉ giữ một nút tải tệp, bỏ chọn từ thư viện */}
+                      <button className={styles.btn} type="button" onClick={() => setPrimary(idx)}>
+                        {im.isPrimary ? '✓ Ảnh chính' : 'Đặt làm ảnh chính'}
+                      </button>
+                      <button
+                        className={styles.btn}
+                        type="button"
+                        onClick={() => moveImage(idx, idx - 1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className={styles.btn}
+                        type="button"
+                        onClick={() => moveImage(idx, idx + 1)}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        className={`${styles.btn} ${styles.btnDanger}`}
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                      >
                         Xóa
                       </button>
-                    </td>
-                  </tr>
+                    </div>
+                    {(im._previewUrl || im.publicId) && (
+                      <div style={{ marginTop: 8 }}>
+                        <img
+                          className={styles.imgPreview}
+                          src={
+                            im._previewUrl ||
+                            `https://res.cloudinary.com/${
+                              import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+                            }/image/upload/f_auto,q_auto,w_400/${encodeURIComponent(im.publicId)}`
+                          }
+                          alt=""
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* Attributes */}
-      <section style={{ border: '1px solid #eee', borderRadius: 12, padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ marginTop: 0 }}>Thuộc tính</h3>
-          <button type="button" onClick={addAttr}>
-            + Thêm thuộc tính
+        {/* Variants */}
+        <section className={styles.card}>
+          <div
+            className={styles.cardHeader}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <div>Biến thể</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {/* Ẩn nút tạo SKU thủ công vì hệ thống sẽ tự sinh khi lưu */}
+              <div style={{ display: 'none' }}>
+                <button className={styles.btn} type="button" onClick={bulkGenerateSku}>
+                  Tạo SKU tự động
+                </button>
+              </div>
+              <button className={styles.btn} type="button" onClick={addVariant}>
+                + Thêm biến thể
+              </button>
+            </div>
+          </div>
+          <div className={styles.cardBody}>
+            {!variants.length ? (
+              <div style={{ color: '#777' }}>Chưa có biến thể nào.</div>
+            ) : (
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={{ display: 'none' }}>SKU</th>
+                      <th>Màu</th>
+                      <th>Size</th>
+                      <th>Giá*</th>
+                      <th>Số lượng*</th>
+                      <th>Hình ảnh</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {variants.map((v, idx) => (
+                      <tr key={idx}>
+                        <td style={{ display: 'none' }}>
+                          <div className={styles.help}>SKU sẽ tự sinh khi lưu</div>
+                        </td>
+                        <td>
+                          <input
+                            className={styles.input}
+                            list="colorOptions"
+                            value={v.color || ''}
+                            onChange={(e) => updateVariant(idx, { color: e.target.value })}
+                            placeholder="Nâu nhạt"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={styles.input}
+                            list="sizeOptions"
+                            value={v.size || ''}
+                            onChange={(e) => updateVariant(idx, { size: e.target.value })}
+                            placeholder="S"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={styles.input}
+                            type="number"
+                            value={v.price ?? 0}
+                            onChange={(e) =>
+                              updateVariant(idx, { price: Number(e.target.value || 0) })
+                            }
+                            placeholder="399000"
+                            required
+                            min={0}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={styles.input}
+                            type="number"
+                            value={v.stock ?? 0}
+                            onChange={(e) =>
+                              updateVariant(idx, { stock: Number(e.target.value || 0) })
+                            }
+                            placeholder="10"
+                            required
+                            min={0}
+                          />
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                try {
+                                  setUploading((u) => u + 1);
+                                  const r = await mediaApi.upload(f);
+                                  updateVariant(idx, { imagePublicId: r.publicId });
+                                } catch (err) {
+                                  alert('Upload biến thể lỗi: ' + err.message);
+                                } finally {
+                                  setUploading((u) => Math.max(0, u - 1));
+                                }
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            className={`${styles.btn} ${styles.btnDanger}`}
+                            type="button"
+                            onClick={() => removeVariant(idx)}
+                          >
+                            Xóa
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Attributes */}
+        <section className={styles.card}>
+          <div
+            className={styles.cardHeader}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <div>Thuộc tính</div>
+            <button className={styles.btn} type="button" onClick={addAttr}>
+              + Thêm thuộc tính
+            </button>
+          </div>
+          <div className={styles.cardBody}>
+            {Object.keys(attributes).length === 0 ? (
+              <div style={{ color: '#777' }}>Chưa có thuộc tính.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {Object.entries(attributes).map(([k, v]) => (
+                  <div key={k + Math.random()} className={styles.kvRow}>
+                    <input
+                      className={styles.input}
+                      value={k}
+                      onChange={(e) => updateAttrKey(k, e.target.value)}
+                      placeholder="brand"
+                    />
+                    <input
+                      className={styles.input}
+                      value={v}
+                      onChange={(e) => updateAttrVal(k, e.target.value)}
+                      placeholder="UrbanFit"
+                    />
+                    <button
+                      className={`${styles.btn} ${styles.btnDanger}`}
+                      type="button"
+                      onClick={() => removeAttr(k)}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className={styles.footerSpace} />
+        <div className={styles.actions}>
+          <button className={styles.btn} type="button" onClick={() => window.history.back()}>
+            Hủy
+          </button>
+          <button className={`${styles.btn} ${styles.btnPrimary}`} type="submit">
+            {saving ? 'Đang lưu…' : 'Lưu sản phẩm'}
           </button>
         </div>
 
-        {Object.keys(attributes).length === 0 ? (
-          <div style={{ color: '#777' }}>Chưa có thuộc tính.</div>
-        ) : (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {Object.entries(attributes).map(([k, v]) => (
-              <div
-                key={k + Math.random()}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8 }}
-              >
-                <input
-                  value={k}
-                  onChange={(e) => updateAttrKey(k, e.target.value)}
-                  placeholder="brand"
-                  style={inp}
-                />
-                <input
-                  value={v}
-                  onChange={(e) => updateAttrVal(k, e.target.value)}
-                  placeholder="UrbanFit"
-                  style={inp}
-                />
-                <button type="button" onClick={() => removeAttr(k)}>
-                  Xóa
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        {/* ComboBox options */}
+        <datalist id="colorOptions">
+          {COLOR_OPTIONS.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+        <datalist id="sizeOptions">
+          {SIZE_OPTIONS.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button type="button" onClick={() => window.history.back()}>
-          Hủy
-        </button>
-        <button type="submit">Lưu sản phẩm</button>
-      </div>
+        {/* Đã bỏ MediaPicker */}
+      </fieldset>
+      <ConfirmModal
+        open={errorOpen}
+        title="Thiếu thông tin cần thiết"
+        confirmText="Đã hiểu"
+        cancelText=""
+        hideCancel
+        confirmType="primary"
+        onConfirm={() => setErrorOpen(false)}
+        onCancel={() => setErrorOpen(false)}
+        contentClassName={styles.errorContent}
+        message={
+          <div>
+            <div style={{ marginBottom: 8 }}>Vui lòng kiểm tra và bổ sung các mục sau:</div>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {errors.map((msg, i) => (
+                <li key={i}>{msg}</li>
+              ))}
+            </ul>
+          </div>
+        }
+      />
     </form>
   );
 }
 
-const th = { textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #eee' };
-const td = { padding: '8px 10px', borderBottom: '1px solid #f2f2f2', verticalAlign: 'top' };
-const inp = { width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 8 };
+// styles handled by CSS module

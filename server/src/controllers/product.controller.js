@@ -12,7 +12,8 @@ export const list = async (req, res, next) => {
 // GET /api/products/:id
 export const getOne = async (req, res, next) => {
   try {
-    res.json(await svc.getById(req.params.id));
+    const includeHidden = req.userRole === 'admin' || req.userRole === 'staff';
+    res.json(await svc.getById(req.params.id, { includeHidden }));
   } catch (e) {
     next(e);
   }

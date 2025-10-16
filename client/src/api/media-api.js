@@ -17,6 +17,17 @@ const mediaApi = {
     }
     return res.json(); // { publicId, url, ... }
   },
+  search: async ({ prefix = 'products', nextCursor, max = 30 } = {}) => {
+    const qs = new URLSearchParams();
+    if (prefix) qs.set('prefix', prefix);
+    if (nextCursor) qs.set('nextCursor', nextCursor);
+    if (max) qs.set('max', String(max));
+    const res = await fetch(`${API_BASE}/api/media/search?${qs.toString()}`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`Search failed: ${res.status}`);
+    return res.json();
+  },
 };
 
 // 👇 Export cả named và default để tránh nhầm lẫn

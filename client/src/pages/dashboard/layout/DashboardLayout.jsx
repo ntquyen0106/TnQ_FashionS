@@ -14,7 +14,8 @@ export default function DashboardLayout({ links = [] }) {
         style={{
           display: 'grid',
           gridTemplateColumns: '260px 1fr',
-          minHeight: 'calc(100vh - 64px)', // 64px ~ chiều cao Navbar compact
+          height: 'calc(100vh - 64px)', // cố định chiều cao phần dưới Navbar
+          overflow: 'hidden', // chỉ cho phần nội dung scroll
           background: '#fafafa',
         }}
       >
@@ -52,7 +53,7 @@ export default function DashboardLayout({ links = [] }) {
         </aside>
 
         {/* Nội dung */}
-        <main style={{ padding: 24 }}>
+        <main style={{ padding: 24, height: '100%', overflowY: 'auto' }}>
           <Outlet />
         </main>
       </div>
