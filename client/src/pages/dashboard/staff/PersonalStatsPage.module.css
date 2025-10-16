@@ -1,0 +1,119 @@
+.wrap {
+  display: grid;
+  gap: 12px;
+  background: #f3f4f6; /* slightly darker subtle page bg */
+  padding: 12px;
+  border-radius: 12px;
+}
+.title {
+  margin: 0;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.fItem {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  color: #444;
+}
+.fItem input,
+.fItem select {
+  padding: 6px 10px;
+  height: 32px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font-size: 13px;
+}
+.fItem input[type='date'] {
+  min-width: 160px;
+}
+.fItem select {
+  min-width: 180px;
+}
+.fItem input:focus,
+.fItem select:focus {
+  outline: none;
+  border-color: #4096ff;
+  box-shadow: 0 0 0 3px rgba(64, 150, 255, 0.15);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.presets {
+  display: flex;
+  gap: 6px;
+}
+.btnLight {
+  background: #fafafa;
+  color: #111;
+  border: 1px solid #e5e5e5;
+  height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.btnLight:hover {
+  background: #f2f2f2;
+}
+.btnSecondary {
+  height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+.btnSecondary {
+  background: #fff;
+  color: #111;
+  border: 1px solid #ddd;
+}
+.btnSecondary:hover {
+  background: #f6f6f6;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  /* Constrain height and allow internal scroll for long lists or small screens */
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+}
+
+@media (max-width: 720px) {
+  .toolbar {
+    align-items: flex-start;
+  }
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+.card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 14px;
+}
+.label {
+  color: #666;
+  font-size: 13px;
+}
+.value {
+  font-size: 24px;
+  font-weight: 700;
+}
+.err {
+  color: crimson;
+}

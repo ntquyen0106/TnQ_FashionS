@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ordersApi } from '@/api';
+import ConfirmModal from '@/components/ConfirmModal';
+import styles from './OrderQueuePage.module.css';
 
 export default function OrderQueuePage() {
   const [queue, setQueue] = useState([]);
   const [claiming, setClaiming] = useState({});
+  const [err, setErr] = useState('');
+  const [confirm, setConfirm] = useState({ open: false, id: null });
+  const navigate = useNavigate();
 
   const load = async () => {
     try {
-      const data = await ordersApi.list({ status: 'new', unassigned: true });
+      setErr('');
+      // Luôn lọc đơn chưa gán ở trạng thái pending
+      const params = { unassigned: true, status: 'pending' };
+      const data = await ordersApi.list(params);
       setQueue(data.items || data || []);
     } catch (e) {
       console.error(e);
+      setErr(e?.response?.data?.message || 'Không tải được danh sách');
       setQueue([]);
     }
   };
@@ -23,37 +33,120 @@ export default function OrderQueuePage() {
     setClaiming((x) => ({ ...x, [orderId]: true }));
     try {
       await ordersApi.claim(orderId);
-      await load();
+      // Sau khi nhận đơn, chuyển sang "Đơn hàng của tôi"
+      navigate('/dashboard/my-orders');
     } finally {
       setClaiming((x) => ({ ...x, [orderId]: false }));
     }
   };
 
+  const askCancel = (orderId) => {
+    setConfirm({ open: true, id: orderId });
+  };
+
+  const doCancel = async () => {
+    const id = confirm.id;
+    if (!id) return setConfirm({ open: false, id: null });
+    try {
+      await ordersApi.updateStatus(id, 'canceled');
+      await load();
+    } finally {
+      setConfirm({ open: false, id: null });
+    }
+  };
+
   return (
-    <>
-      <h2>Hàng đợi đơn hàng</h2>
-      <p>Đơn mới/chưa gán. Bạn có thể “Nhận đơn”.</p>
-      <div className="cards">
-        {queue.map((o) => (
-          <div className="card" key={o.id || o._id}>
-            <div>
-              <b>{o.code || o._id}</b> — {o.status}
-            </div>
-            <div>
-              Khách: {o.customerName} — {o.customerPhone}
-            </div>
-            <div>Tổng: {(o.total || 0).toLocaleString()} đ</div>
-            <button
-              className="btn"
-              onClick={() => claim(o.id || o._id)}
-              disabled={!!claiming[o.id || o._id]}
-            >
-              Nhận đơn
-            </button>
-          </div>
-        ))}
-        {queue.length === 0 && <div>Không có đơn trong hàng đợi.</div>}
+    <div className={styles.wrap}>
+      <div className={styles.head}>
+        <h2 className={styles.title}>Hàng đợi đơn hàng</h2>
       </div>
-    </>
+
+      <div className={styles.toolbar}>
+        <div className={styles.toolLeft}>
+          <span className={styles.hint}>Đơn PENDING: {queue.length}</span>
+        </div>
+        <div className={styles.toolRight}>
+          {err && <span style={{ color: 'crimson' }}>{err}</span>}
+          <button className={`btn ${styles.btnSecondary}`} onClick={load}>
+            Tải lại
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.list}>
+        <div className={`${styles.row} ${styles.headerRow}`}>
+          <div className={`${styles.cell} ${styles.th}`}>Mã đơn</div>
+          <div className={`${styles.cell} ${styles.th}`}>Khách hàng</div>
+          <div className={`${styles.cell} ${styles.th}`}>Tổng</div>
+          <div className={`${styles.cell} ${styles.th}`}>Ngày tạo</div>
+          <div className={`${styles.cell} ${styles.th}`} />
+        </div>
+
+        {queue.map((o) => {
+          const id = o.id || o._id;
+          return (
+            <div
+              className={`${styles.row} ${styles.clickable || ''}`}
+              key={id}
+              tabIndex={0}
+              onClick={() =>
+                navigate(`/orders/${id}`, {
+                  state: { from: 'staff', backTo: '/dashboard', queue: true },
+                })
+              }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  navigate(`/orders/${id}`, {
+                    state: { from: 'staff', backTo: '/dashboard', queue: true },
+                  });
+                }
+              }}
+            >
+              <div className={styles.cell}>
+                <span className={styles.code}>{o.code || o._id}</span>
+              </div>
+              <div className={styles.cell}>
+                {(o.shippingAddress?.fullName || o.customerName) ?? ''} ·{' '}
+                {(o.shippingAddress?.phone || o.customerPhone) ?? ''}
+              </div>
+              <div className={styles.cell}>
+                {(o.amounts?.grandTotal || o.total || 0).toLocaleString('vi-VN')} đ
+              </div>
+              <div className={styles.cell}>
+                {o.createdAt ? new Date(o.createdAt).toLocaleString('vi-VN') : ''}
+              </div>
+              <div
+                className={styles.cell}
+                style={{ textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button className={`btn ${styles.btnDanger}`} onClick={() => askCancel(id)}>
+                  Hủy đơn
+                </button>
+                <button
+                  className={`btn ${styles.btnClaim}`}
+                  onClick={() => claim(id)}
+                  disabled={!!claiming[id]}
+                >
+                  Nhận đơn
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {queue.length === 0 && <div className={styles.empty}>Không có đơn PENDING.</div>}
+      </div>
+      <ConfirmModal
+        open={confirm.open}
+        title="Xác nhận hủy đơn"
+        message="Bạn có chắc muốn hủy đơn hàng này?"
+        confirmText="Hủy đơn"
+        cancelText="Quay lại"
+        confirmType="danger"
+        onConfirm={doCancel}
+        onCancel={() => setConfirm({ open: false, id: null })}
+      />
+    </div>
   );
 }

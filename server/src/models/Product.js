@@ -21,6 +21,7 @@ const ProductVariantSchema = new Schema(
     size: String,
     price: { type: Number, required: true, min: 0 },
     stock: { type: Number, default: 0 },
+    reorderPoint: { type: Number, default: 0 },
     imagePublicId: String, // thay cho image: String
   },
   { _id: false },

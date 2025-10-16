@@ -7,10 +7,11 @@ export const ROLES = {
 export const ORDER_STATUS = [
   'new',
   'processing',
-  'packed',
-  'shipped',
+  'shipping',
+  'delivering',
   'completed',
   'canceled',
+  'returned',
 ] as const;
 
 export const DASHBOARD_ROUTES: Record<string, string> = {

@@ -1,9 +1,34 @@
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import { getCartTotal } from './cart.service.js';
 import { computeShippingFee } from '../utils/shipping.js';
 import { createPayOSPayment } from './payment.service.js';
+
+// FE → Model status mapping (giữ theo FE của bạn)
+const FE_TO_MODEL = {
+  new: 'PENDING',
+  pending: 'PENDING',
+  awaiting_payment: 'AWAITING_PAYMENT',
+  confirmed: 'CONFIRMED',
+  processing: 'CONFIRMED',
+  packing: 'PACKING',
+  shipping: 'SHIPPING',
+  delivering: 'DELIVERING',
+  delivered: 'DONE',
+  completed: 'DONE',
+  done: 'DONE',
+  canceled: 'CANCELLED',
+  cancelled: 'CANCELLED',
+  returned: 'RETURNED',
+};
+
+const toModelStatus = (s) => {
+  if (!s) return undefined;
+  const key = String(s).toLowerCase();
+  return FE_TO_MODEL[key] || s; // cho phép truyền trực tiếp model token
+};
 
 export const checkout = async ({ userId, sessionId, addressId, paymentMethod, selectedItems }) => {
   // 1) Lấy cart
@@ -33,7 +58,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     city: addr.city,
   };
 
-  // 4) Build items snapshot theo Order schema
+  // 4) Items snapshot theo Order schema
   const orderItems = items.map((it) => ({
     productId: it.productId,
     variantSku: it.variantSku,
@@ -44,7 +69,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     lineTotal: Number(it.price) * Number(it.quantity),
   }));
 
-  // 5) Amounts theo schema (tính phí ship theo địa chỉ: HCM <=15km free, >15km theo bưu điện; vùng khác theo tier)
+  // 5) Amounts theo schema
   const shippingFee = computeShippingFee(shippingAddress.city, shippingAddress.district, subtotal);
   const amounts = {
     subtotal: Number(subtotal),
@@ -53,7 +78,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     grandTotal: Math.max(Number(subtotal) - (Number(discount) || 0) + shippingFee, 0),
   };
 
-  // 6) Chuẩn hoá phương thức thanh toán + trạng thái
+  // 6) Chuẩn hoá payment + status ban đầu
   const methodUpper = String(paymentMethod || 'COD').toUpperCase();
   const pm = methodUpper === 'COD' ? 'COD' : 'BANK';
   const status = pm === 'COD' ? 'PENDING' : 'AWAITING_PAYMENT';
@@ -77,29 +102,25 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     ],
   });
 
-  // 8) Nếu thanh toán chuyển khoản, tạo link PayOS
+  // 8) Nếu BANK → tạo link PayOS
   let paymentData = null;
   if (pm === 'BANK') {
     try {
       paymentData = await createPayOSPayment({
         orderId: order._id.toString(),
         amount: amounts.grandTotal,
-        // Không truyền description, để payment.service.js tự tạo (tối đa 25 ký tự)
         returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
         cancelUrl: `${process.env.CLIENT_URL}/checkout?cancelled=true`,
       });
-      
-      // Lưu orderCode vào order để tracking
       order.paymentOrderCode = paymentData.orderCode;
       await order.save();
     } catch (error) {
       console.error('Error creating PayOS payment:', error);
-      // Vẫn tạo order nhưng báo lỗi không tạo được link thanh toán
       throw new Error('Không thể tạo link thanh toán. Vui lòng thử lại sau.');
     }
   }
 
-  // 9) Xoá các item đã mua khỏi cart
+  // 9) Xoá item đã mua khỏi cart
   cart.items = cart.items.filter(
     (ci) =>
       !orderItems.some(
@@ -108,8 +129,111 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
   );
   await cart.save();
 
+  return { order, paymentData };
+};
+
+export const list = async ({ status, unassigned, assignee, meId, limit = 100 }) => {
+  const query = {};
+  const ms = toModelStatus(status);
+  if (ms) {
+    // chấp nhận cả lowercase nếu DB cũ có dữ liệu thường
+    query.status = { $in: [ms, String(ms).toLowerCase()] };
+  }
+  if (unassigned) query.assignedStaffId = null;
+  if (assignee === 'me' && meId) query.assignedStaffId = meId;
+  const items = await Order.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+  return { items };
+};
+
+export const claim = async ({ orderId, staffId }) => {
+  const order = await Order.findOne({ _id: orderId }).lean();
+  if (!order) throw new Error('Order not found');
+  if (order.assignedStaffId) throw new Error('Order already assigned');
+  if (!['PENDING', 'pending'].includes(order.status)) {
+    throw new Error('Only PENDING orders can be claimed');
+  }
+
+  const updated = await Order.findOneAndUpdate(
+    { _id: orderId, assignedStaffId: null, status: { $in: ['PENDING', 'pending'] } },
+    {
+      $set: { assignedStaffId: staffId, status: 'CONFIRMED' },
+      $push: {
+        history: {
+          action: 'ASSIGN',
+          fromStatus: 'PENDING',
+          toStatus: 'CONFIRMED',
+          byUserId: staffId,
+          note: 'Claim order',
+        },
+      },
+    },
+    { new: true },
+  ).lean();
+
+  if (!updated) throw new Error('Failed to claim');
+  return updated;
+};
+
+export const assign = async ({ orderId, staffId, byUserId }) => {
+  const updated = await Order.findByIdAndUpdate(
+    orderId,
+    {
+      $set: { assignedStaffId: staffId },
+      $push: { history: { action: 'ASSIGN', byUserId, note: `Assign to ${staffId}` } },
+    },
+    { new: true },
+  ).lean();
+  if (!updated) throw new Error('Order not found');
+  return updated;
+};
+
+export const updateStatus = async ({ orderId, status, byUserId }) => {
+  const to = toModelStatus(status);
+  if (!to) throw new Error('Invalid status');
+
+  const order = await Order.findById(orderId).lean();
+  if (!order) throw new Error('Order not found');
+
+  const from = order.status;
+  const updated = await Order.findByIdAndUpdate(
+    orderId,
+    {
+      $set: { status: to },
+      $push: { history: { action: 'STATUS_CHANGE', fromStatus: from, toStatus: to, byUserId } },
+    },
+    { new: true },
+  ).lean();
+
+  return updated;
+};
+
+export const statsForUser = async ({ staffId, from, to, status }) => {
+  const match = { assignedStaffId: new mongoose.Types.ObjectId(staffId) };
+
+  if (from || to) {
+    match.createdAt = {};
+    if (from) match.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
+    if (to) match.createdAt.$lte = new Date(to + 'T23:59:59.999Z');
+  }
+
+  if (status) {
+    const list = String(status)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (list.length) {
+      const mapped = list.map((s) => (FE_TO_MODEL[String(s).toLowerCase()] || s).toUpperCase());
+      match.status = { $in: mapped };
+    }
+  }
+
+  const pipeline = [{ $match: match }, { $group: { _id: '$status', count: { $sum: 1 } } }];
+  const agg = await Order.aggregate(pipeline);
+  const byStatus = Object.fromEntries(agg.map((x) => [x._id, x.count]));
   return {
-    order,
-    paymentData,
+    byStatus,
+    total: agg.reduce((a, b) => a + b.count, 0),
+    done: byStatus.DONE || 0,
+    pending: byStatus.PENDING || 0,
   };
 };

@@ -2,8 +2,9 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api';
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_URL + '/api',
+  baseURL: API_BASE,
   withCredentials: true,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
@@ -35,8 +36,8 @@ http.interceptors.response.use(
     // ❗️Đừng làm ồn khi 401 từ /auth/me (bootstrap) hoặc đang ở trang login
     const isAuthMe = reqUrl.includes('/auth/me') && method === 'GET';
     if (status === 401) {
-      if (!isAuthMe && !onLoginPage) {
-        // Bạn có thể tùy chọn: không toast luôn để khỏi "thất bại" giả
+      // Tránh tự động redirect khi là GET (các trang sẽ tự xử lý bằng guard)
+      if (!isAuthMe && !onLoginPage && method !== 'GET') {
         // toast.error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
         location.href = '/login';
       }

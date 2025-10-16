@@ -1,0 +1,238 @@
+/* ===== Layout chung ===== */
+.wrap {
+  display: grid;
+  gap: 12px;
+  background: #f3f4f6; /* slightly darker subtle page bg */
+  padding: 12px;
+  border-radius: 12px;
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.title {
+  margin: 0;
+}
+
+/* ===== Toolbar + Filters ===== */
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hint {
+  color: #888;
+  font-size: 13px;
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+.formGroup {
+  display: grid;
+  gap: 6px;
+}
+.label {
+  font-size: 12px;
+  color: #666;
+}
+.select {
+  appearance: none;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  min-width: 220px;
+}
+.select:focus {
+  outline: none;
+  border-color: #bbb;
+}
+
+.btnSecondary {
+  background: #fff;
+  color: #111;
+  border: 1px solid #ddd;
+}
+.btnSecondary:hover {
+  background: #f6f6f6;
+}
+
+/* ===== Danh sách 6 cột ===== */
+.list {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+}
+.row {
+  display: grid;
+  /* code | customer | total | created | status | actions */
+  grid-template-columns: 1.1fr 1.5fr 0.9fr 1fr 0.9fr 1.3fr;
+  gap: 12px;
+  padding: 12px 14px;
+  align-items: center;
+  border-bottom: 1px solid #f2f2f2;
+}
+.row:last-child {
+  border-bottom: none;
+}
+.headerRow {
+  background: #fafafa;
+}
+
+.cell {
+  font-size: 14px;
+  color: #333;
+}
+.th {
+  font-weight: 600;
+  color: #444;
+}
+.center {
+  text-align: center;
+}
+
+/* Mã đơn: chỉ đậm */
+.codeBadge {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Tổng & Ngày tạo canh trái gọn; Tổng đậm hơn một chút */
+.colTotal,
+.colCreated {
+  text-align: left;
+}
+.colTotal {
+  font-weight: 600;
+}
+
+/* Actions: luôn nằm ngang, có thể wrap khi chật */
+.actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ===== Trạng thái (GIỮ LẠI BẢN CŨ) ===== */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.st_PENDING {
+  background: #fff7e6;
+  color: #b25e00;
+  border-color: #ffd699;
+}
+.st_CONFIRMED {
+  background: #eef7ff;
+  color: #005099;
+  border-color: #cfe7ff;
+}
+.st_SHIPPING {
+  background: #f0fff4;
+  color: #2b7a2b;
+  border-color: #c6f6d5;
+}
+.st_DELIVERING {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+.st_DONE {
+  background: #f6fef9;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.st_CANCELLED {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+.st_RETURNED {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+
+/* Nút */
+.btnClaim {
+  background: #16a34a;
+}
+.btnClaim:hover {
+  background: #15803d;
+}
+.btnDanger {
+  background: #ca1414 !important;
+  color: #fff !important;
+  border-color: #ca1414 !important;
+}
+.btnDanger:hover {
+  background: #e70e0e !important;
+  border-color: #e70e0e !important;
+}
+
+/* Skeleton */
+.skel {
+  height: 12px;
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+/* Empty */
+.empty {
+  color: #666;
+  padding: 20px 0;
+}
+
+/* Responsive */
+.hideSm {
+  display: block;
+}
+@media (max-width: 720px) {
+  /* Ẩn Trạng thái ở mobile, còn 4 cột + actions xuống cuối */
+  .row {
+    grid-template-columns: 1.1fr 1.5fr 0.9fr 1.2fr;
+  }
+  .hideSm {
+    display: none;
+  }
+  .row > .cell:last-child {
+    grid-column: 1 / -1;
+    text-align: right;
+  }
+
+  .actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}

@@ -19,13 +19,23 @@ const normalize = (s) =>
 const STATUS_LABEL = {
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
-  PACKING: 'Đang đóng gói',
-  SHIPPING: 'Đang giao',
+  SHIPPING: 'Vận chuyển',
+  DELIVERING: 'Đang giao',
   DONE: 'Hoàn tất',
   CANCELLED: 'Đã hủy',
+  RETURNED: 'Trả hàng/Hoàn tiền',
 };
 
-const STATUS_KEYS = ['ALL', 'PENDING', 'CONFIRMED', 'PACKING', 'SHIPPING', 'DONE', 'CANCELLED'];
+const STATUS_KEYS = [
+  'ALL',
+  'PENDING',
+  'CONFIRMED',
+  'SHIPPING',
+  'DELIVERING',
+  'DONE',
+  'CANCELLED',
+  'RETURNED',
+];
 const PM_LABEL = {
   COD: 'Thanh toán khi nhận hàng',
   BANK: 'Thanh toán online',
@@ -108,7 +118,7 @@ export default function MyOrders() {
       {loading ? (
         <div className={styles.loading}>Đang tải đơn hàng…</div>
       ) : filtered.length === 0 ? (
-        <div className={styles.empty}>Chưa có đơn nào phù hợp.</div>
+        <div className={styles.empty}>Chưa có đơn hàng</div>
       ) : (
         <div className={styles.list}>
           {filtered.map((o) => {
