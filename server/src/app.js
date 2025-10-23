@@ -16,6 +16,8 @@ import inventoryRoutes from './routes/inventory.routes.js';
 import reviewRoutes from './routes/review.routes.js';
 
 import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
+import adminUserRoutes from './routes/admin-user.routes.js';
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
 
@@ -55,19 +57,26 @@ export const createApp = (clientUrl) => {
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
 
   // Routes
-  app.use('/api/auth', authRoutes);
+  // Authentication & User Management
+  app.use('/api/auth', authRoutes);           // Authentication (login, register, password reset)
+  app.use('/api/user', userRoutes);           // User profile & settings
+  app.use('/api/admin/users', adminUserRoutes); // Admin user management
+  
+  // Core Features  
   app.use('/api/products', productRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/media', mediaRoute);
   app.use('/api/cart', cartRoutes);
-
-  app.use('/api/order', orderRoutes);        // user-facing
-  app.use('/api/orders', staffOrdersRoutes); // staff/admin management
-
+  app.use('/api/reviews', reviewRoutes);
+  
+  // Orders & Payment
+  app.use('/api/order', orderRoutes);         // user-facing orders
+  app.use('/api/orders', staffOrdersRoutes);  // staff/admin order management
   app.use('/api/payment', paymentRoutes);
+  
+  // Admin Features
   app.use('/api/promotions', promotionRoutes);
   app.use('/api/inventory', inventoryRoutes);
-  app.use('/api/reviews', reviewRoutes);
 
   // Swagger
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
