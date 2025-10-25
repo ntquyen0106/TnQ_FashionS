@@ -51,7 +51,7 @@ export default function OrdersPage() {
         usersApi.list({ role: 'staff' }),
       ]);
       setItems(o.items || o || []);
-      setStaffs(s.items || s || []);
+      setStaffs(s.content || s.items || s || []);
     } catch (e) {
       setErr(e?.response?.data?.message || 'Không tải được danh sách');
       setItems([]);
