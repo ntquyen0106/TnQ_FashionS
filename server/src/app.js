@@ -8,12 +8,17 @@ import productRoutes from './routes/product.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import mediaRoute from './routes/media.route.js';
 import cartRoutes from './routes/cart.routes.js';
-import orderRoutes from './routes/order.routes.js'; // user-facing
-import staffOrdersRoutes from './routes/orders.routes.js'; // staff/admin management
+import orderRoutes from './routes/order.routes.js';         // user-facing orders
+import staffOrdersRoutes from './routes/orders.routes.js';  // staff/admin order management
 import paymentRoutes from './routes/payment.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
+import reviewRoutes from './routes/review.routes.js';
+
 import authRoutes from './routes/auth.routes.js';
+import userRoutes from './routes/user.routes.js';
+import adminUserRoutes from './routes/admin-user.routes.js';
+
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
 
@@ -52,19 +57,23 @@ export const createApp = (clientUrl) => {
   // Health
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
 
-  // Routes
-  app.use('/api/auth', authRoutes);
+  // Authentication & Users
+  app.use('/api/auth', authRoutes);             // login/register/me
+  app.use('/api/user', userRoutes);             // profile & settings
+  app.use('/api/admin/users', adminUserRoutes); // admin user management
 
+  // Core Catalog
   app.use('/api/products', productRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/media', mediaRoute);
+  app.use('/api/reviews', reviewRoutes);
+
+  // Cart & Orders
   app.use('/api/cart', cartRoutes);
+  app.use('/api/order', orderRoutes);           // user-facing
+  app.use('/api/orders', staffOrdersRoutes);    // staff/admin management
 
-  // app.use('/api/users', usersRoutes); // Tạm thời loại bỏ user routes
-
-  app.use('/api/order', orderRoutes); // user-facing
-  app.use('/api/orders', staffOrdersRoutes); // staff/admin management
-
+  // Payments & Admin features
   app.use('/api/payment', paymentRoutes);
   app.use('/api/promotions', promotionRoutes);
   app.use('/api/inventory', inventoryRoutes);

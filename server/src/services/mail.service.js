@@ -25,3 +25,68 @@ export async function sendMail(to, subject, text, html) {
     html: html ?? `<p>${text}</p>`,
   });
 }
+
+export async function sendWelcomeEmail(userEmail, userName, password = 'P@ssw0rd') {
+  const subject = 'Tài khoản của bạn đã được tạo - TnQ Fashion';
+  
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+      <h2 style="color: #2c3e50; text-align: center;">Chào mừng đến với TnQ Fashion!</h2>
+      
+      <p style="font-size: 16px; color: #333;">Xin chào <strong>${userName}</strong>,</p>
+      
+      <p style="font-size: 14px; color: #555;">
+        Tài khoản của bạn đã được tạo thành công trên hệ thống TnQ Fashion. 
+        Dưới đây là thông tin đăng nhập của bạn:
+      </p>
+      
+      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0; font-size: 14px;"><strong>Email:</strong> ${userEmail}</p>
+        <p style="margin: 10px 0 0 0; font-size: 14px;"><strong>Mật khẩu:</strong> ${password}</p>
+      </div>
+      
+      <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0; font-size: 13px; color: #856404;">
+          <strong>⚠️ Lưu ý bảo mật:</strong> Vui lòng đổi mật khẩu ngay sau lần đăng nhập đầu tiên để đảm bảo tính bảo mật cho tài khoản của bạn.
+        </p>
+      </div>
+      
+      <p style="font-size: 14px; color: #555;">
+        Bạn có thể đăng nhập vào hệ thống và bắt đầu sử dụng các dịch vụ của chúng tôi.
+      </p>
+      
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+      
+      <p style="font-size: 12px; color: #777; text-align: center;">
+        Email này được gửi tự động từ hệ thống TnQ Fashion.<br>
+        Vui lòng không trả lời email này.
+      </p>
+    </div>
+  `;
+
+  const textContent = `
+    Chào mừng đến với TnQ Fashion!
+    
+    Xin chào ${userName},
+    
+    Tài khoản của bạn đã được tạo thành công. Thông tin đăng nhập:
+    
+    Email: ${userEmail}
+    Mật khẩu: ${password}
+    
+    Vui lòng đổi mật khẩu ngay sau lần đăng nhập đầu tiên để đảm bảo bảo mật.
+    
+    Trân trọng,
+    TnQ Fashion Team
+  `;
+
+  try {
+    await sendMail(userEmail, subject, textContent, htmlContent);
+    console.log(` Welcome email sent to: ${userEmail}`);
+    return { success: true };
+  } catch (error) {
+    console.error(` Failed to send welcome email to ${userEmail}:`, error.message);
+    // Không throw error để không ảnh hưởng đến việc tạo user
+    return { success: false, error: error.message };
+  }
+}

@@ -1,5 +1,6 @@
 import * as orderService from '../services/order.service.js';
 import Order from '../models/Order.js';
+import Review from '../models/Review.js';
 
 export const postCheckout = async (req, res, next) => {
   try {
@@ -14,7 +15,24 @@ export const postCheckout = async (req, res, next) => {
 export const getMine = async (req, res, next) => {
   try {
     const userId = req.user?._id;
-    const items = await Order.find({ userId }).sort({ createdAt: -1 }).limit(100).lean();
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 }).limit(100).lean();
+    
+    // Get all reviewed orderIds
+    const orderIds = orders.map(o => o._id);
+    const reviews = await Review.find({ 
+      orderId: { $in: orderIds },
+      userId 
+    }).distinct('orderId').lean();
+    
+    const reviewedOrderIds = new Set(reviews.map(id => id.toString()));
+    
+    // Add canReview field
+    const items = orders.map(order => ({
+      ...order,
+      canReview: (order.status === 'DONE' || order.status === 'RETURNED') 
+        && !reviewedOrderIds.has(order._id.toString())
+    }));
+    
     res.json({ items });
   } catch (e) {
     next(e);
