@@ -8,12 +8,11 @@ import productRoutes from './routes/product.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import mediaRoute from './routes/media.route.js';
 import cartRoutes from './routes/cart.routes.js';
-import orderRoutes from './routes/order.routes.js';         // user-facing
-import staffOrdersRoutes from './routes/orders.routes.js';   // staff/admin management
+import orderRoutes from './routes/order.routes.js'; // user-facing
+import staffOrdersRoutes from './routes/orders.routes.js'; // staff/admin management
 import paymentRoutes from './routes/payment.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
-
 import authRoutes from './routes/auth.routes.js';
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
@@ -55,12 +54,15 @@ export const createApp = (clientUrl) => {
 
   // Routes
   app.use('/api/auth', authRoutes);
+
   app.use('/api/products', productRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/media', mediaRoute);
   app.use('/api/cart', cartRoutes);
 
-  app.use('/api/order', orderRoutes);        // user-facing
+  // app.use('/api/users', usersRoutes); // Tạm thời loại bỏ user routes
+
+  app.use('/api/order', orderRoutes); // user-facing
   app.use('/api/orders', staffOrdersRoutes); // staff/admin management
 
   app.use('/api/payment', paymentRoutes);

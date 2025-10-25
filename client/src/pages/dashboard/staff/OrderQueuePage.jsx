@@ -15,10 +15,13 @@ export default function OrderQueuePage() {
   const load = async () => {
     try {
       setErr('');
-      // Luôn lọc đơn chưa gán ở trạng thái pending
+      // Chỉ lấy đơn chưa gán ở trạng thái pending
       const params = { unassigned: true, status: 'pending' };
       const data = await ordersApi.list(params);
-      setQueue(data.items || data || []);
+      // Sắp xếp đơn cũ nhất lên đầu, mới nhất xuống cuối
+      const arr = data.items || data || [];
+      arr.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      setQueue(arr);
     } catch (e) {
       console.error(e);
       setErr(e?.response?.data?.message || 'Không tải được danh sách');
@@ -30,10 +33,11 @@ export default function OrderQueuePage() {
     load();
   }, []);
 
+  // Nhận đơn: chỉ chuyển đơn sang staff, KHÔNG đổi trạng thái sang đã xác nhận
   const claim = async (orderId) => {
     setClaiming((x) => ({ ...x, [orderId]: true }));
     try {
-      await ordersApi.claim(orderId);
+      await ordersApi.claim(orderId); // chỉ nhận về, không updateStatus
       // Sau khi nhận đơn, chuyển sang "Đơn hàng của tôi"
       navigate('/dashboard/my-orders');
     } finally {
@@ -88,7 +92,7 @@ export default function OrderQueuePage() {
 
       <div className={styles.toolbar}>
         <div className={styles.toolLeft}>
-          <span className={styles.hint}>Đơn PENDING: {queue.length}</span>
+          <span className={styles.hint}>Đơn chờ xử lý: {queue.length}</span>
         </div>
         <div className={styles.toolRight}>
           <div className={styles.searchBox}>
@@ -184,8 +188,16 @@ export default function OrderQueuePage() {
         })}
 
         {filteredQueue.length === 0 && (
-          <div className={styles.empty}>
-            {q ? 'Không có đơn phù hợp.' : 'Không có đơn PENDING.'}
+          <div className={styles.emptyBox}>
+            <div style={{ fontSize: 40, color: '#bdbdbd', marginBottom: 8 }}>📭</div>
+            <div style={{ fontWeight: 500, color: '#888', fontSize: 18, marginBottom: 2 }}>
+              {q ? 'Không tìm thấy đơn phù hợp.' : 'Hiện chưa có đơn PENDING nào!'}
+            </div>
+            <div style={{ color: '#bbb', fontSize: 14 }}>
+              {q
+                ? 'Hãy thử từ khóa khác hoặc kiểm tra lại.'
+                : 'Khi có đơn mới, bạn sẽ thấy tại đây.'}
+            </div>
           </div>
         )}
       </div>

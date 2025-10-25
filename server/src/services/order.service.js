@@ -134,10 +134,17 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
 
 export const list = async ({ status, unassigned, assignee, meId, limit = 100 }) => {
   const query = {};
-  const ms = toModelStatus(status);
-  if (ms) {
-    // chấp nhận cả lowercase nếu DB cũ có dữ liệu thường
-    query.status = { $in: [ms, String(ms).toLowerCase()] };
+  let statuses = [];
+  if (status) {
+    // Hỗ trợ truyền nhiều trạng thái dạng chuỗi: 'pending,awaiting_payment'
+    statuses = String(status)
+      .split(',')
+      .map((s) => toModelStatus(s.trim()))
+      .filter(Boolean);
+    if (statuses.length > 0) {
+      // chấp nhận cả lowercase nếu DB cũ có dữ liệu thường
+      query.status = { $in: [...statuses, ...statuses.map((s) => s.toLowerCase())] };
+    }
   }
   if (unassigned) query.assignedStaffId = null;
   if (assignee === 'me' && meId) query.assignedStaffId = meId;
@@ -156,12 +163,12 @@ export const claim = async ({ orderId, staffId }) => {
   const updated = await Order.findOneAndUpdate(
     { _id: orderId, assignedStaffId: null, status: { $in: ['PENDING', 'pending'] } },
     {
-      $set: { assignedStaffId: staffId, status: 'CONFIRMED' },
+      $set: { assignedStaffId: staffId }, // KHÔNG đổi status
       $push: {
         history: {
           action: 'ASSIGN',
           fromStatus: 'PENDING',
-          toStatus: 'CONFIRMED',
+          toStatus: 'PENDING', // vẫn là PENDING
           byUserId: staffId,
           note: 'Claim order',
         },

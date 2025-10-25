@@ -12,21 +12,21 @@ import AdminProductNew from '@/pages/dashboard/admin/AdminProductNew';
 import AdminProductEdit from '@/pages/dashboard/admin/AdminProductEdit';
 
 const LINKS = [
-  { to: '/dashboard/admin/products', label: 'Quản lý sản phẩm' },
-  { to: '/dashboard/admin/inventory', label: 'Tồn kho' },
-  { to: '/dashboard/admin/orders', label: 'Quản lý đơn hàng' },
-  { to: '/dashboard/admin/promotions', label: 'Khuyến mãi' },
+  { to: '/dashboard/admin/orders', label: 'Đơn hàng' },
+  { to: '/dashboard/admin/products', label: 'Sản phẩm' },
+  { to: '/dashboard/admin/inventory', label: 'Kho' },
   { to: '/dashboard/admin/categories', label: 'Danh mục' },
-  { to: '/dashboard/admin/users', label: 'Người dùng' },
-  { to: '/dashboard/admin/reports', label: 'Thống kê & Báo cáo' },
-  { to: '/dashboard/admin/chatbot', label: 'Quản lý chatbot' },
+  { to: '/dashboard/admin/promotions', label: 'Quản lý khuyến mãi' },
+  { to: '/dashboard/admin/users', label: 'Nhân sự' },
+  { to: '/dashboard/admin/reports', label: 'Thống kê' },
+  { to: '/dashboard/admin/chatbot', label: 'Chatbot' },
 ];
 
 export default function AdminDashboard() {
   return (
     <Routes>
       <Route element={<DashboardLayout links={LINKS} />}>
-        <Route index element={<Navigate to="products" replace />} />
+        <Route index element={<Navigate to="orders" replace />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="products/new" element={<AdminProductNew />} />
         <Route path="products/:id" element={<AdminProductEdit />} />
