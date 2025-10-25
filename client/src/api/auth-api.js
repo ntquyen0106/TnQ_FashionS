@@ -20,14 +20,14 @@ export const authApi = {
     http.post('/auth/forgot/reset', { resetToken, newPassword }).then((r) => r.data),
 
   // Addresses
-  getAddresses: () => http.get('/auth/addresses').then((r) => r.data.addresses),
-  addAddress: (address) => http.post('/auth/add-address', { address }).then((r) => r.data),
+  getAddresses: () => http.get('/user/addresses').then((r) => r.data.addresses),
+  addAddress: (address) => http.post('/user/addresses', { address }).then((r) => r.data),
   setDefaultAddress: (addressId) =>
-    http.post('/auth/set-default-address', { addressId }).then((r) => r.data),
+    http.patch(`/user/addresses/${addressId}/default`).then((r) => r.data),
   updateAddress: (addressId, data) =>
-    http.put(`/auth/addresses/${addressId}`, data).then((r) => r.data),
-  deleteAddress: (addressId) => http.delete(`/auth/addresses/${addressId}`).then((r) => r.data),
-  clearAddresses: () => http.delete('/auth/addresses').then((r) => r.data),
-  updateProfile: (data) => http.put('/auth/profile', data).then((r) => r.data),
+    http.put(`/user/addresses/${addressId}`, data).then((r) => r.data),
+  deleteAddress: (addressId) => http.delete(`/user/addresses/${addressId}`).then((r) => r.data),
+  clearAddresses: () => http.delete('/user/addresses').then((r) => r.data),
+  updateProfile: (data) => http.put('/user/profile', data).then((r) => r.data),
 };
 export default authApi;
