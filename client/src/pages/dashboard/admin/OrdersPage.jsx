@@ -50,8 +50,8 @@ export default function OrdersPage() {
         ordersApi.list({ status: status || undefined, q: q || undefined, limit: 1000 }),
         usersApi.list({ role: 'staff' }),
       ]);
-  setItems(o.items || o || []);
-  setStaffs(s.content || s.items || s || []);
+      setItems(o.items || o || []);
+      setStaffs(s.content || s.items || s || []);
     } catch (e) {
       setErr(e?.response?.data?.message || 'Không tải được danh sách');
       setItems([]);
