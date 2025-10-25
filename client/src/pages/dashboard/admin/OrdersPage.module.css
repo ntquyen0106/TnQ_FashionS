@@ -1,3 +1,4 @@
+/* ===== Status special (AWAITING_PAYMENT) ===== */
 .st_AWAITING_PAYMENT {
   color: #b26a00;
   border: 1.5px solid #ffc107;
@@ -5,6 +6,8 @@
   font-weight: 700;
   box-shadow: 0 0 0 2px #ffe58f44;
 }
+
+/* ===== Empty ===== */
 .emptyBox {
   grid-column: 1/-1;
   padding: 48px 0 40px 0;
@@ -19,7 +22,8 @@
   align-items: center;
   justify-content: center;
 }
-/* Bulk assign bar for admin */
+
+/* ===== Bulk assign bar ===== */
 .bulkAssignBar {
   display: flex;
   gap: 16px;
@@ -58,11 +62,12 @@
   color: #fff;
   cursor: not-allowed;
 }
-/* ===== Layout chung ===== */
+
+/* ===== Page layout ===== */
 .wrap {
   display: grid;
   gap: 12px;
-  background: #f3f4f6; /* slightly darker subtle page bg */
+  background: #f3f4f6;
   padding: 12px;
   border-radius: 12px;
 }
@@ -75,7 +80,7 @@
   margin: 0;
 }
 
-/* ===== Toolbar + Filters ===== */
+/* ===== Toolbar ===== */
 .toolbar {
   display: flex;
   gap: 12px;
@@ -92,6 +97,7 @@
   gap: 8px;
   align-items: center;
 }
+
 .searchBox {
   position: relative;
 }
@@ -105,13 +111,6 @@
 .searchBox input:focus {
   outline: none;
   border-color: #bbb;
-}
-.searchIcon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #888;
 }
 .hint {
   color: #888;
@@ -153,7 +152,7 @@
   background: #f6f6f6;
 }
 
-/* ===== Danh sách 6 cột ===== */
+/* ===== List (7 columns) ===== */
 .list {
   background: #fff;
   border: 1px solid #eee;
@@ -163,8 +162,8 @@
 }
 .row {
   display: grid;
-  /* [checkbox+code] | customer | total | created | staff | status */
-  grid-template-columns: 1.3fr 1.5fr 0.9fr 1fr 1.2fr 1.1fr;
+  /* checkbox | mã đơn | khách hàng | tổng | ngày tạo | nhân viên | trạng thái */
+  grid-template-columns: 40px 220px 1fr 120px 170px 220px 150px;
   gap: 12px;
   padding: 12px 14px;
   align-items: center;
@@ -189,32 +188,22 @@
   text-align: center;
 }
 
-/* Mã đơn: chỉ đậm */
+/* Code badge */
 .codeBadge {
   font-weight: 700;
   font-size: 14px;
 }
 
-/* Tổng & Ngày tạo canh trái gọn; Tổng đậm hơn một chút */
-.colTotal,
+/* Tổng & Ngày tạo */
+.colTotal {
+  text-align: left;
+  font-weight: 600;
+}
 .colCreated {
   text-align: left;
 }
-.colTotal {
-  font-weight: 600;
-}
 
-/* Actions: luôn nằm ngang, có thể wrap khi chật */
-.actions {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* ===== Trạng thái (GIỮ LẠI BẢN CŨ) ===== */
+/* Status pills */
 .statusPill {
   display: inline-flex;
   align-items: center;
@@ -225,7 +214,6 @@
   font-size: 12px;
   font-weight: 600;
 }
-
 .st_PENDING {
   background: #fff7e6;
   color: #b25e00;
@@ -262,58 +250,32 @@
   border-color: #fed7aa;
 }
 
-/* Nút */
-.btnClaim {
-  background: #16a34a;
-}
-.btnClaim:hover {
-  background: #15803d;
-}
-.btnDanger {
-  background: #ca1414 !important;
-  color: #fff !important;
-  border-color: #ca1414 !important;
-}
-.btnDanger:hover {
-  background: #e70e0e !important;
-  border-color: #e70e0e !important;
-}
-
-/* Skeleton */
+/* Skeleton (nếu dùng) */
 .skel {
   height: 12px;
   background: #f1f1f1;
   border-radius: 6px;
 }
 
-/* Empty */
-.empty {
-  color: #666;
-  padding: 20px 0;
-}
-
 /* Responsive */
-.hideSm {
-  display: block;
-}
-@media (max-width: 720px) {
-  /* Ẩn Trạng thái ở mobile, còn 4 cột + actions xuống cuối */
+@media (max-width: 1024px) {
   .row {
-    grid-template-columns: 1.1fr 1.5fr 0.9fr 1.2fr;
+    /* Ẩn/thu gọn cột trên màn vừa */
+    grid-template-columns: 40px 200px 1fr 110px 150px 0 130px;
   }
-  .hideSm {
+  /* Ẩn cột nhân viên trên tablet để đủ chỗ */
+  .row > .cell:nth-child(6) {
     display: none;
   }
-  .row > .cell:last-child {
-    grid-column: 1 / -1;
-    text-align: right;
+}
+@media (max-width: 720px) {
+  .row {
+    /* Mobile: chỉ hiển thị mã, KH, tổng, trạng thái */
+    grid-template-columns: 40px 1fr 1fr 120px;
   }
-
-  .actions {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    flex-wrap: wrap;
+  /* Ẩn ngày tạo + nhân viên */
+  .row > .cell:nth-child(5),
+  .row > .cell:nth-child(6) {
+    display: none;
   }
 }
