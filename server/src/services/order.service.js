@@ -110,7 +110,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
         orderId: order._id.toString(),
         amount: amounts.grandTotal,
         returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
-        cancelUrl: `${process.env.CLIENT_URL}/checkout?cancelled=true`,
+        cancelUrl: `${process.env.CLIENT_URL}/?cancelled=true&orderId=${order._id}`,
       });
       order.paymentOrderCode = paymentData.orderCode;
       await order.save();

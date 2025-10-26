@@ -6,25 +6,31 @@ const asBool = (v) => v === true || v === 'true' || v === '1';
 const byStatus = (status) => (status ? { status } : {});
 const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Slug helper (fallback khi FE không gửi slug)
+const toSlug = (s = '') =>
+  String(s)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 // Build tree từ danh sách phẳng
 function buildTree(list) {
-  // map: id -> node có children: []
   const map = new Map(list.map((c) => [String(c._id), { ...c, children: [] }]));
   const roots = [];
-
-  // gắn node vào cha (luôn dùng node từ map)
   list.forEach((c) => {
     const node = map.get(String(c._id));
     if (c.parentId) {
       const parent = map.get(String(c.parentId));
       if (parent) parent.children.push(node);
-      else roots.push(node); // nếu thiếu cha do filter -> cho lên root
+      else roots.push(node);
     } else {
       roots.push(node);
     }
   });
 
-  // sort theo sort rồi name
   const sortFn = (a, b) =>
     (a?.sort ?? 0) - (b?.sort ?? 0) || (a?.name || '').localeCompare(b?.name || '');
 
@@ -104,20 +110,80 @@ export async function breadcrumb(query = {}) {
 }
 
 export async function create(data = {}) {
-  const { name, slug, parentId, sort = 0, status = 'active' } = data;
-  let path = slug;
+  const { name, sort = 0, status = 'active' } = data;
 
-  if (parentId) {
-    const parent = await Category.findById(parentId);
+  // 1) Validate cơ bản
+  if (!name || !String(name).trim()) {
+    const err = new Error('Name is required');
+    err.status = 400;
+    throw err;
+  }
+
+  // 2) Slug fallback từ name (nếu FE không gửi slug)
+  const toSlug = (s = '') =>
+    String(s)
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  const rawSlug = (data.slug && String(data.slug).trim()) || toSlug(name);
+  if (!rawSlug) {
+    const err = new Error('Slug is required');
+    err.status = 400;
+    throw err;
+  }
+
+  // 3) Xử lý parent (nếu có) và dựng path
+  let parent = null;
+  let path = rawSlug;
+
+  if (data.parentId) {
+    parent = await Category.findById(data.parentId);
     if (!parent) {
       const err = new Error('Parent not found');
       err.status = 400;
       throw err;
     }
-    path = `${parent.path}/${slug}`;
+    path = `${parent.path}/${rawSlug}`;
   }
 
-  return Category.create({ name, slug, parentId: parentId || null, path, sort, status });
+  // 4) Chống trùng path → trả 409
+  const exists = await Category.exists({ path });
+  if (exists) {
+    const err = new Error('Category path already exists');
+    err.status = 409;
+    throw err;
+  }
+
+  // 5) Tự gán sort nếu không truyền hoặc = 0 → maxSibling + 10
+  let sortVal = Number(sort) || 0;
+  if (!sortVal) {
+    const maxSibling = await Category.find({ parentId: parent ? parent._id : null })
+      .sort({ sort: -1 })
+      .limit(1)
+      .lean();
+    const max = maxSibling?.[0]?.sort ? Number(maxSibling[0].sort) : 0;
+    sortVal = max + 10;
+  }
+
+  // 6) depth (nếu schema có dùng): tính từ path
+  const depth = parent
+    ? (parent.depth ?? (parent.path?.split('/').filter(Boolean).length || 1)) + 1
+    : 1;
+
+  // 7) Tạo
+  return Category.create({
+    name,
+    slug: rawSlug,
+    parentId: parent ? parent._id : null,
+    path,
+    sort: sortVal,
+    status,
+    depth,
+  });
 }
 
 export async function update(id, data = {}) {
@@ -128,25 +194,44 @@ export async function update(id, data = {}) {
     throw err;
   }
 
-  const { name, slug, parentId, sort, status } = data;
+  // Chỉ set các field được gửi từ FE (tránh set undefined)
+  const patch = {};
+  if ('name' in data && data.name !== undefined) patch.name = data.name;
+  if ('slug' in data && data.slug !== undefined) patch.slug = data.slug;
+  if ('sort' in data && data.sort !== undefined) patch.sort = data.sort;
+  if ('status' in data && data.status !== undefined) patch.status = data.status;
+
+  // xử lý parentId (có thể null => về root)
+  const parentIdProvided = Object.prototype.hasOwnProperty.call(data, 'parentId');
+  let parentIdToSet = doc.parentId;
+  if (parentIdProvided) parentIdToSet = data.parentId ?? null;
+
+  const slugToUse = 'slug' in data && data.slug != null ? data.slug : doc.slug;
   let newPath = doc.path;
 
-  // Nếu thay slug hoặc parentId -> cập nhật path cả nhánh
-  if (slug != null || parentId !== undefined) {
-    const newSlug = slug ?? doc.slug;
-
-    let parentPath = '';
-    if (parentId) {
-      const p = await Category.findById(parentId, { path: 1 });
+  // Nếu đổi slug hoặc đổi parent → cập nhật path toàn nhánh
+  if ('slug' in data || parentIdProvided) {
+    if (parentIdToSet) {
+      const p = await Category.findById(parentIdToSet, { path: 1 });
       if (!p) {
         const err = new Error('Parent not found');
         err.status = 400;
         throw err;
       }
-      parentPath = p.path;
+      newPath = `${p.path}/${slugToUse}`;
+    } else {
+      newPath = slugToUse;
     }
-    newPath = parentId ? `${parentPath}/${newSlug}` : newSlug;
 
+    // Kiểm tra trùng path mới (trừ chính node hiện tại)
+    const dup = await Category.findOne({ _id: { $ne: doc._id }, path: newPath }, { _id: 1 });
+    if (dup) {
+      const err = new Error('Category path already exists');
+      err.status = 409;
+      throw err;
+    }
+
+    // Update path toàn subtree bằng $replaceOne
     const re = new RegExp(`^${esc(doc.path)}`);
     await Category.updateMany({ path: re }, [
       {
@@ -157,11 +242,10 @@ export async function update(id, data = {}) {
     ]);
   }
 
-  return Category.findByIdAndUpdate(
-    id,
-    { name, slug, parentId: parentId ?? doc.parentId, sort, status, path: newPath },
-    { new: true },
-  );
+  patch.parentId = parentIdToSet ?? null;
+  patch.path = newPath;
+
+  return Category.findByIdAndUpdate(id, { $set: patch }, { new: true });
 }
 
 export async function remove(id) {
