@@ -13,13 +13,61 @@ export async function getCategories(params = {}) {
   return res.json();
 }
 export async function getChildren(params = {}) {
-  const res = await fetch(`/api/categories/children?${qs(params)}`);
-  if (!res.ok) throw new Error('Failed to fetch children');
+  const url = `${API_BASE}/api/categories/children?${qs(params)}`;
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return res.json();
 }
 
 export async function getBreadcrumb(params = {}) {
-  const res = await fetch(`/api/categories/breadcrumb?${qs(params)}`);
-  if (!res.ok) throw new Error('Failed to fetch breadcrumb');
+  const url = `${API_BASE}/api/categories/breadcrumb?${qs(params)}`;
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
+  return res.json();
+}
+// Thêm danh mục
+export async function createCategory(data) {
+  const url = `${API_BASE}/api/categories`;
+  const payload = {
+    ...data,
+    parentId: data.parentId || null,
+    sort: Number(data.sort ?? 0),
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`POST ${url} -> ${res.status}`);
+  return res.json();
+}
+
+// Sửa danh mục
+export async function updateCategory(id, data) {
+  const url = `${API_BASE}/api/categories/${id}`;
+  const payload = {
+    ...data,
+    parentId: data.parentId === '' ? null : data.parentId,
+    sort: Number(data.sort ?? 0),
+  };
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`PUT ${url} -> ${res.status}`);
+  return res.json();
+}
+
+// Xóa danh mục
+export async function deleteCategory(id) {
+  const url = `${API_BASE}/api/categories/${id}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error(`DELETE ${url} -> ${res.status}`);
   return res.json();
 }

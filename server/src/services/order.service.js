@@ -147,6 +147,7 @@ export const list = async ({ status, unassigned, assignee, meId, limit = 100 }) 
     }
   }
   if (unassigned) query.assignedStaffId = null;
+  if (assignee && assignee !== 'me') query.assignedStaffId = assignee;
   if (assignee === 'me' && meId) query.assignedStaffId = meId;
   const items = await Order.find(query).sort({ createdAt: -1 }).limit(limit).lean();
   return { items };
