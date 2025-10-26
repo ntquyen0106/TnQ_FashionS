@@ -242,17 +242,15 @@ export default function Navbar({
                                 {col.title}
                               </Link>
                               <ul className={s.colList}>
-                                {col.items?.length ? (
-                                  col.items.map((it) => (
-                                    <li key={it.to}>
-                                      <Link to={it.to} className={s.colLink}>
-                                        {it.label}
-                                      </Link>
-                                    </li>
-                                  ))
-                                ) : (
-                                  <li style={{ color: '#999' }}>Đang cập nhật…</li>
-                                )}
+                                {col.items?.length
+                                  ? col.items.map((it) => (
+                                      <li key={it.to}>
+                                        <Link to={it.to} className={s.colLink}>
+                                          {it.label}
+                                        </Link>
+                                      </li>
+                                    ))
+                                  : null}
                               </ul>
                             </div>
                           ))}

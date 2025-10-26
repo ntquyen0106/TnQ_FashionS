@@ -37,6 +37,7 @@ export default function OrderDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const loc = useLocation();
+  const [err, setErr] = useState('');
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState({ claim: false, cancel: false });
@@ -58,24 +59,98 @@ export default function OrderDetail() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [savingIdx, setSavingIdx] = useState(-1);
 
+  // 2) ADD helpers & timeline map in OrderDetail.jsx (above return)
+  const statusKey = (s) => String(s || '').toUpperCase();
+  const STATUS_LABEL2 = {
+    PENDING: 'Chờ xác nhận',
+    AWAITING_PAYMENT: 'Chờ thanh toán',
+    CONFIRMED: 'Đã xác nhận',
+    PACKING: 'Đang đóng gói',
+    SHIPPING: 'Vận chuyển',
+    DELIVERING: 'Đang giao',
+    DONE: 'Hoàn tất',
+    CANCELLED: 'Đã hủy',
+    RETURNED: 'Trả/Hoàn tiền',
+  };
+
+  const timeline = (order?.history || []).map((h) => {
+    // BE đã map sẵn -> dùng luôn
+    if (h.label || h.actorName || h.changedAt) {
+      return {
+        label: h.label || STATUS_LABEL2[statusKey(h.status)] || h.status || 'Sự kiện',
+        actorName: h.actorName || 'Hệ thống',
+        actorRole: h.actorRole || 'Hệ thống',
+        assigneeName: h.assigneeName,
+        at: h.changedAt || h.at || h.createdAt,
+      };
+    }
+
+    // Fallback từ dữ liệu thô
+    const action = statusKey(h.action);
+    const to = statusKey(h.toStatus);
+    let label = 'Sự kiện';
+    if (action === 'CREATE') label = 'Tạo đơn';
+    else if (action === 'ASSIGN') label = 'Gán phụ trách';
+    else if (action === 'STATUS_CHANGE' || to) label = STATUS_LABEL2[to] || to || 'Đổi trạng thái';
+
+    let actorName = 'Hệ thống',
+      actorRole = 'Hệ thống';
+    const by = h.byUserId;
+    if (by && typeof by === 'object') {
+      const isCus = order?.userId && String(by._id) === String(order.userId);
+      actorName =
+        by.name ||
+        (isCus
+          ? order.shippingAddress?.fullName || order.customerName || 'Khách hàng'
+          : 'Hệ thống');
+      actorRole =
+        by.role === 'staff'
+          ? 'Nhân viên'
+          : by.role === 'admin'
+          ? 'Admin'
+          : isCus
+          ? 'Khách hàng'
+          : 'Hệ thống';
+    } else if (action === 'CREATE') {
+      actorName = order.shippingAddress?.fullName || order.customerName || 'Khách hàng';
+      actorRole = 'Khách hàng';
+    }
+
+    let assigneeName;
+    if (action === 'ASSIGN' && typeof h.note === 'string') {
+      const m = h.note.match(/Assign to\s+([0-9a-f]{24})/i);
+      if (m) assigneeName = m[1]; // nếu BE chưa map tên
+    }
+    return { label, actorName, actorRole, assigneeName, at: h.at || h.createdAt };
+  });
+
   useEffect(() => {
+    let cancel = false;
     (async () => {
-      const fromStaff = loc.state?.from === 'staff';
+      setLoading(true);
       try {
-        const res = fromStaff ? await ordersApi.getAny(id) : await ordersApi.get(id);
-        setOrder(res || null);
+        const full = await ordersApi.getAny(id); // staff/admin
+        if (!cancel) setOrder(full);
       } catch (e) {
-        try {
-          const alt = fromStaff ? await ordersApi.get(id) : await ordersApi.getAny(id);
-          setOrder(alt || null);
-        } catch (e2) {
-          setOrder(null);
+        const code = e?.response?.status;
+        if (code === 403 || code === 404) {
+          try {
+            const mine = await ordersApi.get(id); // khách
+            if (!cancel) setOrder(mine);
+          } catch {
+            if (!cancel) setOrder(null);
+          }
+        } else {
+          if (!cancel) setOrder(null);
         }
       } finally {
-        setLoading(false);
+        if (!cancel) setLoading(false);
       }
     })();
-  }, [id, loc.state]);
+    return () => {
+      cancel = true;
+    };
+  }, [id]);
 
   if (loading) return <div className={styles.wrap}>Đang tải…</div>;
   if (!order) return <div className={styles.wrap}>Không tìm thấy đơn.</div>;
@@ -277,6 +352,24 @@ export default function OrderDetail() {
             {null}
           </div>
         </section>
+
+        {/* 3) ADD this section inside JSX, before bottom action buttons */}
+        {Array.isArray(order.history) && order.history.length > 0 && (
+          <section className={styles.card}>
+            <h3>Lịch sử xử lý</h3>
+            <ul className={styles.timeline}>
+              {order.history.map((h, i) => (
+                <li key={i}>
+                  <b>{h.label}</b>
+                  {h.assigneeName ? ` → ${h.assigneeName}` : ''} bởi {h.actorName}
+                  {h.actorRole ? ` (${h.actorRole})` : ''}
+                  <br />
+                  <small>{h.changedAt ? new Date(h.changedAt).toLocaleString('vi-VN') : ''}</small>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className={styles.card}>
           <h3>Thanh toán</h3>
