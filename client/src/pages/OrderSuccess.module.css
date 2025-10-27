@@ -1,0 +1,86 @@
+.wrapper {
+  max-width: 680px;
+  margin: 40px auto;
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.icon {
+  opacity: 0.9;
+}
+
+.title {
+  margin: 12px 0 4px;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.code {
+  color: #555;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.btnHome {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #111827;
+}
+
+.btnHome:hover {
+  background: #f9fafb;
+}
+
+.btnBlue {
+  border: 1px solid #0ea5e9;
+  background: #0ea5e9;
+  color: #fff;
+}
+
+.btnBlue:hover {
+  background: #0284c7;
+}
+
+.btnDark {
+  border: 1px solid #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.btnDark:hover {
+  background: #1f2937;
+}
+
+.btnDanger {
+  border: 1px solid #ef4444;
+  background: #ef4444;
+  color: #fff;
+}
+
+.btnDanger:hover {
+  background: #dc2626;
+}
+
+.status {
+  color: #6b7280;
+  margin-top: 8px;
+  font-size: 14px;
+}

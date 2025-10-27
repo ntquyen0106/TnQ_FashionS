@@ -1,11 +1,12 @@
 import Order from '../models/Order.js';
-import { 
-  verifyPayOSWebhook, 
+import {
+  verifyPayOSWebhook,
   processPaymentSuccess,
   processPaymentFailure,
   syncOrderStatusWithPayOS,
   getPayOSPaymentInfo,
-  cancelPayOSPayment 
+  cancelPayOSPayment,
+  createPayOSPayment,
 } from '../services/payment.service.js';
 
 /**
@@ -15,7 +16,7 @@ import {
 export const handlePayOSWebhook = async (req, res) => {
   try {
     const webhookData = req.body;
-    
+
     // Verify webhook signature
     const verifiedData = await verifyPayOSWebhook(webhookData);
     if (!verifiedData) {
@@ -24,14 +25,14 @@ export const handlePayOSWebhook = async (req, res) => {
     }
 
     const { code, desc, data } = verifiedData;
-    
+
     if (!data || !data.orderCode) {
       console.error('❌ [PayOS Webhook] Missing orderCode');
       return res.status(400).json({ error: 0, message: 'Missing orderCode' });
     }
-    
+
     const { orderCode, amount, reference, transactionDateTime } = data;
-    
+
     // Log webhook info
     console.log(`\n${'='.repeat(60)}`);
     console.log(`📦 [PayOS Webhook] Received payment notification`);
@@ -40,12 +41,12 @@ export const handlePayOSWebhook = async (req, res) => {
     console.log(`   Status: ${code} - ${desc}`);
     console.log(`   Reference: ${reference}`);
     console.log(`   Time: ${transactionDateTime}`);
-    
+
     // Xử lý theo status code
     if (code === '00') {
       // Thanh toán thành công
       const result = await processPaymentSuccess(orderCode, amount, reference, transactionDateTime);
-      
+
       if (!result.success) {
         if (result.reason === 'ORDER_NOT_FOUND') {
           console.warn(`⚠️  Test webhook from PayOS`);
@@ -79,7 +80,7 @@ export const handlePayOSWebhook = async (req, res) => {
 export const checkPaymentStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    
+
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
@@ -97,7 +98,7 @@ export const checkPaymentStatus = async (req, res, next) => {
 
     // Sử dụng service method để đồng bộ trạng thái với PayOS
     const result = await syncOrderStatusWithPayOS(orderId);
-    
+
     if (!result.success) {
       // Nếu không lấy được info từ PayOS, trả về thông tin từ DB
       return res.json({
@@ -147,12 +148,12 @@ export const handleUserCancelPayment = async (req, res, next) => {
     // Chỉ xử lý nếu đơn hàng đang chờ thanh toán
     if (order.status !== 'AWAITING_PAYMENT') {
       console.log(`ℹ️  [User Cancel Payment] Order already in status: ${order.status}`);
-      return res.json({ 
+      return res.json({
         message: 'Đơn hàng đã được xử lý',
         order: {
           _id: order._id,
-          status: order.status
-        }
+          status: order.status,
+        },
       });
     }
 
@@ -181,12 +182,12 @@ export const handleUserCancelPayment = async (req, res, next) => {
     console.log(`✅ [User Cancel Payment] Order cancelled successfully`);
     console.log(`   Status: AWAITING_PAYMENT → CANCELLED\n`);
 
-    res.json({ 
+    res.json({
       message: 'Đơn hàng đã được hủy',
       order: {
         _id: order._id,
-        status: order.status
-      }
+        status: order.status,
+      },
     });
   } catch (error) {
     console.error('💥 [User Cancel Payment] Unexpected error:', error);
@@ -249,6 +250,43 @@ export const cancelUnpaidOrder = async (req, res, next) => {
     res.json({ message: 'Hủy đơn hàng thành công', order });
   } catch (error) {
     console.error('💥 [Cancel Order] Unexpected error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Tạo (hoặc tạo lại) link thanh toán PayOS cho đơn đang chờ thanh toán
+ */
+export const createPaymentLinkForOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user?._id;
+
+    const order = await Order.findOne({ _id: orderId, userId });
+    if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+
+    if (String(order.status).toUpperCase() !== 'AWAITING_PAYMENT') {
+      return res.status(400).json({ message: 'Chỉ tạo link cho đơn đang chờ thanh toán' });
+    }
+
+    const amount = Number(order?.amounts?.grandTotal || 0);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Số tiền không hợp lệ để tạo thanh toán' });
+    }
+
+    const paymentData = await createPayOSPayment({
+      orderId: String(order._id),
+      amount,
+      returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
+      cancelUrl: `${process.env.CLIENT_URL}/?cancelled=true&orderId=${order._id}`,
+    });
+
+    // Lưu lại orderCode mới
+    order.paymentOrderCode = paymentData.orderCode;
+    await order.save();
+
+    return res.json({ paymentData });
+  } catch (error) {
     next(error);
   }
 };

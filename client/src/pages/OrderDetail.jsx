@@ -2,6 +2,7 @@ import React from 'react';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ordersApi from '@/api/orders-api';
+import paymentsApi from '@/api/payments-api';
 import { productsApi } from '@/api/products-api';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/auth/AuthProvider';
@@ -49,6 +50,8 @@ export default function OrderDetail() {
   const [qConfirm, setQConfirm] = useState({ claim: false, cancel: false });
   const [reasons, setReasons] = useState([]);
   const [reasonOther, setReasonOther] = useState('');
+  const [remainSec, setRemainSec] = useState(null); // đếm ngược thời gian còn lại để thanh toán
+  const [autoCancelling, setAutoCancelling] = useState(false);
   const buildImageUrl = useCloudImage();
   const { user } = useAuth();
 
@@ -125,32 +128,67 @@ export default function OrderDetail() {
   });
 
   useEffect(() => {
-    let cancel = false;
+    let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const full = await ordersApi.getAny(id); // staff/admin
-        if (!cancel) setOrder(full);
+        const isStaff = !!(user && (user.role === 'staff' || user.role === 'admin'));
+        const data = isStaff ? await ordersApi.getAny(id) : await ordersApi.get(id);
+        if (!cancelled) setOrder(data);
       } catch (e) {
-        const code = e?.response?.status;
-        if (code === 403 || code === 404) {
-          try {
-            const mine = await ordersApi.get(id); // khách
-            if (!cancel) setOrder(mine);
-          } catch {
-            if (!cancel) setOrder(null);
-          }
-        } else {
-          if (!cancel) setOrder(null);
-        }
+        if (!cancelled) setOrder(null);
       } finally {
-        if (!cancel) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
-      cancel = true;
+      cancelled = true;
     };
-  }, [id]);
+  }, [id, user?.role]);
+
+  // Đếm ngược 24h cho đơn đang chờ thanh toán (khách hàng)
+  useEffect(() => {
+    // luôn đăng ký hook (không phụ thuộc early return) để không vi phạm Rules of Hooks
+    const isStaff = !!(user && (user.role === 'staff' || user.role === 'admin'));
+    const awaitingBank =
+      !isStaff &&
+      order &&
+      String(order.paymentMethod).toUpperCase() === 'BANK' &&
+      String(order.status).toUpperCase() === 'AWAITING_PAYMENT';
+
+    if (!awaitingBank) {
+      setRemainSec(null);
+      return; // cleanup none
+    }
+    const TTL_MS = 24 * 60 * 60 * 1000; // 24 giờ
+    const createdAtMs = new Date(order.createdAt).getTime();
+    const expiry = createdAtMs + TTL_MS;
+
+    const calcRemain = () => Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+    setRemainSec(calcRemain());
+
+    const t = setInterval(() => {
+      const r = calcRemain();
+      setRemainSec(r);
+      if (r <= 0) {
+        clearInterval(t);
+        (async () => {
+          if (autoCancelling) return;
+          setAutoCancelling(true);
+          try {
+            await paymentsApi.userCancelPayment(order._id || order.id);
+          } catch {}
+          try {
+            const refreshed = await ordersApi.get(order._id || order.id);
+            setOrder(refreshed || null);
+          } catch {}
+          setAutoCancelling(false);
+        })();
+      }
+    }, 1000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?._id, order?.id, order?.createdAt, order?.status, order?.paymentMethod, user?.role]);
 
   if (loading) return <div className={styles.wrap}>Đang tải…</div>;
   if (!order) return <div className={styles.wrap}>Không tìm thấy đơn.</div>;
@@ -160,10 +198,23 @@ export default function OrderDetail() {
   const code = order.code || order._id;
   const status = String(order.status || 'PENDING');
   const pmLabel = PM_LABEL[order.paymentMethod] || order.paymentMethod || '—';
-  const canCancel = String(order.status || 'PENDING').toUpperCase() === 'PENDING';
   const isStaff = user && (user.role === 'staff' || user.role === 'admin');
+  const canPayNow =
+    !isStaff &&
+    String(order.paymentMethod).toUpperCase() === 'BANK' &&
+    String(order.status).toUpperCase() === 'AWAITING_PAYMENT';
+  const canCancel = String(order.status || 'PENDING').toUpperCase() === 'PENDING';
   const inQueue = isStaff && loc.state?.from === 'staff' && loc.state?.queue;
   const canEditItems = isStaff && String(order.status).toUpperCase() === 'PENDING';
+
+  const fmtRemain = (s) => {
+    if (s == null) return '';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  };
 
   // Next status: use code for API, label for UI
   const nextStatusCode = (s) => {
@@ -279,6 +330,12 @@ export default function OrderDetail() {
       {inQueue && (
         <div className={styles.infoBanner}>
           Đơn này đang ở hàng đợi. Bạn có thể Nhận đơn để xử lý hoặc Hủy đơn nếu cần.
+        </div>
+      )}
+      {!inQueue && canPayNow && (
+        <div className={styles.infoBanner}>
+          Đơn hàng đang chờ thanh toán. Thời gian còn lại để thanh toán:{' '}
+          <b>{fmtRemain(remainSec)}</b>. Khi hết thời gian, đơn sẽ tự động hủy.
         </div>
       )}
       <div className={styles.header}>
@@ -416,11 +473,30 @@ export default function OrderDetail() {
         </div>
       )}
       {/* Customer (non-staff): keep cancel button as before */}
-      {!inQueue && !isStaff && canCancel && (
+      {!inQueue && !isStaff && (
         <div className={styles.bottomActions}>
-          <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
-            Hủy đơn
-          </button>
+          {canCancel && (
+            <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
+              Hủy đơn
+            </button>
+          )}
+          {canPayNow && (
+            <button
+              className={`btn ${styles.btnPrimary}`}
+              onClick={async () => {
+                try {
+                  const r = await paymentsApi.createLink(order._id || order.id);
+                  const url = r?.paymentData?.checkoutUrl;
+                  if (url) window.location.href = url;
+                  else alert('Không tạo được link thanh toán');
+                } catch (e) {
+                  alert(e?.response?.data?.message || 'Không tạo được link thanh toán');
+                }
+              }}
+            >
+              Thanh toán ngay
+            </button>
+          )}
         </div>
       )}
 
