@@ -11,9 +11,11 @@ export const ordersApi = {
   updateStatus: (id, status) => http.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
   updateItemVariant: (id, index, body) =>
     http.patch(`/orders/${id}/items/${index}`, body).then((r) => r.data),
-  // Optional params: { from, to, status }
   statsMe: (params) => http.get('/orders/stats/me', { params }).then((r) => r.data),
-  checkout: (body) => http.post('/order/checkout', body).then((r) => r.data),
+  checkout: (body) => {
+    const method = body?.paymentMethod === 'COD' ? 'COD' : 'BANK';
+    return http.post('/order/checkout', { ...body, paymentMethod: method }).then((r) => r.data);
+  },
 };
 
 export default ordersApi;

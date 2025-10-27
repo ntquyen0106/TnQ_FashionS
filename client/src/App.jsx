@@ -31,7 +31,9 @@ export default function App() {
           <Route path="/product/:slug" element={<ProductDetail />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<Checkout />} />
+          {/* Support both legacy and hyphenated success paths */}
           <Route path="/order/success" element={<OrderSuccess />} />
+          <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/addresses" element={<AddressBook />} />
           {/* Account & Orders need login */}
           <Route element={<ProtectedRoute />}>

@@ -219,27 +219,36 @@ export default function Checkout() {
     try {
       const body = {
         addressId,
-        paymentMethod,
+        paymentMethod, // ordersApi.checkout sẽ tự map non-COD → BANK
         voucher: voucher || undefined,
         ...(selectedItemsPayload && selectedItemsPayload.length
           ? { selectedItems: selectedItemsPayload }
           : {}),
       };
+
       const res = await ordersApi.checkout(body);
-      // Dọn trạng thái voucher sau khi đặt đơn thành công
+
+      // dọn voucher & refresh cart
       try {
         await clearPromotion();
-      } catch {
-        /* ignore */
-      }
+      } catch {}
       setAppliedPromo(null);
       setVoucher('');
       await refresh();
-      const id = res?._id || res?.order?._id || res?.data?.order?._id;
-      const code = res?.code || res?.order?.code || res?.data?.order?.code;
-      navigate('/order/success', { state: { orderId: id, orderCode: code } });
+
+      const orderId = res?.order?._id || res?.orderId || res?._id || res?.data?.order?._id;
+      const orderCode = res?.order?.code || res?.code || res?.data?.order?.code;
+
+      // Non-COD (BANK/MOMO/ZALOPAY/VNPAY) → có paymentData.checkoutUrl
+      if (paymentMethod !== 'COD' && res?.paymentData?.checkoutUrl) {
+        window.location.href = res.paymentData.checkoutUrl; // sang trang PayOS
+        return;
+      }
+
+      // COD → vào trang success luôn
+      navigate('/order/success', { state: { orderId, orderCode, method: 'COD' } });
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Đặt hàng thất bại');
+      toast.error(e?.message || e?.response?.data?.message || 'Đặt hàng thất bại');
     } finally {
       setLoading(false);
     }
@@ -467,71 +476,128 @@ export default function Checkout() {
 
       <div className={styles.section}>
         <h3>Phương thức thanh toán</h3>
-        <div className={styles.payMethods}>
-          {['COD', 'BANK', 'MOMO', 'ZALOPAY', 'VNPAY'].map((m) => (
-            <label key={m} className={styles.radio}>
-              <input
-                type="radio"
-                name="pm"
-                value={m}
-                checked={paymentMethod === m}
-                onChange={() => setPaymentMethod(m)}
-              />
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                {m === 'COD' && (
-                  <img
-                    src="https://img.icons8.com/fluency/48/in-transit.png"
-                    alt="COD"
-                    width="22"
-                    height="22"
-                  />
-                )}
-                {m === 'BANK' && (
-                  <img
-                    src="https://img.icons8.com/fluency/48/bank-card-back-side.png"
-                    alt="BANK"
-                    width="22"
-                    height="22"
-                  />
-                )}
-                {m === 'MOMO' && (
-                  <img
-                    src="https://res.cloudinary.com/dsgwucw8s/image/upload/v1760446718/Momo_vex8ub.png"
-                    alt="MOMO"
-                    width="22"
-                    height="22"
-                  />
-                )}
-                {m === 'ZALOPAY' && (
-                  <img
-                    src="https://res.cloudinary.com/dsgwucw8s/image/upload/v1760446744/zalopay_b0nohl.png"
-                    alt="ZALOPAY"
-                    width="22"
-                    height="22"
-                  />
-                )}
-                {m === 'VNPAY' && (
-                  <img
-                    src="https://res.cloudinary.com/dsgwucw8s/image/upload/v1760446730/npay_x8k1bi.png"
-                    alt="VNPAY"
-                    width="28"
-                    height="22"
-                    style={{ objectFit: 'contain' }}
-                  />
-                )}
-                {m === 'COD'
-                  ? 'Thanh toán khi nhận hàng'
-                  : m === 'BANK'
-                  ? 'Chuyển khoản ngân hàng'
-                  : m === 'MOMO'
-                  ? 'MoMo'
-                  : m === 'ZALOPAY'
-                  ? 'ZaloPay'
-                  : 'VNPay'}
-              </span>
-            </label>
-          ))}
-        </div>
+
+        {(() => {
+          // Danh sách phương thức
+          const OPTIONS = [
+            {
+              key: 'COD',
+              label: 'Thanh toán khi nhận hàng (COD)',
+              icon: (
+                <img
+                  src="https://img.icons8.com/fluency/48/in-transit.png"
+                  alt="COD"
+                  width="22"
+                  height="22"
+                />
+              ),
+              enabled: true, // ✅ Bật
+            },
+            {
+              key: 'BANK',
+              label: 'Chuyển khoản ngân hàng',
+              icon: (
+                <img
+                  src="https://img.icons8.com/fluency/48/bank-card-back-side.png"
+                  alt="BANK"
+                  width="22"
+                  height="22"
+                />
+              ),
+              enabled: true, // ✅ Bật
+            },
+            {
+              key: 'MOMO',
+              label: 'MoMo',
+              icon: (
+                <img
+                  src="https://res.cloudinary.com/dsgwucw8s/image/upload/v1760446718/Momo_vex8ub.png"
+                  alt="MOMO"
+                  width="22"
+                  height="22"
+                />
+              ),
+              enabled: false,
+            },
+            {
+              key: 'ZALOPAY',
+              label: 'ZaloPay',
+              icon: (
+                <img
+                  src="https://res.cloudinary.com/dsgwucw8s/image/upload/v1760446744/zalopay_b0nohl.png"
+                  alt="ZALOPAY"
+                  width="22"
+                  height="22"
+                />
+              ),
+              enabled: false,
+            },
+            {
+              key: 'VNPAY',
+              label: 'VNPay',
+              icon: (
+                <img
+                  src="https://res.cloudinary.com/dsgwucw8s/image/upload/v1760446730/npay_x8k1bi.png"
+                  alt="VNPAY"
+                  width="28"
+                  height="22"
+                  style={{ objectFit: 'contain' }}
+                />
+              ),
+              enabled: false,
+            },
+          ];
+
+          return (
+            <div className={styles.payMethods}>
+              {OPTIONS.map((opt) => {
+                const disabled = !opt.enabled;
+                return (
+                  <label
+                    key={opt.key}
+                    className={styles.radio}
+                    aria-disabled={disabled}
+                    title={disabled ? 'Chưa hỗ trợ' : undefined}
+                    style={{
+                      opacity: disabled ? 0.5 : 1,
+                      pointerEvents: disabled ? 'none' : 'auto',
+                      cursor: disabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="pm"
+                      value={opt.key}
+                      checked={paymentMethod === opt.key}
+                      disabled={disabled}
+                      onChange={() => {
+                        if (!disabled) setPaymentMethod(opt.key);
+                      }}
+                    />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      {opt.icon}
+                      {opt.label}
+                      {disabled && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 12,
+                            padding: '2px 6px',
+                            borderRadius: 6,
+                            border: '1px solid #ddd',
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          Sắp ra mắt
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       <div className={styles.section}>

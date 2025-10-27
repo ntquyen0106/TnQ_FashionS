@@ -27,7 +27,25 @@ export default function DashboardLayout({ links = [] }) {
             background: '#fff',
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>
+          <div
+            style={{
+              fontWeight: 700,
+              marginBottom: 20,
+              fontSize: 16,
+              textAlign: 'center',
+              background: 'linear-gradient(90deg, #111 60%, #444 100%)',
+              color: '#fff',
+              borderRadius: 10,
+              padding: '7px 0',
+              boxShadow: '0 2px 8px 0 rgba(0,0,0,0.07)',
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+              width: '100%',
+              maxWidth: 180,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }}
+          >
             {user?.role === 'admin' ? 'Admin' : 'Staff'} panel
           </div>
 
