@@ -100,7 +100,11 @@ export const changePassword = async (id, { oldPassword, newPassword }) => {
   // --- Kiểm tra user tồn tại ---
   const user = await User.findById(id);
   if (!user) {
-    throw { status: 404, message: 'Không tìm thấy người dùng', errors: { id: 'Không tìm thấy người dùng' } };
+    throw {
+      status: 404,
+      message: 'Không tìm thấy người dùng',
+      errors: { id: 'Không tìm thấy người dùng' },
+    };
   }
 
   // --- Kiểm tra user có password không (không phải đăng nhập bằng Google) ---
@@ -130,7 +134,7 @@ export const changePassword = async (id, { oldPassword, newPassword }) => {
       errors: { newPassword: 'Mật khẩu mới phải khác mật khẩu cũ' },
     };
   }
-  
+
   if (Object.keys(errors).length > 0) {
     throw { status: 400, message: 'Dữ liệu không hợp lệ', errors };
   }
@@ -138,6 +142,8 @@ export const changePassword = async (id, { oldPassword, newPassword }) => {
   // --- Hash và lưu ---
   const hashed = await bcrypt.hash(newPassword, 10);
   user.passwordHash = hashed;
+  user.mustChangePassword = false;
+  user.passwordChangedAt = new Date();
   await user.save();
 
   return { message: 'Đổi mật khẩu thành công' };

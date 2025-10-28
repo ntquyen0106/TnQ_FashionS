@@ -71,11 +71,9 @@ export const firebaseSocialLogin = async ({ idToken }) => {
   }
 
   const JWT_SECRET = process.env.JWT_SECRET;
-  const token = jwt.sign(
-    { sub: user._id.toString(), role: user.role },
-    JWT_SECRET,
-    { expiresIn: '7d' },
-  );
+  const token = jwt.sign({ sub: user._id.toString(), role: user.role }, JWT_SECRET, {
+    expiresIn: '7d',
+  });
 
   return { user: sanitize(user), token };
 };
@@ -234,12 +232,41 @@ export const forgotReset = async ({ resetToken, newPassword }) => {
 
 /* -------------------- UTILITY FUNCTIONS -------------------- */
 
+export const changePasswordFirst = async ({ userId, newPassword }) => {
+  if (!userId) throw new Error('Thiếu userId');
+  if (!newPassword || String(newPassword).length < 6) {
+    const err = new Error('Mật khẩu mới phải >= 6 ký tự');
+    err.status = 400;
+    throw err;
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    const err = new Error('User không tồn tại');
+    err.status = 404;
+    throw err;
+  }
+  if (!user.passwordHash) {
+    const err = new Error('Không thể đổi mật khẩu cho tài khoản đăng nhập bằng Google');
+    err.status = 400;
+    throw err;
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  user.mustChangePassword = false;
+  user.passwordChangedAt = new Date();
+  await user.save();
+
+  return { message: 'Đổi mật khẩu thành công' };
+};
+
 export const sanitize = (u) => ({
   id: u._id,
   name: u.name,
   email: u.email,
   role: u.role,
   status: u.status,
+  mustChangePassword: Boolean(u.mustChangePassword),
   createdAt: u.createdAt,
   updatedAt: u.updatedAt,
 });

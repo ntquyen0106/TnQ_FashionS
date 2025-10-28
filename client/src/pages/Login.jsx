@@ -36,10 +36,15 @@ export default function Login() {
 
       if (me) setUser(me);
 
-      // Điều hướng theo role (nếu me chưa về kịp thì coi như user thường)
-      if (me?.role === 'admin') nav('/dashboard/admin', { replace: true });
-      else if (me?.role === 'staff') nav('/dashboard', { replace: true });
-      else nav('/', { replace: true });
+      // Nếu cần đổi mật khẩu lần đầu, đưa đến trang đổi mật khẩu ngay
+      if (me?.mustChangePassword) {
+        nav('/first-change-password', { replace: true });
+      } else {
+        // Điều hướng theo role (nếu me chưa về kịp thì coi như user thường)
+        if (me?.role === 'admin') nav('/dashboard/admin', { replace: true });
+        else if (me?.role === 'staff') nav('/dashboard', { replace: true });
+        else nav('/', { replace: true });
+      }
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đăng nhập thất bại');
     } finally {

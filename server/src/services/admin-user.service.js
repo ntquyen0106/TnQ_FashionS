@@ -3,10 +3,21 @@ import User from '../models/User.js';
 import mongoose from 'mongoose';
 import validator from 'validator';
 import { sendWelcomeEmail } from './mail.service.js';
+import { randomBytes } from 'crypto';
 
 /* -------------------- CONSTANTS -------------------- */
 
-const DEFAULT_PASSWORD = 'P@ssw0rd';
+const DEFAULT_PASSWORD = null; // no longer used as a fixed default
+
+function generateTempPassword(length = 8) {
+  const bytes = randomBytes(length);
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#';
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += alphabet[bytes[i] % alphabet.length];
+  }
+  return out;
+}
 
 /* -------------------- VALIDATION FUNCTIONS -------------------- */
 
@@ -15,7 +26,7 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
   const { name, email, phoneNumber, role, status } = data;
 
   // Validate name
-  const regex= /^[a-zA-ZÀ-ỹ\s]+$/;
+  const regex = /^[a-zA-ZÀ-ỹ\s]+$/;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     errors.name = 'Tên không được để trống';
   } else if (name.trim().length < 2) {
@@ -42,7 +53,9 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
         }
         const existedUser = await User.findOne(query);
         if (existedUser) {
-          errors.phoneNumber = isUpdate ? 'Số điện thoại này đã được sử dụng bởi user khác' : 'Số điện thoại đã tồn tại trong hệ thống';
+          errors.phoneNumber = isUpdate
+            ? 'Số điện thoại này đã được sử dụng bởi user khác'
+            : 'Số điện thoại đã tồn tại trong hệ thống';
         }
       } catch (error) {
         errors.phoneNumber = 'Lỗi kiểm tra số điện thoại';
@@ -65,7 +78,9 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
         }
         const existedUser = await User.findOne(query);
         if (existedUser) {
-          errors.email = isUpdate ? 'Email này đã được sử dụng bởi user khác' : 'Email đã tồn tại trong hệ thống';
+          errors.email = isUpdate
+            ? 'Email này đã được sử dụng bởi user khác'
+            : 'Email đã tồn tại trong hệ thống';
         }
       } catch (error) {
         errors.email = 'Lỗi kiểm tra email';
@@ -77,7 +92,7 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
   const validRoles = ['user', 'staff', 'admin'];
   if (role && !validRoles.includes(role) && role !== undefined) {
     errors.role = 'Role chỉ được là user, staff hoặc admin';
-  }else if(role === '' || role === null) {
+  } else if (role === '' || role === null) {
     errors.role = 'Role không được để trống';
   }
 
@@ -85,14 +100,12 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
   const validStatuses = ['active', 'banned'];
   if (status && !validStatuses.includes(status)) {
     errors.status = 'Status chỉ được là active hoặc banned';
-  } else if(status === '' || status === null) {
+  } else if (status === '' || status === null) {
     errors.status = 'Status không được để trống';
   }
 
   return errors;
 };
-
-
 
 /* -------------------- ADMIN USER MANAGEMENT SERVICES -------------------- */
 
@@ -109,23 +122,27 @@ export const createUser = async (data) => {
     };
   }
 
+  // Generate a temporary password and require first-change on login
+  const tempPassword = generateTempPassword(8);
+
   // Create user with validated data
   const user = new User({
     name: name.trim(),
     email: email.trim().toLowerCase(),
     phoneNumber: phoneNumber.trim(),
-    passwordHash: await bcrypt.hash(DEFAULT_PASSWORD, 10),
+    passwordHash: await bcrypt.hash(tempPassword, 10),
     role: role || 'user',
     status: status || 'active',
+    mustChangePassword: true,
   });
 
   await user.save();
 
-  // Send welcome email to new user
-  await sendWelcomeEmail(user.email, user.name, DEFAULT_PASSWORD);
+  // Send welcome email to new user with temp password
+  await sendWelcomeEmail(user.email, user.name, tempPassword);
 
   return {
-    message: 'Tạo người dùng thành công với mật khẩu mặc định: P@ssw0rd. Email thông báo đã được gửi.',
+    message: 'Tạo người dùng thành công. Đã gửi mật khẩu tạm và link đăng nhập tới email.',
     data: {
       id: user._id,
       name: user.name,
@@ -141,7 +158,7 @@ export const createUser = async (data) => {
 const validateUpdateData = async (updates, currentUserId) => {
   const errors = {};
   const { name, email, phoneNumber, role, status } = updates;
-  const regex= /^[a-zA-ZÀ-ỹ\s]+$/;
+  const regex = /^[a-zA-ZÀ-ỹ\s]+$/;
 
   // Validate name if provided
   if (name !== undefined) {
@@ -167,9 +184,9 @@ const validateUpdateData = async (updates, currentUserId) => {
       } else {
         // Check phone exists for other users
         try {
-          const existedUser = await User.findOne({ 
+          const existedUser = await User.findOne({
             phoneNumber: phoneNumber.trim(),
-            _id: { $ne: currentUserId }
+            _id: { $ne: currentUserId },
           });
           if (existedUser) {
             errors.phoneNumber = 'Số điện thoại này đã được sử dụng bởi user khác';
@@ -191,9 +208,9 @@ const validateUpdateData = async (updates, currentUserId) => {
       } else {
         // Check email exists for other users
         try {
-          const existedUser = await User.findOne({ 
+          const existedUser = await User.findOne({
             email: email.trim().toLowerCase(),
-            _id: { $ne: currentUserId }
+            _id: { $ne: currentUserId },
           });
           if (existedUser) {
             errors.email = 'Email này đã được sử dụng bởi user khác';
@@ -256,26 +273,24 @@ const checkDataChanges = (currentUser, updates) => {
   return { changes, hasChanges };
 };
 
-
-
 //  UPDATE USER — với validation đầy đủ
 export const updateUser = async (id, updates) => {
   // Validate user ID
   if (!mongoose.isValidObjectId(id)) {
-    throw { 
-      status: 400, 
-      message: 'ID người dùng không hợp lệ', 
-      errors: { id: 'User ID không hợp lệ' } 
+    throw {
+      status: 400,
+      message: 'ID người dùng không hợp lệ',
+      errors: { id: 'User ID không hợp lệ' },
     };
   }
 
   // Find current user first
   const currentUser = await User.findById(id);
   if (!currentUser) {
-    throw { 
-      status: 404, 
-      message: 'Không tìm thấy người dùng', 
-      errors: { id: 'User không tồn tại' } 
+    throw {
+      status: 404,
+      message: 'Không tìm thấy người dùng',
+      errors: { id: 'User không tồn tại' },
     };
   }
 
@@ -291,7 +306,7 @@ export const updateUser = async (id, updates) => {
 
   // Check for actual changes
   const { changes, hasChanges } = checkDataChanges(currentUser, updates);
-  
+
   if (!hasChanges) {
     throw {
       status: 400,
@@ -302,18 +317,14 @@ export const updateUser = async (id, updates) => {
 
   try {
     // Update user with only changed fields
-    const updatedUser = await User.findByIdAndUpdate(
-      id, 
-      changes, 
-      {
-        new: true,
-        runValidators: true,
-        context: 'query',
-      }
-    ).select('-passwordHash');
+    const updatedUser = await User.findByIdAndUpdate(id, changes, {
+      new: true,
+      runValidators: true,
+      context: 'query',
+    }).select('-passwordHash');
 
-    return { 
-      message: 'Cập nhật người dùng thành công', 
+    return {
+      message: 'Cập nhật người dùng thành công',
       data: {
         id: updatedUser._id,
         name: updatedUser.name,
@@ -322,7 +333,7 @@ export const updateUser = async (id, updates) => {
         role: updatedUser.role,
         status: updatedUser.status,
         updatedAt: updatedUser.updatedAt,
-      }
+      },
     };
   } catch (error) {
     const errors = {};
@@ -366,19 +377,27 @@ export const getUserById = async (id) => {
 };
 
 export const getUsers = async (query) => {
-  const { 
+  const {
     // Search parameters
-    search, name, email, phoneNumber, role, status,
-    fromDate, toDate,
+    search,
+    name,
+    email,
+    phoneNumber,
+    role,
+    status,
+    fromDate,
+    toDate,
     // Pagination parameters
-    page = 1, size = 10,
+    page = 1,
+    size = 10,
     // Sorting parameters
-    sortBy = 'createdAt', sortDirection = 'desc'
+    sortBy = 'createdAt',
+    sortDirection = 'desc',
   } = query;
 
   // Build search filter
   const filter = {};
-  
+
   // Global search across multiple fields
   if (search) {
     const searchRegex = new RegExp(search, 'i');
@@ -397,7 +416,7 @@ export const getUsers = async (query) => {
   if (phoneNumber) filter.phoneNumber = new RegExp(phoneNumber, 'i');
   if (role) filter.role = role;
   if (status) filter.status = status;
-  
+
   // Date range filter
   if (fromDate || toDate) {
     filter.createdAt = {};
@@ -411,7 +430,15 @@ export const getUsers = async (query) => {
   const skip = (pageNum - 1) * pageSize;
 
   // Build sort object
-  const validSortFields = ['name', 'email', 'phoneNumber', 'role', 'status', 'createdAt', 'updatedAt'];
+  const validSortFields = [
+    'name',
+    'email',
+    'phoneNumber',
+    'role',
+    'status',
+    'createdAt',
+    'updatedAt',
+  ];
   const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
   const sortDir = sortDirection.toLowerCase() === 'asc' ? 1 : -1;
   const sortObject = { [sortField]: sortDir };
@@ -436,7 +463,7 @@ export const getUsers = async (query) => {
     const isLast = pageNum === totalPages || total === 0;
 
     // Format user data
-    const formattedUsers = users.map(user => ({
+    const formattedUsers = users.map((user) => ({
       id: user._id,
       name: user.name,
       email: user.email,
@@ -463,15 +490,15 @@ export const getUsers = async (query) => {
       // Sorting info
       sort: {
         field: sortField,
-        direction: sortDirection.toLowerCase()
-      }
+        direction: sortDirection.toLowerCase(),
+      },
     };
   } catch (error) {
     console.error('Get users error:', error);
     throw {
       status: 500,
       message: 'Lỗi khi lấy danh sách người dùng',
-      errors: { database: error.message }
+      errors: { database: error.message },
     };
   }
 };

@@ -1,0 +1,225 @@
+:root {
+  --bg: #f7f7f9;
+  --card-bg: #ffffff;
+  --text: #111111;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --radius: 12px;
+}
+
+/* Page container matches other admin pages */
+.wrap {
+  /* Reduced outer padding so the page sits closer to the viewport edges */
+  padding: 12px 12px;
+  background: var(--bg);
+  min-height: calc(100vh - 64px);
+  display: grid;
+  gap: 14px;
+  /* Keep layout stable: header | filters | table | pagination */
+  grid-template-rows: auto 72px 1fr auto;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Filters area - lightweight and aligned with other pages */
+.filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap; /* keep items on single line unless very small */
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  height: 64px; /* fixed height so layout won't shift when results change */
+}
+
+/* Filters stay in normal flow (not fixed) so they scroll with the page */
+
+.tableWrap {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: auto;
+  box-shadow: var(--shadow);
+  padding: 0; /* table controls its own padding */
+  min-height: 320px; /* prevent collapse when no results or during search */
+}
+
+/* Tuning MUI TextField inside the filters block to look consistent */
+.filters :global(.MuiFormControl-root) {
+  min-width: 180px;
+}
+.filters .searchBox {
+  flex: 1 1 420px;
+  min-width: 260px;
+}
+.filters :global(.MuiInputBase-root) {
+  height: 38px;
+  border-radius: 8px;
+  background: #fff;
+}
+.filters :global(.MuiInputBase-input) {
+  padding: 8px 12px;
+}
+.filters :global(.MuiSelect-select) {
+  padding: 8px 12px;
+}
+
+/* Small icon-like buttons that may appear in the toolbar */
+.filterIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+}
+.filterIconBtn:hover {
+  background: #fafafa;
+}
+
+/* Responsive: stack filters on small screens */
+@media (max-width: 840px) {
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr 120px 120px;
+    gap: 10px;
+  }
+  .filters :global(.MuiFormControl-root) {
+    min-width: 0;
+  }
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+/* Reuse modal styling similar to PromotionsPage for consistent add/edit dialogs */
+.modalBackdrop {
+  /* Slightly reduce modal backdrop padding so dialogs are closer to viewport edges */
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  padding: 28px 12px 12px;
+  z-index: 50;
+}
+
+.modal {
+  width: min(860px, 94vw);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  max-height: calc(100vh - 160px);
+  overflow: hidden;
+  position: relative;
+}
+
+.modalHeader {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.modalBody {
+  padding: 12px 16px;
+  overflow: auto;
+  min-height: 0;
+}
+.modalFooter {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Global overrides for MUI controls to match app look */
+:global(.MuiTableCell-root) {
+  font-size: 14px;
+}
+:global(.MuiTableHead-root .MuiTableCell-root) {
+  font-weight: 600;
+  background: #fafafa;
+}
+
+/* Buttons */
+:global(.MuiButton-contained) {
+  border-radius: 10px;
+  padding: 8px 14px;
+  box-shadow: none;
+}
+:global(.MuiIconButton-root) {
+  border-radius: 10px;
+}
+
+/* Chips */
+:global(.MuiChip-root) {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* Pagination bar spacing */
+:global(.MuiTablePagination-root) {
+  padding: 8px 16px;
+}
+
+/* Shared table styling used across pages */
+:global(.table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+:global(.table thead th) {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  background: #fafafa;
+  font-weight: 600;
+}
+:global(.table tbody td) {
+  padding: 10px;
+  border-bottom: 1px solid #f2f2f2;
+}
+:global(.table tbody tr:hover) {
+  background: #fcfcfc;
+}
+
+/* Small helpers */
+.center {
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}

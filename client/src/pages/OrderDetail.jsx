@@ -411,17 +411,18 @@ export default function OrderDetail() {
         </section>
 
         {/* 3) ADD this section inside JSX, before bottom action buttons */}
-        {Array.isArray(order.history) && order.history.length > 0 && (
+        {Array.isArray(order.history) && order.history.length > 0 && user?.role === 'admin' && (
           <section className={styles.card}>
             <h3>Lịch sử xử lý</h3>
             <ul className={styles.timeline}>
-              {order.history.map((h, i) => (
+              {timeline.map((t, i) => (
                 <li key={i}>
-                  <b>{h.label}</b>
-                  {h.assigneeName ? ` → ${h.assigneeName}` : ''} bởi {h.actorName}
-                  {h.actorRole ? ` (${h.actorRole})` : ''}
+                  <b>{t.label}</b>
+                  {t.assigneeName ? ` → ${t.assigneeName}` : ''}
+                  {t.actorName ? ` bởi ${t.actorName}` : ''}
+                  {t.actorRole ? ` (${t.actorRole})` : ''}
                   <br />
-                  <small>{h.changedAt ? new Date(h.changedAt).toLocaleString('vi-VN') : ''}</small>
+                  <small>{t.at ? new Date(t.at).toLocaleString('vi-VN') : ''}</small>
                 </li>
               ))}
             </ul>

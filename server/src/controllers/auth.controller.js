@@ -113,6 +113,20 @@ export const postForgotReset = async (req, res, next) => {
   }
 };
 
+/* -------------------- FIRST-LOGIN PASSWORD CHANGE -------------------- */
+export const postChangePasswordFirst = async (req, res, next) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || String(newPassword).length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải >= 6 ký tự' });
+    }
+    const result = await auth.changePasswordFirst({ userId: req.user._id, newPassword });
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
 /* -------------------- SOCIAL LOGINS -------------------- */
 
 // Firebase (Google)
@@ -159,10 +173,10 @@ export const putChangePassword = async (req, res) => {
 
     return res.json(result);
   } catch (err) {
-    console.error("Change password error:", err);
+    console.error('Change password error:', err);
 
     return res.status(err.status || 500).json({
-      message: err.message || "Internal server error",
+      message: err.message || 'Internal server error',
       errors: err.errors || null,
     });
   }

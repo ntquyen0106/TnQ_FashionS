@@ -1,0 +1,510 @@
+:root {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --text: #111827;
+  --border: #e5e7eb;
+  --hover: #f9fafb;
+  --primary: #111827;
+  --primary-contrast: #ffffff;
+  --danger: #b91c1c;
+  --success-bg: #dcfce7;
+  --success-fg: #166534;
+  --neutral-bg: #f3f4f6;
+  --neutral-fg: #374151;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  --radius: 12px;
+}
+
+.page {
+  display: grid;
+  gap: 16px;
+}
+.title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+}
+.subtitle {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.tableWrap {
+  overflow: auto;
+  /* center the table when there's extra horizontal space */
+  display: flex;
+  justify-content: center;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fbfbfc;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  font-weight: 600;
+  color: #111827;
+  text-align: center; /* center headers */
+}
+.table tbody td {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  color: var(--text);
+  text-align: center; /* center cell content */
+}
+.table tbody tr:hover {
+  background: var(--hover);
+}
+.table tbody tr:hover {
+  background: var(--hover);
+}
+.center {
+  text-align: center;
+}
+.right {
+  text-align: right;
+}
+.bold {
+  font-weight: 600;
+}
+.muted {
+  color: var(--muted);
+}
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.btnPrimary {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border: 1px solid var(--primary);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.btnPrimary:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.btnGhost {
+  background: #fff;
+  color: #111827;
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.btnGhost:hover {
+  background: #f8fafc;
+}
+
+.btnDanger {
+  background: #fff;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  padding: 7px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.btnDanger:hover {
+  background: #fff1f2;
+}
+
+.select,
+.input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  min-width: 180px;
+}
+.input {
+  min-width: 0;
+  width: 100%;
+}
+
+.inputWithSuffixInline {
+  position: relative;
+}
+.inputWithSuffixInline .input {
+  padding-right: 44px; /* room for suffix */
+}
+.inputSuffixInline {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.badgeGreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--success-bg);
+  color: var(--success-fg);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badgeGray {
+  display: inline-flex;
+  align-items: center;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ===== Modal chính (Tạo/Sửa khuyến mãi) ===== */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  /* Keep some top breathing room so modal doesn't overlap a fixed header */
+  padding: 48px 16px 24px;
+  z-index: 50;
+}
+
+.modal {
+  width: min(860px, 94vw);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  /* Prevent modal from growing into the header: cap height relative to viewport minus header space */
+  max-height: calc(100vh - 160px);
+  overflow: hidden; /* phần thân sẽ cuộn */
+  /* Fix modal position in the middle of the viewport */
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 60;
+}
+
+.modalHeader {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modalBody {
+  padding: 16px 18px;
+  overflow: auto; /* ✅ nội dung cuộn, modal KHÔNG đổi size */
+  contain: content; /* tránh layout shift nhỏ khi đổi tab/field */
+  min-height: 0; /* fix flexbox overflow edge-cases */
+}
+
+.modalFooter {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.formGrid {
+  /* Đặt vào trong .modalBody */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+.formItem {
+  display: grid;
+  gap: 8px;
+}
+.formItemFull {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+.formItem label,
+.formItemFull label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (max-width: 860px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #f3f4f6;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+}
+.chipX {
+  border: none;
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pickRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pickerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  /* don't center via backdrop; picker itself is positioned */
+  z-index: 60;
+}
+
+.picker {
+  /* Narrower picker so content fits product rows more snugly */
+  width: min(760px, 92vw);
+  max-width: 760px;
+  /* allow the picker to size to its content but prevent it from exceeding viewport */
+  max-height: 80vh;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  /* place picker slightly lower than center so it doesn't touch header */
+  position: fixed;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  z-index: 70;
+}
+
+.pickerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pickerBody {
+  padding: 0; /* để table/Tree fit full */
+  overflow: auto; /* ✅ list nội dung cuộn */
+  min-height: 0;
+  /* Limit internal height so the picker box can shrink if content is small */
+  max-height: calc(80vh - 120px); /* accounts for header/footer heights inside picker */
+}
+
+/* Center picker content: headers, cells, and images */
+.picker .table thead th,
+.picker .table tbody td {
+  text-align: center;
+}
+.picker .table tbody td img {
+  margin: 0 auto;
+  display: block;
+}
+.picker .table thead th:first-child,
+.picker .table tbody td:first-child {
+  width: 36px; /* keep checkbox column narrow */
+}
+
+/* bảng trong picker không làm thu nhỏ modal */
+.pickerTableWrap {
+  /* let table content flow naturally; if it grows, .pickerBody will scroll */
+  width: 100%;
+  overflow: auto;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fbfbfc;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+.tab {
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: default;
+}
+.active {
+  background: var(--neutral-bg);
+}
+.search {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 260px;
+}
+
+.list {
+  display: grid;
+}
+.row {
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.rowText {
+  font-weight: 500;
+}
+.rowMuted {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 12px;
+}
+.pickerFooter {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+.badgeRed {
+  display: inline-flex;
+  align-items: center;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badgeYellow {
+  display: inline-flex;
+  align-items: center;
+  background: #fef9c3;
+  color: #92400e;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badgeGreen,
+.badgeGray,
+.badgeRed,
+.badgeYellow {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+.badgeRed {
+  display: inline-flex;
+  align-items: center;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badgeYellow {
+  display: inline-flex;
+  align-items: center;
+  background: #fef9c3;
+  color: #92400e;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badgeGreen,
+.badgeGray,
+.badgeRed,
+.badgeYellow {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+.badgeRed {
+  display: inline-flex;
+  align-items: center;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.badgeYellow {
+  display: inline-flex;
+  align-items: center;
+  background: #fef9c3;
+  color: #92400e;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* field giá trị kèm hậu tố */
+.inputWithSuffixInline {
+  position: relative;
+}
+.inputWithSuffixInline .input {
+  padding-right: 38px;
+}
+.inputSuffixInline {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  color: #6b7280;
+}
