@@ -7,7 +7,8 @@ import Register from './pages/Register';
 import VerifyCode from './pages/VerifyCode';
 import Forgot from './pages/Forgot';
 import ResetPassword from './pages/ResetPassword';
-import { ProtectedRoute, RoleRoute } from './auth/guards';
+import { ProtectedRoute, RoleRoute, MustChangePasswordGuard } from './auth/guards';
+import FirstLoginChangePassword from '@/pages/FirstLoginChangePassword';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
 import ProductDetail from '@/pages/ProductDetail';
@@ -50,12 +51,18 @@ export default function App() {
 
         {/* Khu vực dashboard (đã bảo vệ) — có thể dùng layout riêng nếu muốn */}
         <Route element={<ProtectedRoute />}>
-          <Route element={<RoleRoute roles={['staff', 'admin']} />}>
-            <Route path="/dashboard/*" element={<StaffDashboard />} />
-            <Route path="/dashboard/products/new" element={<AdminProductNew />} />
-          </Route>
-          <Route element={<RoleRoute roles={['admin']} />}>
-            <Route path="/dashboard/admin/*" element={<AdminDashboard />} />
+          {/* First-login change password page */}
+          <Route path="/first-change-password" element={<FirstLoginChangePassword />} />
+
+          {/* All other protected routes must pass through the must-change guard */}
+          <Route element={<MustChangePasswordGuard />}>
+            <Route element={<RoleRoute roles={['staff', 'admin']} />}>
+              <Route path="/dashboard/*" element={<StaffDashboard />} />
+              <Route path="/dashboard/products/new" element={<AdminProductNew />} />
+            </Route>
+            <Route element={<RoleRoute roles={['admin']} />}>
+              <Route path="/dashboard/admin/*" element={<AdminDashboard />} />
+            </Route>
           </Route>
         </Route>
       </Routes>

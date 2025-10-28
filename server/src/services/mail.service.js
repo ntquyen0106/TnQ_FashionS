@@ -1,8 +1,8 @@
-import nodemailer from "nodemailer";
+import nodemailer from 'nodemailer';
 
-const provider = process.env.EMAIL_PROVIDER || "gmail";
+const provider = process.env.EMAIL_PROVIDER || 'gmail';
 const transporter =
-  provider === "mailtrap"
+  provider === 'mailtrap'
     ? nodemailer.createTransport({
         host: process.env.MAILTRAP_HOST,
         port: Number(process.env.MAILTRAP_PORT || 587),
@@ -10,7 +10,7 @@ const transporter =
         auth: { user: process.env.MAILTRAP_USER, pass: process.env.MAILTRAP_PASS },
       })
     : nodemailer.createTransport({
-        host: "smtp.gmail.com",
+        host: 'smtp.gmail.com',
         port: 465,
         secure: true,
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
@@ -28,7 +28,10 @@ export async function sendMail(to, subject, text, html) {
 
 export async function sendWelcomeEmail(userEmail, userName, password = 'P@ssw0rd') {
   const subject = 'Tài khoản của bạn đã được tạo - TnQ Fashion';
-  
+  const frontendUrl =
+    process.env.FRONTEND_URL || process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+  const loginUrl = `${String(frontendUrl).replace(/\/$/, '')}/login`;
+
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
       <h2 style="color: #2c3e50; text-align: center;">Chào mừng đến với TnQ Fashion!</h2>
@@ -44,6 +47,9 @@ export async function sendWelcomeEmail(userEmail, userName, password = 'P@ssw0rd
         <p style="margin: 0; font-size: 14px;"><strong>Email:</strong> ${userEmail}</p>
         <p style="margin: 10px 0 0 0; font-size: 14px;"><strong>Mật khẩu:</strong> ${password}</p>
       </div>
+      <p style="text-align:center;">
+        <a href="${loginUrl}" style="display:inline-block; background:#111827; color:#fff; padding:10px 16px; border-radius:6px; text-decoration:none;">Đăng nhập ngay</a>
+      </p>
       
       <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
         <p style="margin: 0; font-size: 13px; color: #856404;">
@@ -75,6 +81,8 @@ export async function sendWelcomeEmail(userEmail, userName, password = 'P@ssw0rd
     Mật khẩu: ${password}
     
     Vui lòng đổi mật khẩu ngay sau lần đăng nhập đầu tiên để đảm bảo bảo mật.
+    
+    Đăng nhập: ${loginUrl}
     
     Trân trọng,
     TnQ Fashion Team

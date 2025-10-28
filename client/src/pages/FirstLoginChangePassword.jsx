@@ -1,30 +1,18 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { authApi } from '@/api';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '@/api/auth-api';
+import { useAuth } from '@/auth/AuthProvider';
 import styles from './LoginRegister.module.css';
 import SuccessModal from '@/components/SuccessModal';
 
-export default function ResetPassword() {
+export default function FirstLoginChangePassword() {
   const nav = useNavigate();
+  const { user, setUser } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' });
-
-  useEffect(() => {
-    // Support resetToken provided via query param (admin link) or sessionStorage
-    const params = new URLSearchParams(window.location.search);
-    const qToken = params.get('resetToken');
-    const sessionToken = sessionStorage.getItem('pwResetToken');
-    const token = qToken || sessionToken;
-    if (!token) nav('/forgot');
-    if (qToken && !sessionToken) {
-      // keep token in session so user can reload safely
-      sessionStorage.setItem('pwResetToken', qToken);
-      sessionStorage.setItem('pwResetEmail', params.get('email') || '');
-    }
-  }, [nav]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -36,16 +24,17 @@ export default function ResetPassword() {
 
     try {
       setLoading(true);
-      const resetToken = sessionStorage.getItem('pwResetToken');
-      await authApi.resetPassword({ resetToken, newPassword: password });
-      sessionStorage.removeItem('pwResetToken');
-      sessionStorage.removeItem('pwResetEmail');
-
-      // Show success modal and navigate to login on close
+      await authApi.changePasswordFirst({ newPassword: password });
+      // Refresh profile to clear mustChange flag
+      try {
+        const me = await authApi.me();
+        if (me) setUser(me);
+      } catch {}
+      // Show success modal then redirect by role after close
       setSuccessModal({
         open: true,
         title: 'Đổi mật khẩu thành công',
-        message: 'Vui lòng đăng nhập lại.',
+        message: 'Mật khẩu đã được cập nhật',
       });
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đổi mật khẩu thất bại');
@@ -57,8 +46,8 @@ export default function ResetPassword() {
   return (
     <div className={styles.authPage}>
       <div className={styles.wrap}>
-        <h2 className={styles.h1}>Tạo mật khẩu mới</h2>
-        <p className={styles.sub}>Mật khẩu cần tối thiểu 6 ký tự và dễ nhớ với bạn.</p>
+        <h2 className={styles.h1}>Đổi mật khẩu lần đầu</h2>
+        <p className={styles.sub}>Vui lòng đặt mật khẩu mới để tiếp tục sử dụng hệ thống.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
             <label className={styles.label}>Mật khẩu mới</label>
@@ -90,11 +79,8 @@ export default function ResetPassword() {
           </div>
           <div className={styles.actions}>
             <button className={styles.btnPrimary} type="submit" disabled={loading}>
-              {loading ? 'Đang đổi...' : 'Đổi mật khẩu'}
+              {loading ? 'Đang đổi...' : 'Đổi mật khẩu và tiếp tục'}
             </button>
-            <Link className={styles.link} to="/login">
-              Về đăng nhập
-            </Link>
           </div>
           {msg && <div className={styles.err}>{msg}</div>}
         </form>
@@ -105,7 +91,11 @@ export default function ResetPassword() {
         message={successModal.message}
         onClose={() => {
           setSuccessModal({ open: false, title: '', message: '' });
-          nav('/login');
+          // Redirect by role
+          const role = user?.role || 'user';
+          if (role === 'admin') nav('/dashboard/admin', { replace: true });
+          else if (role === 'staff') nav('/dashboard', { replace: true });
+          else nav('/', { replace: true });
         }}
       />
     </div>

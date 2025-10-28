@@ -6,33 +6,33 @@ import validator from 'validator';
 
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password -__v').lean();
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const user = await User.findById(req.user._id).select('-passwordHash -__v').lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
     return res.json({ user });
   } catch (err) {
-    console.error("Get profile error:", err);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('Get profile error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 export const putChangePassword = async (req, res) => {
   try {
-    const id = req.user._id; // Get from authenticated user
+    const id = req.user._id;
     const { oldPassword, newPassword, confirmNewPassword } = req.body;
 
-    const result = await userService.changePassword(id, {
-      oldPassword,
-      newPassword,
-      confirmNewPassword,
-    });
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải >= 6 ký tự' });
+    }
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({ message: 'Xác nhận mật khẩu không khớp' });
+    }
 
+    const result = await userService.changePassword(id, { oldPassword, newPassword });
     return res.json(result);
   } catch (err) {
-    console.error("Change password error:", err);
+    console.error('Change password error:', err);
     return res.status(err.status || 500).json({
-      message: err.message || "Internal server error",
+      message: err.message || 'Internal server error',
       errors: err.errors || null,
     });
   }
@@ -125,3 +125,5 @@ export const clearAddresses = async (req, res, next) => {
     next(e);
   }
 };
+
+/* -------------------- ADMIN USER MANAGEMENT REMOVED -------------------- */

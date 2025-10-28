@@ -19,6 +19,10 @@ export const authApi = {
   resetPassword: ({ resetToken, newPassword }) =>
     http.post('/auth/forgot/reset', { resetToken, newPassword }).then((r) => r.data),
 
+  // First-login password change (requires auth cookie)
+  changePasswordFirst: ({ newPassword }) =>
+    http.post('/auth/change-password-first', { newPassword }).then((r) => r.data),
+
   // Addresses
   getAddresses: () => http.get('/user/addresses').then((r) => r.data.addresses),
   addAddress: (address) => http.post('/user/addresses', { address }).then((r) => r.data),
