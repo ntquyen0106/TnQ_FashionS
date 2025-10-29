@@ -327,624 +327,658 @@ export default function OrderDetail() {
 
   return (
     <div className={styles.wrap}>
-      {inQueue && (
-        <div className={styles.infoBanner}>
-          Đơn này đang ở hàng đợi. Bạn có thể Nhận đơn để xử lý hoặc Hủy đơn nếu cần.
-        </div>
-      )}
-      {!inQueue && canPayNow && (
-        <div className={styles.infoBanner}>
-          Đơn hàng đang chờ thanh toán. Thời gian còn lại để thanh toán:{' '}
-          <b>{fmtRemain(remainSec)}</b>. Khi hết thời gian, đơn sẽ tự động hủy.
-        </div>
-      )}
-      <div className={styles.header}>
-        <button
-          className={styles.back}
-          onClick={() => {
-            const target =
-              loc.state?.backTo ||
-              (loc.state?.from === 'staff' ? '/dashboard/my-orders' : '/orders');
-            if (history.length > 1) nav(-1);
-            else nav(target);
-          }}
-          aria-label="Quay lại"
-        >
-          <span className={styles.arrow}>←</span>
-        </button>
-        <div className={styles.titleBox}>
-          <h2>Chi tiết đơn hàng</h2>
-        </div>
-        <div className={`${styles.chip} ${styles[`st_${status}`]}`}>
-          {STATUS_LABEL[status] || status}
-        </div>
-      </div>
-
-      <div className={styles.grid}>
-        <section className={styles.card}>
-          <h3>Thông tin giao hàng</h3>
-          <div className={styles.addr}>
-            <div>
-              <strong>{addr.fullName}</strong> · {addr.phone}
-            </div>
-            <div className={styles.addrLine}>
-              {addr.line1}, {addr.ward}, {addr.district}, {addr.city}
-            </div>
+      <div className={styles.panel}>
+        {inQueue && (
+          <div className={styles.infoBanner}>
+            Đơn này đang ở hàng đợi. Bạn có thể Nhận đơn để xử lý hoặc Hủy đơn nếu cần.
           </div>
-        </section>
-
-        <section className={styles.card}>
-          <h3>Sản phẩm</h3>
-          <div className={styles.items}>
-            {(order.items || []).map((it, idx) => (
-              <div key={idx} className={styles.item}>
-                <img src={buildImageUrl(it.imageSnapshot)} alt={it.nameSnapshot} />
-                <div className={styles.meta}>
-                  <div className={styles.name}>{it.nameSnapshot}</div>
-                  {it.variantSku && <div className={styles.sku}>{it.variantSku}</div>}
-                </div>
-                <div className={styles.unit}>{fmtVND(it.price)}₫</div>
-                <div className={styles.qty}>x{it.qty}</div>
-                <div className={styles.line}>{fmtVND(it.lineTotal)}₫</div>
-              </div>
-            ))}
+        )}
+        {!inQueue && canPayNow && (
+          <div className={styles.infoBanner}>
+            Đơn hàng đang chờ thanh toán. Thời gian còn lại để thanh toán:{' '}
+            <b>{fmtRemain(remainSec)}</b>. Khi hết thời gian, đơn sẽ tự động hủy.
           </div>
-        </section>
-
-        <section className={styles.card}>
-          <h3>Chi tiết đơn hàng</h3>
-          <div className={styles.totals}>
-            <div>
-              <span>Mã đơn</span>
-              <span>{code}</span>
-            </div>
-            <div>
-              <span>Ngày đặt</span>
-              <span>{new Date(order.createdAt).toLocaleString('vi-VN')}</span>
-            </div>
-            <div>
-              <span>Phương thức</span>
-              <span>{pmLabel}</span>
-            </div>
-            {null}
+        )}
+        <div className={styles.header}>
+          <button
+            className={styles.back}
+            onClick={() => {
+              const target =
+                loc.state?.backTo ||
+                (loc.state?.from === 'staff' ? '/dashboard/my-orders' : '/orders');
+              if (history.length > 1) nav(-1);
+              else nav(target);
+            }}
+            aria-label="Quay lại"
+          >
+            <span className={styles.arrow}>←</span>
+          </button>
+          <div className={styles.titleBox}>
+            <h2>Chi tiết đơn hàng</h2>
           </div>
-        </section>
+          <div className={`${styles.chip} ${styles[`st_${status}`]}`}>
+            {STATUS_LABEL[status] || status}
+          </div>
+        </div>
 
-        {/* 3) ADD this section inside JSX, before bottom action buttons */}
-        {Array.isArray(order.history) && order.history.length > 0 && user?.role === 'admin' && (
+        <div className={styles.grid}>
           <section className={styles.card}>
-            <h3>Lịch sử xử lý</h3>
-            <ul className={styles.timeline}>
-              {timeline.map((t, i) => (
-                <li key={i}>
-                  <b>{t.label}</b>
-                  {t.assigneeName ? ` → ${t.assigneeName}` : ''}
-                  {t.actorName ? ` bởi ${t.actorName}` : ''}
-                  {t.actorRole ? ` (${t.actorRole})` : ''}
-                  <br />
-                  <small>{t.at ? new Date(t.at).toLocaleString('vi-VN') : ''}</small>
-                </li>
-              ))}
-            </ul>
+            <h3>Thông tin giao hàng</h3>
+            <div className={styles.addr}>
+              <div>
+                <strong>{addr.fullName}</strong> · {addr.phone}
+              </div>
+              <div className={styles.addrLine}>
+                {addr.line1}, {addr.ward}, {addr.district}, {addr.city}
+              </div>
+            </div>
           </section>
+
+          <section className={styles.card}>
+            <h3>Sản phẩm</h3>
+            <div className={styles.items}>
+              {(order.items || []).map((it, idx) => (
+                <div key={idx} className={styles.item}>
+                  <img src={buildImageUrl(it.imageSnapshot)} alt={it.nameSnapshot} />
+                  <div className={styles.meta}>
+                    <div className={styles.name}>{it.nameSnapshot}</div>
+                    {it.variantSku && <div className={styles.sku}>{it.variantSku}</div>}
+                  </div>
+                  <div className={styles.unit}>{fmtVND(it.price)}₫</div>
+                  <div className={styles.qty}>x{it.qty}</div>
+                  <div className={styles.line}>{fmtVND(it.lineTotal)}₫</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <h3>Chi tiết đơn hàng</h3>
+            <div className={styles.totals}>
+              <div>
+                <span>Mã đơn</span>
+                <span>{code}</span>
+              </div>
+              <div>
+                <span>Ngày đặt</span>
+                <span>{new Date(order.createdAt).toLocaleString('vi-VN')}</span>
+              </div>
+              <div>
+                <span>Phương thức</span>
+                <span>{pmLabel}</span>
+              </div>
+              {null}
+            </div>
+          </section>
+
+          {/* 3) ADD this section inside JSX, before bottom action buttons */}
+          {Array.isArray(order.history) && order.history.length > 0 && user?.role === 'admin' && (
+            <section className={styles.card}>
+              <h3>Lịch sử xử lý</h3>
+              <ul className={styles.timeline}>
+                {timeline.map((t, i) => (
+                  <li key={i}>
+                    <b>{t.label}</b>
+                    {t.assigneeName ? ` → ${t.assigneeName}` : ''}
+                    {t.actorName ? ` bởi ${t.actorName}` : ''}
+                    {t.actorRole ? ` (${t.actorRole})` : ''}
+                    <br />
+                    <small>{t.at ? new Date(t.at).toLocaleString('vi-VN') : ''}</small>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section className={styles.card}>
+            <h3>Thanh toán</h3>
+            <div className={styles.totals}>
+              <div>
+                <span>Tạm tính</span>
+                <span>{fmtVND(amounts.subtotal)}₫</span>
+              </div>
+              <div>
+                <span>Giảm giá</span>
+                <span>-{fmtVND(amounts.discount)}₫</span>
+              </div>
+              <div>
+                <span>Phí vận chuyển</span>
+                <span>{fmtVND(amounts.shippingFee)}₫</span>
+              </div>
+              <div className={styles.hr} />
+              <div className={styles.grand}>
+                <span>Tổng thanh toán</span>
+                <span>{fmtVND(amounts.grandTotal)}₫</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Staff (non-queue): combine actions into one row with Cancel | Cập nhật | Chuyển */}
+        {!inQueue && isStaff && (
+          <div className={styles.bottomActions}>
+            {canCancel && (
+              <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
+                Hủy đơn
+              </button>
+            )}
+            {canEditItems && (
+              <button className="btn" onClick={openBulkUpdateModal} disabled={!canEditItems}>
+                Cập nhật
+              </button>
+            )}
+            {nextStatusCode(order.status) && (
+              <button className={`btn ${styles.btnPrimary}`} onClick={updateToNext}>
+                Chuyển → {nextStatusLabel(order.status)}
+              </button>
+            )}
+          </div>
+        )}
+        {/* Customer (non-staff): keep cancel button as before */}
+        {!inQueue && !isStaff && (
+          <div className={styles.bottomActions}>
+            {canCancel && (
+              <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
+                Hủy đơn
+              </button>
+            )}
+            {canPayNow && (
+              <button
+                className={`btn ${styles.btnPrimary}`}
+                onClick={async () => {
+                  try {
+                    const r = await paymentsApi.createLink(order._id || order.id);
+                    const url = r?.paymentData?.checkoutUrl;
+                    if (url) window.location.href = url;
+                    else alert('Không tạo được link thanh toán');
+                  } catch (e) {
+                    alert(e?.response?.data?.message || 'Không tạo được link thanh toán');
+                  }
+                }}
+              >
+                Thanh toán ngay
+              </button>
+            )}
+          </div>
         )}
 
-        <section className={styles.card}>
-          <h3>Thanh toán</h3>
-          <div className={styles.totals}>
-            <div>
-              <span>Tạm tính</span>
-              <span>{fmtVND(amounts.subtotal)}₫</span>
-            </div>
-            <div>
-              <span>Giảm giá</span>
-              <span>-{fmtVND(amounts.discount)}₫</span>
-            </div>
-            <div>
-              <span>Phí vận chuyển</span>
-              <span>{fmtVND(amounts.shippingFee)}₫</span>
-            </div>
-            <div className={styles.hr} />
-            <div className={styles.grand}>
-              <span>Tổng thanh toán</span>
-              <span>{fmtVND(amounts.grandTotal)}₫</span>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* Staff (non-queue): combine actions into one row with Cancel | Cập nhật | Chuyển */}
-      {!inQueue && isStaff && (
-        <div className={styles.bottomActions}>
-          {canCancel && (
-            <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
-              Hủy đơn
+        {inQueue && (
+          <div className={styles.bottomActions}>
+            <button
+              className={`btn ${styles.btnDanger}`}
+              onClick={() => setConfirm(true)}
+              disabled={acting.cancel}
+            >
+              {acting.cancel ? 'Đang hủy…' : 'Hủy đơn'}
             </button>
-          )}
-          {canEditItems && (
-            <button className="btn" onClick={openBulkUpdateModal} disabled={!canEditItems}>
+            <button
+              className="btn"
+              onClick={openBulkUpdateModal}
+              disabled={String(order.status).toUpperCase() !== 'PENDING'}
+            >
               Cập nhật
             </button>
-          )}
-          {nextStatusCode(order.status) && (
-            <button className={`btn ${styles.btnPrimary}`} onClick={updateToNext}>
-              Chuyển → {nextStatusLabel(order.status)}
-            </button>
-          )}
-        </div>
-      )}
-      {/* Customer (non-staff): keep cancel button as before */}
-      {!inQueue && !isStaff && (
-        <div className={styles.bottomActions}>
-          {canCancel && (
-            <button className={`btn ${styles.btnDanger}`} onClick={() => setConfirm(true)}>
-              Hủy đơn
-            </button>
-          )}
-          {canPayNow && (
             <button
               className={`btn ${styles.btnPrimary}`}
-              onClick={async () => {
-                try {
-                  const r = await paymentsApi.createLink(order._id || order.id);
-                  const url = r?.paymentData?.checkoutUrl;
-                  if (url) window.location.href = url;
-                  else alert('Không tạo được link thanh toán');
-                } catch (e) {
-                  alert(e?.response?.data?.message || 'Không tạo được link thanh toán');
-                }
-              }}
+              onClick={() => setQConfirm((s) => ({ ...s, claim: true }))}
+              disabled={acting.claim}
             >
-              Thanh toán ngay
+              {acting.claim ? 'Đang nhận…' : 'Nhận đơn'}
             </button>
-          )}
-        </div>
-      )}
-
-      {inQueue && (
-        <div className={styles.bottomActions}>
-          <button
-            className={`btn ${styles.btnDanger}`}
-            onClick={() => setQConfirm((s) => ({ ...s, cancel: true }))}
-            disabled={acting.cancel}
-          >
-            {acting.cancel ? 'Đang hủy…' : 'Hủy đơn'}
-          </button>
-          <button
-            className="btn"
-            onClick={openBulkUpdateModal}
-            disabled={String(order.status).toUpperCase() !== 'PENDING'}
-          >
-            Cập nhật
-          </button>
-          <button
-            className={`btn ${styles.btnPrimary}`}
-            onClick={() => setQConfirm((s) => ({ ...s, claim: true }))}
-            disabled={acting.claim}
-          >
-            {acting.claim ? 'Đang nhận…' : 'Nhận đơn'}
-          </button>
-        </div>
-      )}
-
-      {/* Queue-specific confirmations */}
-      <ConfirmModal
-        open={inQueue && qConfirm.cancel}
-        title="Xác nhận hủy đơn"
-        message="Bạn có chắc muốn hủy đơn này?"
-        confirmText="Hủy đơn"
-        cancelText="Quay lại"
-        confirmType="danger"
-        onConfirm={async () => {
-          await cancelFromDetail();
-          setQConfirm((s) => ({ ...s, cancel: false }));
-        }}
-        onCancel={() => setQConfirm((s) => ({ ...s, cancel: false }))}
-        disabled={acting.cancel}
-      />
-      <ConfirmModal
-        open={inQueue && qConfirm.claim}
-        title="Xác nhận nhận đơn"
-        message="Bạn sẽ nhận đơn này và chuyển sang mục Đơn hàng của tôi."
-        confirmText="Nhận đơn"
-        cancelText="Quay lại"
-        onConfirm={async () => {
-          await claimFromDetail();
-        }}
-        onCancel={() => setQConfirm((s) => ({ ...s, claim: false }))}
-        disabled={acting.claim}
-      />
-
-      <ConfirmModal
-        open={!!confirm}
-        title="Xác nhận hủy đơn"
-        message={
-          <div className={styles.cancelReasons}>
-            <div>Vui lòng chọn lý do hủy đơn:</div>
-            <label className={styles.cancelReasonItem}>
-              <input
-                type="checkbox"
-                checked={reasons.includes('Phí ship cao')}
-                onChange={(e) =>
-                  setReasons((prev) =>
-                    e.target.checked
-                      ? [...prev, 'Phí ship cao']
-                      : prev.filter((x) => x !== 'Phí ship cao'),
-                  )
-                }
-              />
-              Phí ship cao
-            </label>
-            <label className={styles.cancelReasonItem}>
-              <input
-                type="checkbox"
-                checked={reasons.includes('Không còn nhu cầu')}
-                onChange={(e) =>
-                  setReasons((prev) =>
-                    e.target.checked
-                      ? [...prev, 'Không còn nhu cầu']
-                      : prev.filter((x) => x !== 'Không còn nhu cầu'),
-                  )
-                }
-              />
-              Không còn nhu cầu
-            </label>
-            <label className={styles.cancelReasonItem}>
-              <input
-                type="checkbox"
-                checked={reasons.includes('Giao quá lâu')}
-                onChange={(e) =>
-                  setReasons((prev) =>
-                    e.target.checked
-                      ? [...prev, 'Giao quá lâu']
-                      : prev.filter((x) => x !== 'Giao quá lâu'),
-                  )
-                }
-              />
-              Giao quá lâu
-            </label>
-            <label className={styles.cancelReasonItem}>
-              <input
-                type="checkbox"
-                checked={reasons.includes('Xác nhận đơn quá chậm')}
-                onChange={(e) =>
-                  setReasons((prev) =>
-                    e.target.checked
-                      ? [...prev, 'Xác nhận đơn quá chậm']
-                      : prev.filter((x) => x !== 'Xác nhận đơn quá chậm'),
-                  )
-                }
-              />
-              Xác nhận đơn quá chậm
-            </label>
-            <div className={styles.cancelOther}>
-              <label>Lý do khác</label>
-              <input
-                value={reasonOther}
-                onChange={(e) => setReasonOther(e.target.value)}
-                placeholder="Nhập lý do khác (không bắt buộc)"
-              />
-            </div>
           </div>
-        }
-        confirmText="Hủy đơn"
-        cancelText="Quay lại"
-        confirmType="danger"
-        onConfirm={doCancel}
-        onCancel={() => setConfirm(false)}
-      />
+        )}
 
-      {/* Edit item variant modal */}
-      <ConfirmModal
-        open={editing.open}
-        title="Cập nhật sản phẩm trong đơn"
-        contentClassName={styles.modalTightContent}
-        message={
-          <div style={{ display: 'grid', gap: 14 }}>
-            {editing.index < 0 ? (
-              <>
-                <div className={`${styles.modalSection} ${styles.stickyBar}`}>
-                  <label>Tìm kiếm sản phẩm</label>
-                  <input
-                    value={bulkSearch}
-                    onChange={(e) => setBulkSearch(e.target.value)}
-                    placeholder="Nhập tên hoặc SKU để tìm…"
-                    style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ddd' }}
-                  />
-                </div>
-                {bulkLoading ? (
-                  <div className={styles.modalSection}>Đang tải biến thể…</div>
-                ) : (
-                  <div className={styles.modalSection}>
-                    <div style={{ display: 'grid', gap: 12 }}>
-                      {(order.items || [])
-                        .map((it, idx) => ({ it, idx }))
-                        .filter(({ it }) => {
-                          const q = bulkSearch.trim().toLowerCase();
-                          if (!q) return true;
-                          return (
-                            String(it.nameSnapshot || '')
-                              .toLowerCase()
-                              .includes(q) ||
-                            String(it.variantSku || '')
-                              .toLowerCase()
-                              .includes(q)
-                          );
-                        })
-                        .map(({ it, idx }) => {
-                          const vs = bulkVariantsByProduct[it.productId] || [];
-                          const sel = bulkSel[idx] || { color: '', size: '' };
-                          const currentPrice = Number(it.price || 0);
+        {/* Queue-specific confirmations */}
+        <ConfirmModal
+          open={inQueue && qConfirm.cancel}
+          title="Xác nhận hủy đơn"
+          message="Bạn có chắc muốn hủy đơn này?"
+          confirmText="Hủy đơn"
+          cancelText="Quay lại"
+          confirmType="danger"
+          onConfirm={async () => {
+            await cancelFromDetail();
+            setQConfirm((s) => ({ ...s, cancel: false }));
+          }}
+          onCancel={() => setQConfirm((s) => ({ ...s, cancel: false }))}
+          disabled={acting.cancel}
+        />
+        <ConfirmModal
+          open={inQueue && qConfirm.claim}
+          title="Xác nhận nhận đơn"
+          message="Bạn sẽ nhận đơn này và chuyển sang mục Đơn hàng của tôi."
+          confirmText="Nhận đơn"
+          cancelText="Quay lại"
+          onConfirm={async () => {
+            await claimFromDetail();
+          }}
+          onCancel={() => setQConfirm((s) => ({ ...s, claim: false }))}
+          disabled={acting.claim}
+        />
 
-                          const colors = [...new Set(vs.map((v) => v.color || ''))];
-                          const anyDiffByColor = (c) =>
-                            vs.some(
-                              (v) =>
-                                String(v.color || '') === String(c) &&
-                                Number(v.price) !== currentPrice,
+        <ConfirmModal
+          open={!!confirm}
+          title="Xác nhận hủy đơn"
+          message={
+            <div className={styles.cancelReasons}>
+              <div>Vui lòng chọn lý do hủy đơn:</div>
+              <label className={styles.cancelReasonItem}>
+                <input
+                  type="checkbox"
+                  checked={reasons.includes('Phí ship cao')}
+                  onChange={(e) =>
+                    setReasons((prev) =>
+                      e.target.checked
+                        ? [...prev, 'Phí ship cao']
+                        : prev.filter((x) => x !== 'Phí ship cao'),
+                    )
+                  }
+                />
+                Phí ship cao
+              </label>
+              <label className={styles.cancelReasonItem}>
+                <input
+                  type="checkbox"
+                  checked={reasons.includes('Không còn nhu cầu')}
+                  onChange={(e) =>
+                    setReasons((prev) =>
+                      e.target.checked
+                        ? [...prev, 'Không còn nhu cầu']
+                        : prev.filter((x) => x !== 'Không còn nhu cầu'),
+                    )
+                  }
+                />
+                Không còn nhu cầu
+              </label>
+              <label className={styles.cancelReasonItem}>
+                <input
+                  type="checkbox"
+                  checked={reasons.includes('Giao quá lâu')}
+                  onChange={(e) =>
+                    setReasons((prev) =>
+                      e.target.checked
+                        ? [...prev, 'Giao quá lâu']
+                        : prev.filter((x) => x !== 'Giao quá lâu'),
+                    )
+                  }
+                />
+                Giao quá lâu
+              </label>
+              <label className={styles.cancelReasonItem}>
+                <input
+                  type="checkbox"
+                  checked={reasons.includes('Xác nhận đơn quá chậm')}
+                  onChange={(e) =>
+                    setReasons((prev) =>
+                      e.target.checked
+                        ? [...prev, 'Xác nhận đơn quá chậm']
+                        : prev.filter((x) => x !== 'Xác nhận đơn quá chậm'),
+                    )
+                  }
+                />
+                Xác nhận đơn quá chậm
+              </label>
+              <div className={styles.cancelOther}>
+                <label>Lý do khác</label>
+                <input
+                  value={reasonOther}
+                  onChange={(e) => setReasonOther(e.target.value)}
+                  placeholder="Nhập lý do khác (không bắt buộc)"
+                />
+              </div>
+            </div>
+          }
+          confirmText="Hủy đơn"
+          cancelText="Quay lại"
+          confirmType="danger"
+          onConfirm={async () => {
+            // If staff/admin, send cancel via staff route so history note is recorded
+            if (isStaff) {
+              setConfirm(false);
+              try {
+                const payload = {};
+                if (Array.isArray(reasons) && reasons.length) payload.reasons = reasons;
+                if (reasonOther && String(reasonOther).trim()) payload.other = reasonOther;
+                await ordersApi.updateStatus(order._id || order.id, 'canceled', payload);
+                // After staff cancels from queue, navigate back to dashboard
+                if (inQueue) {
+                  nav('/dashboard');
+                  return;
+                }
+                const refreshed = await (loc.state?.from === 'staff'
+                  ? ordersApi.getAny(id)
+                  : ordersApi.get(id));
+                setOrder(refreshed || null);
+              } catch (e) {
+                alert(e?.response?.data?.message || 'Không thể hủy đơn.');
+              }
+              return;
+            }
+
+            // default: customer cancel flow
+            await doCancel();
+          }}
+          onCancel={() => setConfirm(false)}
+        />
+
+        {/* Edit item variant modal */}
+        <ConfirmModal
+          open={editing.open}
+          title="Cập nhật sản phẩm trong đơn"
+          contentClassName={styles.modalTightContent}
+          message={
+            <div style={{ display: 'grid', gap: 14 }}>
+              {editing.index < 0 ? (
+                <>
+                  <div className={`${styles.modalSection} ${styles.stickyBar}`}>
+                    <label>Tìm kiếm sản phẩm</label>
+                    <input
+                      value={bulkSearch}
+                      onChange={(e) => setBulkSearch(e.target.value)}
+                      placeholder="Nhập tên hoặc SKU để tìm…"
+                      style={{
+                        width: '100%',
+                        padding: 8,
+                        borderRadius: 6,
+                        border: '1px solid #ddd',
+                      }}
+                    />
+                  </div>
+                  {bulkLoading ? (
+                    <div className={styles.modalSection}>Đang tải biến thể…</div>
+                  ) : (
+                    <div className={styles.modalSection}>
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        {(order.items || [])
+                          .map((it, idx) => ({ it, idx }))
+                          .filter(({ it }) => {
+                            const q = bulkSearch.trim().toLowerCase();
+                            if (!q) return true;
+                            return (
+                              String(it.nameSnapshot || '')
+                                .toLowerCase()
+                                .includes(q) ||
+                              String(it.variantSku || '')
+                                .toLowerCase()
+                                .includes(q)
                             );
-                          const sizesForColor = vs.filter(
-                            (v) => String(v.color || '') === String(sel.color || ''),
-                          );
-                          const uniqSizes = [...new Set(sizesForColor.map((v) => v.size || ''))];
-                          const variantForSel = vs.find(
-                            (v) =>
-                              String(v.color || '') === String(sel.color || '') &&
-                              String(v.size || '') === String(sel.size || ''),
-                          );
-                          const samePrice = variantForSel
-                            ? Number(variantForSel.price) === currentPrice
-                            : false;
+                          })
+                          .map(({ it, idx }) => {
+                            const vs = bulkVariantsByProduct[it.productId] || [];
+                            const sel = bulkSel[idx] || { color: '', size: '' };
+                            const currentPrice = Number(it.price || 0);
 
-                          return (
-                            <div
-                              key={idx}
-                              style={{ border: '1px solid #eee', borderRadius: 8, padding: 12 }}
-                            >
+                            const colors = [...new Set(vs.map((v) => v.color || ''))];
+                            const anyDiffByColor = (c) =>
+                              vs.some(
+                                (v) =>
+                                  String(v.color || '') === String(c) &&
+                                  Number(v.price) !== currentPrice,
+                              );
+                            const sizesForColor = vs.filter(
+                              (v) => String(v.color || '') === String(sel.color || ''),
+                            );
+                            const uniqSizes = [...new Set(sizesForColor.map((v) => v.size || ''))];
+                            const variantForSel = vs.find(
+                              (v) =>
+                                String(v.color || '') === String(sel.color || '') &&
+                                String(v.size || '') === String(sel.size || ''),
+                            );
+                            const samePrice = variantForSel
+                              ? Number(variantForSel.price) === currentPrice
+                              : false;
+
+                            return (
                               <div
-                                style={{
-                                  display: 'flex',
-                                  gap: 12,
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                }}
+                                key={idx}
+                                style={{ border: '1px solid #eee', borderRadius: 8, padding: 12 }}
                               >
                                 <div
                                   style={{
                                     display: 'flex',
-                                    alignItems: 'center',
                                     gap: 12,
-                                    minWidth: 0,
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
                                   }}
                                 >
-                                  <img
-                                    src={buildImageUrl(it.imageSnapshot, 64)}
-                                    alt={it.nameSnapshot}
+                                  <div
                                     style={{
-                                      width: 48,
-                                      height: 48,
-                                      objectFit: 'cover',
-                                      borderRadius: 6,
-                                      flex: '0 0 auto',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 12,
+                                      minWidth: 0,
                                     }}
-                                  />
-                                  <div style={{ display: 'grid', minWidth: 0 }}>
-                                    <strong
+                                  >
+                                    <img
+                                      src={buildImageUrl(it.imageSnapshot, 64)}
+                                      alt={it.nameSnapshot}
                                       style={{
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        width: 48,
+                                        height: 48,
+                                        objectFit: 'cover',
+                                        borderRadius: 6,
+                                        flex: '0 0 auto',
                                       }}
-                                    >
-                                      {it.nameSnapshot}
-                                    </strong>
-                                    {it.variantSku ? (
-                                      <small style={{ opacity: 0.7 }}>
-                                        SKU hiện tại: {it.variantSku}
-                                      </small>
-                                    ) : null}
+                                    />
+                                    <div style={{ display: 'grid', minWidth: 0 }}>
+                                      <strong
+                                        style={{
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                      >
+                                        {it.nameSnapshot}
+                                      </strong>
+                                      {it.variantSku ? (
+                                        <small style={{ opacity: 0.7 }}>
+                                          SKU hiện tại: {it.variantSku}
+                                        </small>
+                                      ) : null}
+                                    </div>
                                   </div>
+                                  <div className={styles.unit}>{fmtVND(it.price)}₫</div>
                                 </div>
-                                <div className={styles.unit}>{fmtVND(it.price)}₫</div>
-                              </div>
 
-                              <div className={styles.optionRow} style={{ marginTop: 8 }}>
-                                {colors.map((c) => {
-                                  const cls = [styles.pill];
-                                  if (String(sel.color || '') === String(c))
-                                    cls.push(styles.pillActive);
-                                  if (anyDiffByColor(c)) cls.push(styles.pillWarn);
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={c}
-                                      className={cls.join(' ')}
-                                      onClick={() =>
-                                        setBulkSel((arr) => {
-                                          const next = [...arr];
-                                          next[idx] = { ...(next[idx] || {}), color: c };
-                                          return next;
-                                        })
+                                <div className={styles.optionRow} style={{ marginTop: 8 }}>
+                                  {colors.map((c) => {
+                                    const cls = [styles.pill];
+                                    if (String(sel.color || '') === String(c))
+                                      cls.push(styles.pillActive);
+                                    if (anyDiffByColor(c)) cls.push(styles.pillWarn);
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={c}
+                                        className={cls.join(' ')}
+                                        onClick={() =>
+                                          setBulkSel((arr) => {
+                                            const next = [...arr];
+                                            next[idx] = { ...(next[idx] || {}), color: c };
+                                            return next;
+                                          })
+                                        }
+                                      >
+                                        {c || '—'}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className={styles.optionRow}>
+                                  {uniqSizes.map((sz) => {
+                                    const v = sizesForColor.find(
+                                      (x) => String(x.size || '') === String(sz),
+                                    );
+                                    const same = v && Number(v.price) === currentPrice;
+                                    const cls = [styles.pill];
+                                    if (String(sel.size || '') === String(sz))
+                                      cls.push(styles.pillActive);
+                                    if (!same) cls.push(styles.pillWarn);
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={sz}
+                                        className={cls.join(' ')}
+                                        onClick={() =>
+                                          setBulkSel((arr) => {
+                                            const next = [...arr];
+                                            next[idx] = { ...(next[idx] || {}), size: sz };
+                                            return next;
+                                          })
+                                        }
+                                      >
+                                        {sz || '—'}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                <div className={styles.hint}>
+                                  {variantForSel
+                                    ? `SKU: ${variantForSel.sku} — Giá: ${fmtVND(
+                                        variantForSel.price,
+                                      )}₫${samePrice ? '' : ' (khác giá với sản phẩm trong đơn)'}`
+                                    : 'Hãy chọn Màu + Size.'}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                  <button
+                                    className="btn"
+                                    disabled={savingIdx === idx || !variantForSel || !samePrice}
+                                    onClick={async () => {
+                                      if (!variantForSel) return;
+                                      setSavingIdx(idx);
+                                      try {
+                                        const oid = order._id || order.id;
+                                        await ordersApi.updateItemVariant(oid, idx, {
+                                          color: sel.color,
+                                          size: sel.size,
+                                        });
+                                        const refreshed = await (loc.state?.from === 'staff'
+                                          ? ordersApi.getAny(id)
+                                          : ordersApi.get(id));
+                                        setOrder(refreshed || null);
+                                      } catch (e) {
+                                        alert(
+                                          e?.response?.data?.message || 'Cập nhật không thành công',
+                                        );
+                                      } finally {
+                                        setSavingIdx(-1);
                                       }
-                                    >
-                                      {c || '—'}
-                                    </button>
-                                  );
-                                })}
+                                    }}
+                                  >
+                                    {savingIdx === idx ? 'Đang lưu…' : 'Cập nhật'}
+                                  </button>
+                                </div>
                               </div>
-
-                              <div className={styles.optionRow}>
-                                {uniqSizes.map((sz) => {
-                                  const v = sizesForColor.find(
-                                    (x) => String(x.size || '') === String(sz),
-                                  );
-                                  const same = v && Number(v.price) === currentPrice;
-                                  const cls = [styles.pill];
-                                  if (String(sel.size || '') === String(sz))
-                                    cls.push(styles.pillActive);
-                                  if (!same) cls.push(styles.pillWarn);
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={sz}
-                                      className={cls.join(' ')}
-                                      onClick={() =>
-                                        setBulkSel((arr) => {
-                                          const next = [...arr];
-                                          next[idx] = { ...(next[idx] || {}), size: sz };
-                                          return next;
-                                        })
-                                      }
-                                    >
-                                      {sz || '—'}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-
-                              <div className={styles.hint}>
-                                {variantForSel
-                                  ? `SKU: ${variantForSel.sku} — Giá: ${fmtVND(
-                                      variantForSel.price,
-                                    )}₫${samePrice ? '' : ' (khác giá với sản phẩm trong đơn)'}`
-                                  : 'Hãy chọn Màu + Size.'}
-                              </div>
-
-                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <button
-                                  className="btn"
-                                  disabled={savingIdx === idx || !variantForSel || !samePrice}
-                                  onClick={async () => {
-                                    if (!variantForSel) return;
-                                    setSavingIdx(idx);
-                                    try {
-                                      const oid = order._id || order.id;
-                                      await ordersApi.updateItemVariant(oid, idx, {
-                                        color: sel.color,
-                                        size: sel.size,
-                                      });
-                                      const refreshed = await (loc.state?.from === 'staff'
-                                        ? ordersApi.getAny(id)
-                                        : ordersApi.get(id));
-                                      setOrder(refreshed || null);
-                                    } catch (e) {
-                                      alert(
-                                        e?.response?.data?.message || 'Cập nhật không thành công',
-                                      );
-                                    } finally {
-                                      setSavingIdx(-1);
-                                    }
-                                  }}
-                                >
-                                  {savingIdx === idx ? 'Đang lưu…' : 'Cập nhật'}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className={styles.modalSection}>
-                  <label>Màu sắc</label>
-                  <div className={styles.optionRow}>
-                    {[...new Set(allVariants.map((v) => v.color || ''))].map((c) => {
-                      const anyDiff = allVariants.some(
-                        (v) =>
-                          String(v.color || '') === String(c) &&
-                          Number(v.price) !== Number(currentItem?.price ?? Number.NaN),
-                      );
-                      const cls = [styles.pill];
-                      if (String(editSel.color || '') === String(c)) cls.push(styles.pillActive);
-                      if (anyDiff) cls.push(styles.pillWarn);
-                      return (
-                        <button
-                          type="button"
-                          key={c}
-                          className={cls.join(' ')}
-                          onClick={() => setEditSel((s) => ({ ...s, color: c }))}
-                        >
-                          {c || '—'}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className={styles.modalSection}>
-                  <label>Size</label>
-                  <div className={styles.optionRow}>
-                    {(() => {
-                      const sizesForColor = allVariants.filter(
-                        (v) => String(v.color || '') === String(editSel.color || ''),
-                      );
-                      const uniqSizes = [...new Set(sizesForColor.map((v) => v.size || ''))];
-                      return uniqSizes.map((sz) => {
-                        const v = sizesForColor.find((x) => String(x.size || '') === String(sz));
-                        const same =
-                          v && Number(v.price) === Number(currentItem?.price ?? Number.NaN);
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className={styles.modalSection}>
+                    <label>Màu sắc</label>
+                    <div className={styles.optionRow}>
+                      {[...new Set(allVariants.map((v) => v.color || ''))].map((c) => {
+                        const anyDiff = allVariants.some(
+                          (v) =>
+                            String(v.color || '') === String(c) &&
+                            Number(v.price) !== Number(currentItem?.price ?? Number.NaN),
+                        );
                         const cls = [styles.pill];
-                        if (String(editSel.size || '') === String(sz)) cls.push(styles.pillActive);
-                        if (!same) cls.push(styles.pillWarn);
+                        if (String(editSel.color || '') === String(c)) cls.push(styles.pillActive);
+                        if (anyDiff) cls.push(styles.pillWarn);
                         return (
                           <button
                             type="button"
-                            key={sz}
+                            key={c}
                             className={cls.join(' ')}
-                            onClick={() => setEditSel((s) => ({ ...s, size: sz }))}
+                            onClick={() => setEditSel((s) => ({ ...s, color: c }))}
                           >
-                            {sz || '—'}
+                            {c || '—'}
                           </button>
                         );
-                      });
-                    })()}
+                      })}
+                    </div>
                   </div>
-                </div>
 
-                <div className={styles.hint}>
-                  {validVariant
-                    ? `SKU: ${validVariant.sku} — Giá: ${fmtVND(validVariant.price)}₫${
-                        isSamePrice ? '' : ' (khác giá với sản phẩm trong đơn)'
-                      }`
-                    : 'Hãy chọn tổ hợp Màu + Size.'}
-                </div>
-              </>
-            )}
-          </div>
-        }
-        confirmText={editing.index < 0 ? 'Đóng' : 'Lưu'}
-        cancelText="Hủy"
-        onConfirm={async () => {
-          if (editing.index < 0) {
-            setEditing({ open: false, index: -1 });
-            return;
+                  <div className={styles.modalSection}>
+                    <label>Size</label>
+                    <div className={styles.optionRow}>
+                      {(() => {
+                        const sizesForColor = allVariants.filter(
+                          (v) => String(v.color || '') === String(editSel.color || ''),
+                        );
+                        const uniqSizes = [...new Set(sizesForColor.map((v) => v.size || ''))];
+                        return uniqSizes.map((sz) => {
+                          const v = sizesForColor.find((x) => String(x.size || '') === String(sz));
+                          const same =
+                            v && Number(v.price) === Number(currentItem?.price ?? Number.NaN);
+                          const cls = [styles.pill];
+                          if (String(editSel.size || '') === String(sz))
+                            cls.push(styles.pillActive);
+                          if (!same) cls.push(styles.pillWarn);
+                          return (
+                            <button
+                              type="button"
+                              key={sz}
+                              className={cls.join(' ')}
+                              onClick={() => setEditSel((s) => ({ ...s, size: sz }))}
+                            >
+                              {sz || '—'}
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className={styles.hint}>
+                    {validVariant
+                      ? `SKU: ${validVariant.sku} — Giá: ${fmtVND(validVariant.price)}₫${
+                          isSamePrice ? '' : ' (khác giá với sản phẩm trong đơn)'
+                        }`
+                      : 'Hãy chọn tổ hợp Màu + Size.'}
+                  </div>
+                </>
+              )}
+            </div>
           }
-          if (!validVariant || !isSamePrice) return;
-          setSavingEdit(true);
-          try {
-            const oid = order._id || order.id;
-            await ordersApi.updateItemVariant(oid, editing.index, {
-              color: editSel.color,
-              size: editSel.size,
-            });
-            const refreshed = await (loc.state?.from === 'staff'
-              ? ordersApi.getAny(id)
-              : ordersApi.get(id));
-            setOrder(refreshed || null);
-          } catch (e) {
-            alert(e?.response?.data?.message || 'Cập nhật không thành công');
-          } finally {
-            setSavingEdit(false);
-            setEditing({ open: false, index: -1 });
-          }
-        }}
-        onCancel={() => setEditing({ open: false, index: -1 })}
-        disabled={editing.index < 0 ? false : savingEdit || !validVariant || !isSamePrice}
-        hideCancel={editing.index < 0}
-      />
+          confirmText={editing.index < 0 ? 'Đóng' : 'Lưu'}
+          cancelText="Hủy"
+          onConfirm={async () => {
+            if (editing.index < 0) {
+              setEditing({ open: false, index: -1 });
+              return;
+            }
+            if (!validVariant || !isSamePrice) return;
+            setSavingEdit(true);
+            try {
+              const oid = order._id || order.id;
+              await ordersApi.updateItemVariant(oid, editing.index, {
+                color: editSel.color,
+                size: editSel.size,
+              });
+              const refreshed = await (loc.state?.from === 'staff'
+                ? ordersApi.getAny(id)
+                : ordersApi.get(id));
+              setOrder(refreshed || null);
+            } catch (e) {
+              alert(e?.response?.data?.message || 'Cập nhật không thành công');
+            } finally {
+              setSavingEdit(false);
+              setEditing({ open: false, index: -1 });
+            }
+          }}
+          onCancel={() => setEditing({ open: false, index: -1 })}
+          disabled={editing.index < 0 ? false : savingEdit || !validVariant || !isSamePrice}
+          hideCancel={editing.index < 0}
+        />
+      </div>
     </div>
   );
 }

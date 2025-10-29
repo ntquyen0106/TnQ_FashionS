@@ -195,7 +195,7 @@ export const assign = async ({ orderId, staffId, byUserId }) => {
   return updated;
 };
 
-export const updateStatus = async ({ orderId, status, byUserId }) => {
+export const updateStatus = async ({ orderId, status, byUserId, note, reasons, other }) => {
   const to = toModelStatus(status);
   if (!to) throw new Error('Invalid status');
 
@@ -203,11 +203,42 @@ export const updateStatus = async ({ orderId, status, byUserId }) => {
   if (!order) throw new Error('Order not found');
 
   const from = order.status;
+
+  // Build note text when not provided explicitly. Prefer role-based prefix (Admin/Staff).
+  let finalNote = typeof note === 'string' && note.trim() ? String(note).trim() : null;
+  if (!finalNote) {
+    const list = Array.isArray(reasons) ? reasons.filter(Boolean) : [];
+    const noteParts = list.slice(0);
+    if (other && String(other).trim()) noteParts.push(`Khác: ${String(other).trim()}`);
+    if (noteParts.length) {
+      // Determine actor label from byUserId (try to read role from User model)
+      let actorLabel = 'Staff';
+      try {
+        if (byUserId) {
+          const u = await User.findById(byUserId).select('role name').lean();
+          if (u && u.role)
+            actorLabel = u.role === 'admin' ? 'Admin' : u.role === 'staff' ? 'Staff' : 'User';
+        }
+      } catch (err) {
+        // ignore lookup failures and fall back to 'Staff'
+      }
+      finalNote = `${actorLabel} cancel: ${noteParts.join(', ')}`;
+    }
+  }
+
+  const historyEntry = {
+    action: to === 'CANCELLED' ? 'CANCEL' : 'STATUS_CHANGE',
+    fromStatus: from,
+    toStatus: to,
+    byUserId,
+  };
+  if (finalNote) historyEntry.note = finalNote;
+
   const updated = await Order.findByIdAndUpdate(
     orderId,
     {
       $set: { status: to },
-      $push: { history: { action: 'STATUS_CHANGE', fromStatus: from, toStatus: to, byUserId } },
+      $push: { history: historyEntry },
     },
     { new: true },
   ).lean();

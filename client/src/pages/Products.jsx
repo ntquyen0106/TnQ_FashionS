@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { productsApi } from '@/api/products-api';
+import { promotionsApi } from '@/api/promotions-api';
 import s from './Products.module.css';
 
 // Cloudinary helper
@@ -30,6 +31,7 @@ export default function Products() {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [promosByProduct, setPromosByProduct] = useState({}); // id -> [codes]
 
   // === Title theo path ===
   const title = useMemo(() => {
@@ -63,6 +65,38 @@ export default function Products() {
       alive = false;
     };
   }, [path, q, sort, page, limit]);
+
+  // Fetch applicable promo codes for products in the current page (show tags)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const next = {};
+        for (const p of rows || []) {
+          const id = p?._id;
+          if (!id) continue;
+          // cache: if already have, reuse
+          if (promosByProduct[id]) {
+            next[id] = promosByProduct[id];
+            continue;
+          }
+          try {
+            const data = await promotionsApi.available(0, { all: true, productIds: [id] });
+            next[id] = (data || [])
+              .filter((x) => x.applicable)
+              .map((x) => x.code)
+              .slice(0, 2);
+          } catch {
+            next[id] = [];
+          }
+        }
+        if (alive) setPromosByProduct((prev) => ({ ...prev, ...next }));
+      } catch {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [rows]);
 
   // === Helpers ===
   const setParam = (kv) => {
@@ -158,6 +192,29 @@ export default function Products() {
                   <div className={s.info}>
                     <div className={s.name}>{p.name}</div>
                     <div className={s.price}>{hasPrice ? formatVND(rawPrice) : 'Liên hệ'}</div>
+                    {!!promosByProduct[p._id]?.length && (
+                      <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {promosByProduct[p._id].map((code) => (
+                          <span
+                            key={code}
+                            style={{
+                              display: 'inline-block',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: '#b91c1c',
+                              background: '#fff1f2',
+                              border: '1px solid #fecdd3',
+                              padding: '2px 6px',
+                              borderRadius: 6,
+                              lineHeight: 1.3,
+                            }}
+                            title={`Khuyến mãi: ${code}`}
+                          >
+                            {code}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

@@ -16,6 +16,10 @@ router.post('/checkout', requireAuth, orderController.postCheckout);
 // ✅ Đơn của tôi
 router.get('/mine', requireAuth, orderController.getMine);
 
+// ✅ Hủy đơn (khách hàng)
+// đặt trước `/:id` để không bị bắt nhầm bởi route `/:id`
+router.post('/:id/cancel', requireAuth, orderController.cancelMine);
+
 // ✅ /:id phải ở CUỐI và validate trước khi find
 router.get('/:id', requireAuth, async (req, res, next) => {
   const { id } = req.params;

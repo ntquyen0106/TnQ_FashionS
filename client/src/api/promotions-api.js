@@ -5,6 +5,11 @@ const promotionsApi = {
   available: async (subtotal = 0, opts = {}) => {
     const params = { subtotal };
     if (opts.all) params.all = true;
+    // optional product/category context for server-side filtering
+    if (opts.productIds && Array.isArray(opts.productIds))
+      params.productIds = opts.productIds.join(',');
+    if (opts.categoryIds && Array.isArray(opts.categoryIds))
+      params.categoryIds = opts.categoryIds.join(',');
     const { data } = await http.get('/promotions/available', { params, _noAutoToast: true });
     return data;
   },
