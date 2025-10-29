@@ -260,8 +260,15 @@ export const assign = async (req, res, next) => {
 export const updateStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    const out = await orderService.updateStatus({ orderId: id, status, byUserId: req.userId });
+    const { status, note, reasons, other } = req.body || {};
+    const out = await orderService.updateStatus({
+      orderId: id,
+      status,
+      byUserId: req.userId,
+      note,
+      reasons,
+      other,
+    });
     res.json(out);
   } catch (e) {
     next(e);

@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { promotionsApi } from '@/api/promotions-api';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
@@ -33,10 +35,35 @@ const getPriceRange = (p) => {
 };
 
 export default function ProductCard({ product }) {
+  const [promoCodes, setPromoCodes] = useState([]);
   const imgId = getPrimaryImageId(product);
   const img = buildImg(imgId);
   const price = getPriceRange(product);
   const to = `/product/${product.slug}`;
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        if (!product?._id) return;
+        const data = await promotionsApi.available(0, {
+          all: true,
+          productIds: [product._id],
+        });
+        // show only promotions that apply to this product/category regardless of subtotal
+        const codes = (data || [])
+          .filter((p) => p.applicable)
+          .map((p) => p.code)
+          .slice(0, 2);
+        if (isMounted) setPromoCodes(codes);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [product?._id]);
 
   return (
     <Link to={to} className="product-card" style={styles.card} aria-label={product.name}>
@@ -55,6 +82,15 @@ export default function ProductCard({ product }) {
           <div style={styles.price}>{`${formatVND(price.min)} đ`}</div>
         ) : (
           <div style={styles.priceMuted}>Liên hệ</div>
+        )}
+        {!!promoCodes.length && (
+          <div style={styles.promoRow}>
+            {promoCodes.map((c) => (
+              <span key={c} style={styles.promoTag} title={`Khuyến mãi: ${c}`}>
+                {c}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </Link>
@@ -91,4 +127,16 @@ const styles = {
   },
   price: { marginTop: 6, color: '#e11d48', fontWeight: 800 },
   priceMuted: { marginTop: 6, color: '#6b7280', fontWeight: 600 },
+  promoRow: { marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' },
+  promoTag: {
+    display: 'inline-block',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#b91c1c',
+    background: '#fff1f2',
+    border: '1px solid #fecdd3',
+    padding: '2px 6px',
+    borderRadius: 6,
+    lineHeight: 1.4,
+  },
 };

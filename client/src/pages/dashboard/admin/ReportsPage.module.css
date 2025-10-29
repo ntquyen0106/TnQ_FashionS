@@ -1,0 +1,404 @@
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --muted: #6b7280;
+  --text: #111827;
+  --primary: #4f46e5;
+  --primary-700: #4338ca;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.page {
+  padding: 16px;
+  background: var(--bg);
+  color: var(--text);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.presets {
+  display: flex;
+  gap: 8px;
+}
+.presetBtn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+.presetBtn:hover {
+  background: #f3f4f6;
+}
+.presetActive {
+  background: var(--text);
+  color: #fff;
+  border-color: var(--text);
+}
+.rangeInputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rangeInputs input {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+.label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.value {
+  font-size: 20px;
+  font-weight: 700;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+}
+.grid2 {
+  grid-template-columns: 1fr 1fr; /* dùng cho layout 2 panel: biểu đồ + bảng đơn hàng */
+}
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+.chartWrap {
+  overflow: auto;
+  padding-bottom: 6px;
+}
+.chart {
+  display: block;
+}
+.yAxisHtml {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px; /* wider for long labels */
+  pointer-events: none;
+}
+.yAxisHtmlInner {
+  transform: rotate(-90deg);
+  transform-origin: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.xAxisHtml {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: center;
+}
+.chartAxisLabel {
+  font-size: 11px;
+  fill: #6b7280;
+}
+/* lưới trục Y nhạt hơn, nhìn gọn */
+.gridLine {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+}
+
+.chartXLabel {
+  font-size: 12px;
+  fill: #6b7280;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.bar {
+  transition: opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+.bar:hover {
+  opacity: 0.96;
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+.chartControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.legendLabel {
+  font-size: 13px;
+  color: var(--muted);
+}
+.legendBtn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+.legendBtn:hover {
+  background: #f3f4f6;
+}
+.legendActive {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.pageControls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pagerBtn {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+.pagerBtn:disabled {
+  opacity: 0.5;
+}
+.pageInfo {
+  font-size: 12px;
+  color: var(--muted);
+}
+.barLabel {
+  font-size: 11px;
+  fill: #1f2937;
+  text-anchor: middle;
+  font-weight: 600;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 4px; /* halo giúp đọc trên nền cột */
+}
+.tooltip {
+  position: absolute;
+  background: #111827;
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+.headerRow {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.row {
+  display: grid;
+  /* slightly narrower numeric columns to reduce overall form width */
+  grid-template-columns: 1fr 80px 120px;
+  gap: 8px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.right {
+  text-align: right;
+}
+.empty {
+  padding: 12px;
+  color: var(--muted);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.itemMeta {
+  display: flex;
+  flex-direction: column;
+}
+
+.staffWrap {
+  overflow: auto;
+}
+.smallTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.smallTable th,
+.smallTable td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.smallTable thead th {
+  background: #f9fafb;
+}
+.centerCell {
+  text-align: center;
+}
+.staffName {
+  font-weight: 600;
+}
+.staffRow {
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.staffRow:nth-child(odd) td {
+  background: #ffffff;
+}
+.staffRow:nth-child(even) td {
+  background: #fbfdff; /* very subtle zebra */
+}
+.staffRow:hover td {
+  background: #f1f5f9; /* highlight on hover */
+  transform: translateY(-1px);
+}
+.staffRow td:first-child {
+  border-right: 1px solid var(--border);
+  padding-left: 8px;
+}
+.staffRow td {
+  padding: 6px 6px;
+}
+.countBadge {
+  display: inline-block;
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+.countLow {
+  background: rgba(99, 102, 241, 0.95); /* primary-ish */
+}
+.countMed {
+  background: rgba(99, 102, 241, 0.85);
+}
+.countHigh {
+  background: #7c3aed; /* stronger purple */
+}
+.countZero {
+  color: var(--muted);
+  font-weight: 600;
+}
+.itemName {
+  font-weight: 600;
+}
+.itemSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (max-width: 1100px) {
+  .cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+.tabbar {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+.tab {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  cursor: pointer;
+}
+.tab:hover {
+  background: #f3f4f6;
+}
+.tabActive {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.tabActive:hover {
+  /* keep active state visually consistent when hovered */
+  background: var(--primary);
+  color: #fff;
+}
+
+.legendActive:hover {
+  /* prevent hover from lightening an active legend button */
+  background: var(--primary);
+  color: #fff;
+}
+
+.presetActive:hover {
+  /* keep preset active button appearance on hover */
+  background: var(--text);
+  color: #fff;
+}
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.input {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-width: 140px;
+  max-width: 360px;
+  flex: 1 1 220px;
+}
+.select {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+/* Export button - more prominent CTA */
+.exportBtn {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.12);
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.exportBtn:hover {
+  background: var(--primary-700);
+  transform: translateY(-1px);
+}
+.exportBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

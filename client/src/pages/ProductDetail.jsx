@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import styles from './ProductDetail.module.css';
 import { useCart } from '@/contexts/CartProvider';
 import { showAddToCartToast } from '@/components/showAddToCartToast';
+import { promotionsApi } from '@/api/promotions-api';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 // Encode each path segment so publicId có dấu/khoảng trắng vẫn hiển thị đúng
@@ -28,6 +29,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [variant, setVariant] = useState(null);
   const lastColorRef = useRef(null);
+  const [promos, setPromos] = useState([]);
 
   // đặt gần đầu file
   // chuẩn hoá bỏ dấu để so khớp màu với alt/publicId bất kể dấu
@@ -102,6 +104,22 @@ export default function ProductDetail() {
       }
     });
   }, [slug]);
+
+  // Lấy khuyến mãi áp dụng cho sản phẩm (bỏ qua điều kiện đơn tối thiểu)
+  useEffect(() => {
+    if (!p?._id) return;
+    let alive = true;
+    (async () => {
+      try {
+        const data = await promotionsApi.available(0, { all: true, productIds: [p._id] });
+        const applicable = (data || []).filter((x) => x.applicable);
+        if (alive) setPromos(applicable);
+      } catch {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [p?._id]);
 
   // Mảng màu
   const colors = useMemo(() => {
@@ -222,6 +240,29 @@ export default function ProductDetail() {
                 ? new Intl.NumberFormat('vi-VN').format(price) + ' VND'
                 : 'Liên hệ'}
             </div>
+
+            {!!promos.length && (
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {promos.map((pm) => (
+                  <span
+                    key={pm.id}
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: '#b91c1c',
+                      background: '#fff1f2',
+                      border: '1px solid #fecdd3',
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                    }}
+                    title={`Khuyến mãi: ${pm.code}`}
+                  >
+                    {pm.code}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Chọn màu và size */}
             {!!p.variants?.length && (

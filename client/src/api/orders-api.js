@@ -8,7 +8,8 @@ export const ordersApi = {
   cancelMine: (id, body = {}) => http.post(`/order/${id}/cancel`, body).then((r) => r.data),
   claim: (id) => http.post(`/orders/${id}/claim`).then((r) => r.data),
   assign: (id, staffId) => http.patch(`/orders/${id}/assign`, { staffId }).then((r) => r.data),
-  updateStatus: (id, status) => http.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
+  updateStatus: (id, status, body = {}) =>
+    http.patch(`/orders/${id}/status`, { status, ...body }).then((r) => r.data),
   updateItemVariant: (id, index, body) =>
     http.patch(`/orders/${id}/items/${index}`, body).then((r) => r.data),
   statsMe: (params) => http.get('/orders/stats/me', { params }).then((r) => r.data),

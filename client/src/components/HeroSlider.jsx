@@ -10,7 +10,7 @@ const cld = (publicId, t) =>
     ? `https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto,dpr_auto,${t}/${publicId}`
     : '';
 
-export default function HeroSlider({ slides = [], interval = 3000 }) {
+export default function HeroSlider({ slides = [], interval = 3000, narrow = false }) {
   const [idx, setIdx] = useState(0);
   const pausedRef = useRef(false);
 
@@ -29,7 +29,7 @@ export default function HeroSlider({ slides = [], interval = 3000 }) {
 
   return (
     <section
-      className={`${s.slider} ${s.fullBleed}`}
+      className={`${s.slider} ${s.fullBleed} ${narrow ? s.narrow : ''}`}
       onMouseEnter={() => (pausedRef.current = true)}
       onMouseLeave={() => (pausedRef.current = false)}
       onPointerEnter={() => (pausedRef.current = true)}

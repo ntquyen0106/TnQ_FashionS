@@ -630,6 +630,7 @@ export default function Checkout() {
       <VoucherPicker
         open={voucherOpen}
         subtotal={totals.subtotal}
+        productIds={items.map((it) => it.productId)}
         onClose={() => setVoucherOpen(false)}
         onPick={(p) => {
           setVoucherOpen(false);

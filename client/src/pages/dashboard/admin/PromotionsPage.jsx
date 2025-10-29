@@ -458,7 +458,7 @@ export default function PromotionsPage() {
           </select>
 
           <button className={styles.btnPrimary} onClick={openCreate}>
-            + Thêm
+            + Thêm khuyến mãi
           </button>
         </div>
       </div>
@@ -626,14 +626,34 @@ export default function PromotionsPage() {
                         {form.targetIds.length === 0 && (
                           <span className={styles.muted}>Chưa chọn</span>
                         )}
-                        {form.targetIds.map((id) => (
-                          <span key={id} className={styles.chip}>
-                            {id}
-                            <button className={styles.chipX} onClick={() => toggleTarget(id)}>
-                              ×
-                            </button>
-                          </span>
-                        ))}
+                        {form.targetIds.map((tid) => {
+                          // try to resolve a friendly name from loaded lists
+                          let label = String(tid);
+                          try {
+                            if (form.appliesTo === 'category') {
+                              const found = (catList || []).find(
+                                (c) => String(c._id || c.id) === String(tid),
+                              );
+                              if (found) label = found.name || found.title || label;
+                            } else {
+                              const found = (prodList || []).find(
+                                (p) => String(p._id || p.id) === String(tid),
+                              );
+                              if (found) label = found.name || found.title || label;
+                            }
+                          } catch (err) {
+                            /* ignore, fallback to id */
+                          }
+
+                          return (
+                            <span key={tid} className={styles.chip}>
+                              {label}
+                              <button className={styles.chipX} onClick={() => toggleTarget(tid)}>
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
                       </div>
                       <div className={styles.pickRow}>
                         <button className={styles.btnPrimary} onClick={() => openPicker()}>

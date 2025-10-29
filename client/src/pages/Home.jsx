@@ -4,6 +4,7 @@ import styles from './Home.module.css';
 import HeroSlider from '../components/HeroSlider';
 import FeaturedProducts from '@/components/FeaturedProducts';
 import { getCategories } from '@/api/category';
+import { productsApi } from '@/api/products-api';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
@@ -30,19 +31,51 @@ const findByKeywords = (nodes, keywords) => {
 function Home() {
   const [eyewearPath, setEyewearPath] = useState('/products?path=phu-kien');
   const [catsLoaded, setCatsLoaded] = useState(false);
+  const [tileImgs, setTileImgs] = useState({});
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const tree = await getCategories({ status: 'active', asTree: 1 });
-        const target = findByKeywords(tree, [
-          'kinh',
-          'mat kinh',
-          'kinh mat',
-          'sunglass',
-          'glasses',
-        ]);
+        await getCategories({ status: 'active', asTree: 1 });
+
+        // fetch a random product image for each featured tile that has a category path
+        const fetchFor = async (key, path) => {
+          try {
+            const res = await productsApi.list({ path, limit: 8 });
+            const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+            if (!list.length) return null;
+            // pick a random product that has an image
+            const candidates = list.filter((p) => p.coverPublicId || (p.images && p.images.length));
+            const picked = (candidates.length ? candidates : list)[
+              Math.floor(Math.random() * (candidates.length ? candidates.length : list.length))
+            ];
+            const publicId =
+              picked?.coverPublicId ||
+              picked?.images?.find?.((im) => im?.isPrimary)?.publicId ||
+              picked?.images?.[0]?.publicId ||
+              null;
+            if (!publicId) return null;
+            return publicId;
+          } catch (e) {
+            return null;
+          }
+        };
+
+        const next = {};
+        const promises = [];
+        for (const t of tiles) {
+          // tiles array below has path for most tiles (sale may not)
+          if (!t.path) continue;
+          promises.push(
+            (async () => {
+              const imgId = await fetchFor(t.key, t.path);
+              if (imgId) next[t.key] = imgId;
+            })(),
+          );
+        }
+        await Promise.all(promises);
+        if (alive) setTileImgs(next);
       } catch {
       } finally {
         if (alive) setCatsLoaded(true);
@@ -59,10 +92,10 @@ function Home() {
         key: 's1',
         publicId: 'ChatGPT_Image_22_20_03_17_thg_9_2025_wheqme',
         alt: 'Phụ kiện mắt kính',
-        kicker: 'Phụ kiện',
-        title: 'Mắt kính',
+        // kicker: 'Phụ kiện',
+        // title: 'Mắt kính',
         // desc: 'Bộ sưu tập mắt kính – thời trang và bảo vệ.',
-        ctaText: 'Khám phá mắt kính ngay thôi!',
+        ctaText: 'Mua ngay thôi >>',
         ctaHref: eyewearPath,
         pos: { bottom: 100, left: 40 },
         align: 'center',
@@ -92,7 +125,7 @@ function Home() {
         publicId: 'ChatGPT_Image_22_42_34_17_thg_9_2025_ak8xie',
         alt: 'Jeans nữ',
         // title: 'Quần jeans',
-        ctaText: 'Xem ngay thôi!',
+        ctaText: 'Xem ngay thôi >>',
         ctaHref: '/products?path=nu&q=jeans',
         pos: { bottom: 100, right: 40 },
         align: 'right',
@@ -116,9 +149,9 @@ function Home() {
         key: 's3',
         publicId: 'ChatGPT_Image_22_55_26_17_thg_9_2025_xedslk',
         alt: 'Phụ kiện túi xách & mắt kính',
-        kicker: 'Phụ kiện',
+        // kicker: 'Phụ kiện',
         title: 'Túi xách & Mắt kính',
-        ctaText: 'Mua ngay!',
+        ctaText: 'Mua ngay >>',
         ctaHref: '/products?path=phu-kien',
         pos: { bottom: 48, right: 40 },
         align: 'center',
@@ -148,6 +181,7 @@ function Home() {
       key: 'men',
       title: 'Bộ sưu tập Nam',
       to: '/products?path=nam',
+      path: 'nam',
       img: '',
       gradient: 'var(--g-indigo)',
     },
@@ -155,6 +189,7 @@ function Home() {
       key: 'women',
       title: 'Bộ sưu tập Nữ',
       to: '/products?path=nu',
+      path: 'nu',
       img: '',
       gradient: 'var(--g-pink)',
     },
@@ -162,6 +197,7 @@ function Home() {
       key: 'accessories',
       title: 'Phụ kiện',
       to: '/products?path=phu-kien',
+      path: 'phu-kien',
       img: '',
       gradient: 'var(--g-amber)',
     },
@@ -169,6 +205,7 @@ function Home() {
       key: 'sale',
       title: 'Khuyến mãi',
       to: '/products?sale=1',
+      // no path for sale tile
       img: '',
       gradient: 'var(--g-emerald)',
     },
@@ -176,7 +213,7 @@ function Home() {
 
   return (
     <>
-      <HeroSlider slides={slides} interval={2000} />
+      <HeroSlider slides={slides} interval={2000} narrow={true} />
       {/* HERO full-bleed (tràn chiều ngang màn hình)
       <section className={`${styles.fullBleed} ${styles.heroBanner}`}>
         <picture>
@@ -220,7 +257,13 @@ function Home() {
               <Link to={c.to} key={c.key} className={styles.card}>
                 <div
                   className={styles.cardMedia}
-                  style={{ background: c.img ? `center/cover url('${c.img}')` : c.gradient }}
+                  style={{
+                    background: tileImgs[c.key]
+                      ? `center/cover url('https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto,dpr_auto,w_1200/${encodeURIComponent(
+                          tileImgs[c.key],
+                        )}')`
+                      : c.gradient,
+                  }}
                 />
                 <div className={styles.cardBody}>
                   <h3 className={styles.cardTitle}>{c.title}</h3>
