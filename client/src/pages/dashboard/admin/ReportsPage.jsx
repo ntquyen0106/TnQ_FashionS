@@ -121,7 +121,7 @@ function pickXTickIndexes(n) {
   if (idx[idx.length - 1] !== n - 1) idx.push(n - 1);
   return idx;
 }
-function OverviewPanel({ data, loading }) {
+function OverviewPanel({ data, loading, from, to }) {
   const status = (data && data.statusCounts) || {};
   const daily = (data && data.daily) || [];
 
@@ -182,9 +182,24 @@ function OverviewPanel({ data, loading }) {
   const RPAD = chartActive.PADDING;
   const W = n * (BW + GAP) + LPAD + RPAD;
 
+  // Decide stacking based on the user-selected date range (from/to),
+  // not on how many days have data — this ensures selecting a 30-day
+  // range will switch to stacked layout even if some days have no data.
+  let rangeDays = (daily || []).length;
+  try {
+    if (from && to) {
+      const f = new Date(from + 'T00:00:00');
+      const t = new Date(to + 'T23:59:59');
+      const msPerDay = 24 * 60 * 60 * 1000;
+      rangeDays = Math.round((t - f) / msPerDay) + 1;
+    }
+  } catch (err) {
+    // fallback to data length
+  }
+
   // Stack chart above the orders table for ranges of 30 days or more
   // to prevent the orders table from needing horizontal scrolling when the chart is wide.
-  const stacked = daily.length >= 30;
+  const stacked = rangeDays >= 30;
 
   return (
     <>
@@ -657,7 +672,7 @@ function OverviewPanel({ data, loading }) {
                 <div className={`${s.cell} ${s.right}`}>Đơn</div>
                 <div className={`${s.cell} ${s.right}`}>Doanh thu</div>
               </div>
-              {(daily || []).map((d) => (
+              {(sortedDaily || []).map((d) => (
                 <div className={s.row} key={d.date}>
                   <div className={s.cell}>{fmtDate(d.date)}</div>
                   <div className={`${s.cell} ${s.right}`}>{d.count}</div>
@@ -1045,7 +1060,9 @@ function ReportsPage() {
 
       <TabBar active={active} onChange={(k) => setActive(k)} />
 
-      {active === 'overview' && <OverviewPanel data={overview} loading={loading} />}
+      {active === 'overview' && (
+        <OverviewPanel data={overview} loading={loading} from={from} to={to} />
+      )}
       {active === 'products' && <ProductsPanel from={from} to={to} />}
       {active === 'staff' && <StaffPanel from={from} to={to} />}
     </div>

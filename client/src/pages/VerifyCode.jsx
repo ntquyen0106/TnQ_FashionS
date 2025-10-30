@@ -7,7 +7,7 @@ export default function VerifyCode() {
   const nav = useNavigate();
   const { state, search } = useLocation();
   const params = new URLSearchParams(search);
-  const flow = params.get('flow') || state?.flow || 'signup';
+  const flow = params.get('flow') || state?.flow || 'forgot';
 
   const [otp, setOtp] = useState('');
   const [msg, setMsg] = useState('');
@@ -92,9 +92,7 @@ export default function VerifyCode() {
   return (
     <div className={styles.authPage}>
       <div className={styles.wrap}>
-        <h2 className={styles.h1}>
-          {flow === 'signup' ? 'Xác thực email' : 'Xác thực OTP quên mật khẩu'}
-        </h2>
+        <h2 className={styles.h1}>Xác thực OTP quên mật khẩu</h2>
         <p className={styles.sub}>
           Mã xác thực đã được gửi tới <b>{email}</b>.
         </p>

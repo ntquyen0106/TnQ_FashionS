@@ -15,11 +15,11 @@ const TOKEN_AGE = 60 * 60 * 24 * 7; // 7 ngày
 export const login = async ({ identifier, password }) => {
   // identifier có thể là email hoặc phone
   let user;
-  
+
   // Kiểm tra xem identifier là email hay phone
   const isEmail = validator.isEmail(identifier);
   const isPhone = /^(0|\+84)[3|5|7|8|9]\d{8}$/.test(identifier);
-  
+
   if (!isEmail && !isPhone) {
     const err = new Error('Email hoặc số điện thoại không hợp lệ');
     err.status = 400;
@@ -171,16 +171,22 @@ export const register = async ({ phoneNumber, email, password, confirmPassword, 
   console.log('📱 [Register] Please verify phone via Firebase on client side\n');
 
   // Trả về thông báo để client thực hiện Firebase phone authentication
-  return { 
+  return {
     message: 'Vui lòng xác thực số điện thoại qua SMS',
     phoneNumber,
-    nextStep: 'verify-phone'
+    nextStep: 'verify-phone',
   };
 };
 
-export const verifyPhoneAndCreateUser = async ({ firebaseIdToken, phoneNumber, email, password, name }) => {
+export const verifyPhoneAndCreateUser = async ({
+  firebaseIdToken,
+  phoneNumber,
+  email,
+  password,
+  name,
+}) => {
   console.log('\n🔐 [Verify Phone] Verifying Firebase token...');
-  
+
   const errors = {};
 
   if (!firebaseIdToken) {
@@ -214,13 +220,11 @@ export const verifyPhoneAndCreateUser = async ({ firebaseIdToken, phoneNumber, e
     console.log(`   Verified Phone: ${verifiedPhone}`);
 
     // Kiểm tra phone number có khớp không
-    const normalizedPhone = phoneNumber.startsWith('0') 
-      ? phoneNumber.replace('0', '+84') 
+    const normalizedPhone = phoneNumber.startsWith('0')
+      ? phoneNumber.replace('0', '+84')
       : phoneNumber;
-    
-    const normalizedVerifiedPhone = verifiedPhone.startsWith('+84') 
-      ? verifiedPhone 
-      : verifiedPhone;
+
+    const normalizedVerifiedPhone = verifiedPhone.startsWith('+84') ? verifiedPhone : verifiedPhone;
 
     if (normalizedVerifiedPhone !== normalizedPhone && verifiedPhone !== phoneNumber) {
       console.error(`❌ Phone mismatch: ${verifiedPhone} !== ${phoneNumber}`);
@@ -268,26 +272,24 @@ export const verifyPhoneAndCreateUser = async ({ firebaseIdToken, phoneNumber, e
     console.log(`✅ [Verify Phone] User created: ${user._id}`);
 
     // Tạo JWT token
-    const token = jwt.sign(
-      { sub: user._id, role: user.role }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: TOKEN_AGE }
-    );
+    const token = jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: TOKEN_AGE,
+    });
 
     console.log('✅ [Verify Phone] Registration completed\n');
 
-    return { 
+    return {
       message: 'Đăng ký thành công',
-      token, 
-      user: sanitize(user) 
+      token,
+      user: sanitize(user),
     };
   } catch (error) {
     console.error('❌ [Verify Phone] Error:', error.message);
-    
+
     if (error.errors) {
       throw error;
     }
-    
+
     // Xử lý Firebase errors
     if (error.code === 'auth/id-token-expired') {
       const err = new Error('Token xác thực đã hết hạn. Vui lòng thử lại');
@@ -301,7 +303,7 @@ export const verifyPhoneAndCreateUser = async ({ firebaseIdToken, phoneNumber, e
       err.errors = { firebaseIdToken: 'Firebase ID token không hợp lệ' };
       throw err;
     }
-    
+
     throw error;
   }
 };
@@ -361,16 +363,16 @@ export const forgotPassword = async ({ email }) => {
 
   return { message: 'Đã gửi OTP đặt lại mật khẩu về email' };
 };
-
 export const forgotVerify = async ({ email, otp }) => {
   const otpDoc = await Otp.findOne({ email, type: 'forgot' });
   if (!otpDoc || otpDoc.expiresAt < new Date() || otpDoc.usedAt) {
     throw new Error('OTP không hợp lệ hoặc đã hết hạn');
   }
-  const ok = bcrypt.compare(otp, otpDoc.otpHash);
+
+  // 🔧 THIẾU await → phải thêm await
+  const ok = await bcrypt.compare(otp, otpDoc.otpHash);
   if (!ok) throw new Error('OTP không hợp lệ hoặc đã hết hạn');
 
-  // Tạo resetToken ngắn hạn
   const resetToken = randomBytes(32).toString('hex');
   const resetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 

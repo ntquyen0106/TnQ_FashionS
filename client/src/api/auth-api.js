@@ -9,6 +9,7 @@ export const authApi = {
   firebaseLogin: (idToken) => http.post('/auth/firebase-login', { idToken }).then((r) => r.data),
 
   register: (body) => http.post('/auth/register', body).then((r) => r.data),
+  verifyPhone: (body) => http.post('/auth/verify-phone', body).then((r) => r.data),
   resendSignupOtp: (email) => http.post('/auth/resend-otp', { email }).then((r) => r.data),
   verifySignupOtp: ({ email, otp }) =>
     http.post('/auth/verify-otp', { email, otp }).then((r) => r.data),
