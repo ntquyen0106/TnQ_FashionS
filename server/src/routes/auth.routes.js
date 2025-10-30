@@ -7,8 +7,9 @@ const router = Router();
 /* -------------------- AUTHENTICATION ROUTES -------------------- */
 //api/auth/
 // Login & Registration
-router.post('/login', authController.postLogin); // { email, password, remember? }
-router.post('/register', authController.postRegister); // { email, password, name }
+router.post('/login', authController.postLogin); // { identifier, password, remember? } - identifier can be email or phone
+router.post('/register', authController.postRegister); // { phoneNumber, email?, password, confirmPassword, name } - returns nextStep
+router.post('/verify-phone', authController.postVerifyPhone); // { firebaseIdToken, phoneNumber, email?, password, name } - creates user after Firebase verification
 router.post('/verify-otp', authController.postVerifyOtp); // { email, otp, password, name }
 router.post('/resend-otp', authController.postResendOtp); // { email }
 
@@ -23,9 +24,8 @@ router.post('/forgot/reset', authController.postForgotReset); // { email, newPas
 
 // Session Management
 router.get('/me', requireAuth, authController.getMe); // Get current user
-router.post('/logout', requireAuth, authController.postLogout); // Logout
+router.post('/logout', requireAuth, authController.postLogout);
 
-// First-login password change (no old password, requires auth)
 router.post('/change-password-first', requireAuth, authController.postChangePasswordFirst);
 
 export default router;

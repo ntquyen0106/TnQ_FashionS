@@ -25,11 +25,16 @@ function setAuthCookie(res, token, maxAge) {
 
 /* -------------------- AUTH CORE -------------------- */
 
-// LOGIN
+// LOGIN - Hỗ trợ email HOẶC phone
 export const postLogin = async (req, res, next) => {
   try {
-    const { email, password, remember } = req.body;
-    const { token, user } = await auth.login({ email, password });
+    const { identifier, password, remember } = req.body; // identifier có thể là email hoặc phone
+    
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Vui lòng nhập đầy đủ thông tin' });
+    }
+
+    const { token, user } = await auth.login({ identifier, password });
     setAuthCookie(res, token, remember ? THIRTY_DAYS : SEVEN_DAYS);
     res.json({ user });
   } catch (e) {
@@ -49,14 +54,59 @@ export const getMe = async (req, res) => {
   return res.json({ user: req.user });
 };
 
-/* -------------------- REGISTER + OTP -------------------- */
+/* -------------------- REGISTER + OTP + PHONE VERIFICATION -------------------- */
 
+// Bước 1: Gửi OTP qua Firebase để xác thực SĐT
 export const postRegister = async (req, res, next) => {
   try {
-    const { email, password, name } = req.body;
-    const result = await auth.register({ email, password, name });
+    const { phoneNumber, email, password, confirmPassword, name } = req.body;
+    
+    const result = await auth.register({ 
+      phoneNumber, 
+      email, 
+      password,
+      confirmPassword,
+      name 
+    });
+    
     res.json(result);
   } catch (e) {
+    // Service trả về lỗi validation với errors object
+    if (e.status === 400 && e.errors) {
+      return res.status(400).json({
+        message: e.message,
+        errors: e.errors
+      });
+    }
+    next(e);
+  }
+};
+
+// Bước 2: Xác thực Firebase ID Token từ client sau khi user nhập OTP
+export const postVerifyPhone = async (req, res, next) => {
+  try {
+    const { firebaseIdToken, phoneNumber, email, password, name } = req.body;
+
+    const result = await auth.verifyPhoneAndCreateUser({ 
+      firebaseIdToken,
+      phoneNumber, 
+      email, 
+      password, 
+      name 
+    });
+    
+    // Set cookie sau khi tạo user thành công
+    setAuthCookie(res, result.token, SEVEN_DAYS);
+    
+    res.json(result);
+  } catch (e) {
+    // Service trả về lỗi validation với errors object
+    if (e.status && e.errors) {
+      return res.status(e.status).json({
+        message: e.message,
+        errors: e.errors
+      });
+    }
     next(e);
   }
 };
