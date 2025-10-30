@@ -1,33 +1,41 @@
 /* Page background */
 .authPage {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f7ff, #f7fbff 35%, #ffffff 70%);
-  padding: 24px 12px;
+  background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 60%);
+  padding: 32px 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial;
 }
 
 /* Card container */
 .wrap {
   width: 100%;
-  max-width: 440px;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
-  padding: 22px 20px;
+  max-width: 480px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), #ffffff);
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.08);
+  padding: 28px 26px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.wrap:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.1);
 }
 
 /* Header */
 .h1 {
-  margin: 0 0 6px;
-  font-size: 26px;
+  margin: 0 0 8px;
+  font-size: 28px;
   font-weight: 700;
-  color: #0f172a;
+  color: #0b1220;
+  letter-spacing: -0.2px;
 }
 .sub {
-  margin: 0 0 14px;
+  margin: 0 0 18px;
   color: #475569;
   font-size: 13px;
 }
@@ -37,7 +45,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .label {
   font-size: 13px;
@@ -49,29 +57,31 @@
 }
 .inputIcon {
   position: absolute;
-  left: 10px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: #9aa7b2;
+  font-size: 14px;
 }
 .input {
   width: 100%;
-  padding: 12px 12px 12px 36px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #fff;
+  padding: 14px 44px 14px 44px;
+  border: 1px solid rgba(14, 45, 77, 0.06);
+  border-radius: 12px;
+  background: #ffffff;
   font-size: 15px;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
 }
 .input:focus {
   outline: none;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.35);
+  border-color: rgba(77, 163, 255, 0.9);
+  box-shadow: 0 6px 20px rgba(77, 163, 255, 0.08);
 }
 .input:hover {
-  border-color: #cbd5e1;
+  border-color: rgba(14, 45, 77, 0.1);
 }
 .input::placeholder {
-  color: #94a3b8;
+  color: #9aa7b2;
 }
 
 /* Actions & links */
@@ -82,22 +92,31 @@
   align-items: center;
 }
 .btnPrimary {
-  background: #4da3ff;
-  border: 1px solid #3a8be0;
+  background: linear-gradient(90deg, #4da3ff 0%, #2b8cff 100%);
+  border: none;
   color: #fff;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
   cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(43, 140, 255, 0.12);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(43, 140, 255, 0.14);
 }
 .btnPrimary:disabled {
-  opacity: 0.7;
+  opacity: 0.65;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 .btnGhost {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  color: #111827;
-  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: #475569;
+  padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
 }
@@ -113,55 +132,118 @@
 .divider {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: #64748b;
-  font-size: 12px;
-  margin: 10px 0;
+  font-size: 13px;
+  margin: 16px 0;
 }
 .divider::before,
 .divider::after {
   content: '';
   height: 1px;
   flex: 1;
-  background: #e5e7eb;
+  background: rgba(14, 45, 77, 0.06);
 }
 
 /* Social */
 .social {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 .btnGoogle,
 .btnFacebook {
   padding: 10px 14px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
+  border: none;
   background: #fff;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  font-weight: 600;
 }
-.btnGoogle:hover,
+.btnGoogle {
+  background: linear-gradient(90deg, #fff 0%, #fff 100%);
+  color: #111827;
+  border: 1px solid rgba(14, 45, 77, 0.06);
+}
+.btnFacebook {
+  background: linear-gradient(90deg, #1877f2 0%, #0f62d6 100%);
+  color: #fff;
+}
+.btnGoogle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(14, 45, 77, 0.06);
+}
 .btnFacebook:hover {
-  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(15, 66, 210, 0.12);
 }
 
 /* Notices */
 .err {
-  color: #b91c1c;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  padding: 8px 10px;
-  border-radius: 8px;
-  margin-top: 8px;
+  color: #8b1d1d;
+  background: #fff1f1;
+  border: 1px solid rgba(139, 29, 29, 0.08);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+  font-weight: 600;
 }
 .ok {
   color: #065f46;
-  background: #d1fae5;
-  border: 1px solid #a7f3d0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  margin-top: 8px;
+  background: #ecfdf5;
+  border: 1px solid rgba(6, 95, 70, 0.08);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+/* OTP input (single-field, spaced digits) */
+.otpInput {
+  width: 100%;
+  max-width: 320px;
+  margin: 6px auto 0;
+  letter-spacing: 12px;
+  font-size: 22px;
+  text-align: center;
+  padding: 12px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(14, 45, 77, 0.08);
+  background: #fff;
+}
+.otpInput:focus {
+  outline: none;
+  border-color: rgba(77, 163, 255, 0.9);
+  box-shadow: 0 6px 20px rgba(77, 163, 255, 0.08);
+}
+
+/* Eye (show/hide) button inside inputs */
+.eyeBtn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 480px) {
+  .wrap {
+    padding: 20px;
+    margin: 12px;
+    border-radius: 12px;
+  }
+  .input {
+    padding: 12px 12px 12px 40px;
+  }
+  .h1 {
+    font-size: 22px;
+  }
 }

@@ -29,7 +29,7 @@ function setAuthCookie(res, token, maxAge) {
 export const postLogin = async (req, res, next) => {
   try {
     const { identifier, password, remember } = req.body; // identifier có thể là email hoặc phone
-    
+
     if (!identifier || !password) {
       return res.status(400).json({ error: 'Vui lòng nhập đầy đủ thông tin' });
     }
@@ -60,22 +60,22 @@ export const getMe = async (req, res) => {
 export const postRegister = async (req, res, next) => {
   try {
     const { phoneNumber, email, password, confirmPassword, name } = req.body;
-    
-    const result = await auth.register({ 
-      phoneNumber, 
-      email, 
+
+    const result = await auth.register({
+      phoneNumber,
+      email,
       password,
       confirmPassword,
-      name 
+      name,
     });
-    
+
     res.json(result);
   } catch (e) {
     // Service trả về lỗi validation với errors object
     if (e.status === 400 && e.errors) {
       return res.status(400).json({
         message: e.message,
-        errors: e.errors
+        errors: e.errors,
       });
     }
     next(e);
@@ -87,24 +87,24 @@ export const postVerifyPhone = async (req, res, next) => {
   try {
     const { firebaseIdToken, phoneNumber, email, password, name } = req.body;
 
-    const result = await auth.verifyPhoneAndCreateUser({ 
+    const result = await auth.verifyPhoneAndCreateUser({
       firebaseIdToken,
-      phoneNumber, 
-      email, 
-      password, 
-      name 
+      phoneNumber,
+      email,
+      password,
+      name,
     });
-    
+
     // Set cookie sau khi tạo user thành công
     setAuthCookie(res, result.token, SEVEN_DAYS);
-    
+
     res.json(result);
   } catch (e) {
     // Service trả về lỗi validation với errors object
     if (e.status && e.errors) {
       return res.status(e.status).json({
         message: e.message,
-        errors: e.errors
+        errors: e.errors,
       });
     }
     next(e);
@@ -147,6 +147,16 @@ export const postForgotVerify = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
     const result = await auth.forgotVerify({ email, otp });
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const postForgotVerifyPhone = async (req, res, next) => {
+  try {
+    const { firebaseIdToken, phoneNumber } = req.body;
+    const result = await auth.forgotVerifyPhone({ firebaseIdToken, phoneNumber });
     res.json(result);
   } catch (e) {
     next(e);

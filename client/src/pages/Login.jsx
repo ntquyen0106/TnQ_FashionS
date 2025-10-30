@@ -11,6 +11,7 @@ export default function Login() {
   const { setUser } = useAuth(); // <-- dùng context
   const [identifier, setIdentifier] = useState(''); // email hoặc SĐT
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -95,7 +96,6 @@ export default function Login() {
     <div className={styles.authPage}>
       <div className={styles.wrap}>
         <h2 className={styles.h1}>Đăng nhập</h2>
-        <p className={styles.sub}>Chào mừng bạn quay lại.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
             <label className={styles.label}>Email hoặc SĐT</label>
@@ -116,11 +116,19 @@ export default function Login() {
               <span className={styles.inputIcon}>🔒</span>
               <input
                 className={styles.input}
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••"
               />
+              <button
+                type="button"
+                className={styles.eyeBtn}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                onClick={() => setShowPassword((s) => !s)}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
           </div>
           <div className={styles.actions}>

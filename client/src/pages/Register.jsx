@@ -15,6 +15,8 @@ export default function Register() {
   const [email, setEmail] = useState(''); // optional
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Flow and helpers
   const [step, setStep] = useState('form'); // 'form' | 'otp'
@@ -251,12 +253,20 @@ export default function Register() {
                 <span className={styles.inputIcon}>🔒</span>
                 <input
                   className={styles.input}
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••"
                   disabled={loading}
                 />
+                <button
+                  type="button"
+                  className={styles.eyeBtn}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  onClick={() => setShowPassword((s) => !s)}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
               </div>
             </div>
 
@@ -266,12 +276,20 @@ export default function Register() {
                 <span className={styles.inputIcon}>🔒</span>
                 <input
                   className={styles.input}
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••"
                   disabled={loading}
                 />
+                <button
+                  type="button"
+                  className={styles.eyeBtn}
+                  aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  onClick={() => setShowConfirmPassword((s) => !s)}
+                >
+                  {showConfirmPassword ? '🙈' : '👁️'}
+                </button>
               </div>
             </div>
 
@@ -329,8 +347,7 @@ export default function Register() {
           </form>
         )}
 
-        {/* Container cho reCAPTCHA của Firebase (invisible) */}
-        <div id="recaptcha-container" style={{ display: 'grid', placeItems: 'center' }} />
+        {/* reCAPTCHA container moved to top-level index.html to avoid unmount when step changes */}
       </div>
     </div>
   );

@@ -17,6 +17,9 @@ export const authApi = {
   forgot: (email) => http.post('/auth/forgot', { email }).then((r) => r.data),
   verifyForgotOtp: ({ email, otp }) =>
     http.post('/auth/forgot/verify', { email, otp }).then((r) => r.data),
+  // For phone-based forgot flow: server should verify firebaseIdToken and return resetToken
+  verifyForgotPhone: ({ firebaseIdToken, phoneNumber }) =>
+    http.post('/auth/forgot/verify-phone', { firebaseIdToken, phoneNumber }).then((r) => r.data),
   resetPassword: ({ resetToken, newPassword }) =>
     http.post('/auth/forgot/reset', { resetToken, newPassword }).then((r) => r.data),
 

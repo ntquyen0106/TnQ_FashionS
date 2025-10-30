@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { authApi } from '@/api'; // 👉 thay vì import http
 import styles from './LoginRegister.module.css';
+import { getOrCreateRecaptcha, resetRecaptcha, sendPhoneOtp } from '@/api/firebase';
 
 export default function VerifyCode() {
   const nav = useNavigate();
@@ -21,7 +22,9 @@ export default function VerifyCode() {
       if (flow === 'signup') {
         return JSON.parse(sessionStorage.getItem('pendingSignup') || '{}').email || '';
       } else {
-        return sessionStorage.getItem('pwResetEmail') || '';
+        return (
+          sessionStorage.getItem('pwResetEmail') || sessionStorage.getItem('pwResetPhone') || ''
+        );
       }
     } catch {
       return '';
@@ -55,11 +58,45 @@ export default function VerifyCode() {
         alert('Xác thực thành công!');
         nav('/login');
       } else {
-        const res = await authApi.verifyForgotOtp({ email, otp });
-        const resetToken = res?.resetToken;
-        if (!resetToken) throw new Error('Thiếu resetToken');
-        sessionStorage.setItem('pwResetToken', resetToken);
-        nav('/forgot/reset');
+        // Support both email and phone reset flows
+        if (state?.phone || /^\+?\d+$/.test(email)) {
+          // Phone flow: confirm via Firebase confirmation stored globally
+          const confirmation = window.__tnqForgotConfirmation || window._pwConfirmation;
+          console.debug(
+            '[VerifyCode] phone-flow confirm, state.phone=',
+            state?.phone,
+            'email=',
+            email,
+          );
+          if (!confirmation)
+            throw new Error('Phiên xác thực SMS không tồn tại. Vui lòng gửi lại mã.');
+          // confirm the SMS code (this signs in a temporary Firebase user locally)
+          const cred = await confirmation.confirm(otp);
+          console.debug('[VerifyCode] firebase confirmation ok, uid=', cred?.user?.uid);
+          const firebaseIdToken = await cred.user.getIdToken();
+
+          // Call server endpoint to verify firebase token and return resetToken
+          try {
+            console.debug('[VerifyCode] calling verifyForgotPhone with phone=', email);
+            const res = await authApi.verifyForgotPhone({ firebaseIdToken, phoneNumber: email });
+            const resetToken = res?.resetToken;
+            if (!resetToken) throw new Error('Thiếu resetToken');
+            sessionStorage.setItem('pwResetToken', resetToken);
+            nav('/forgot/reset');
+          } catch (err) {
+            // If server doesn't support phone-based forgot, show helpful message
+            console.error(err);
+            throw new Error(
+              err?.response?.data?.message || 'Server chưa hỗ trợ đặt lại mật khẩu qua SMS.',
+            );
+          }
+        } else {
+          const res = await authApi.verifyForgotOtp({ email, otp });
+          const resetToken = res?.resetToken;
+          if (!resetToken) throw new Error('Thiếu resetToken');
+          sessionStorage.setItem('pwResetToken', resetToken);
+          nav('/forgot/reset');
+        }
       }
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Mã OTP không hợp lệ hoặc đã hết hạn');
@@ -75,10 +112,20 @@ export default function VerifyCode() {
       setResending(true);
       if (flow === 'signup') {
         await authApi.resendSignupOtp(email);
+        setMsg('Đã gửi lại mã OTP. Vui lòng kiểm tra email.');
       } else {
-        await authApi.forgot(email);
+        // If phone flow, resend via Firebase
+        if (state?.phone || /^\+?\d+$/.test(email)) {
+          const recaptcha = await getOrCreateRecaptcha('recaptcha-container');
+          resetRecaptcha();
+          const confirmation = await sendPhoneOtp(email, recaptcha);
+          window.__tnqForgotConfirmation = confirmation;
+          setMsg('Đã gửi lại mã OTP qua SMS');
+        } else {
+          await authApi.forgot(email);
+          setMsg('Đã gửi lại mã OTP. Vui lòng kiểm tra email.');
+        }
       }
-      setMsg('Đã gửi lại mã OTP. Vui lòng kiểm tra email.');
       setCountdown(30);
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Gửi lại mã thất bại');
@@ -103,14 +150,20 @@ export default function VerifyCode() {
             <div className={styles.inputWrap}>
               <span className={styles.inputIcon}>#</span>
               <input
-                className={styles.input}
+                className={styles.otpInput}
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="Nhập 6 số"
+                onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="______"
                 inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={6}
+                autoFocus
+                aria-label="Mã OTP 6 chữ số"
                 disabled={loading}
               />
+            </div>
+            <div style={{ marginTop: 6, color: '#64748b', fontSize: 13 }}>
+              Vui lòng nhập mã 6 chữ số
             </div>
           </div>
 
@@ -134,7 +187,7 @@ export default function VerifyCode() {
               to={flow === 'signup' ? '/register' : '/forgot'}
               style={{ marginLeft: 8 }}
             >
-              Sửa email?
+              Sửa email hoặc số điện thoại?
             </Link>
           </div>
 
