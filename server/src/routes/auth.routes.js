@@ -20,6 +20,7 @@ router.post('/facebook-login', authController.postFacebookLogin); // { accessTok
 // Password Reset
 router.post('/forgot', authController.postForgotPassword); // { email }
 router.post('/forgot/verify', authController.postForgotVerify); // { email, otp }
+router.post('/forgot/verify-phone', authController.postForgotVerifyPhone); // { firebaseIdToken, phoneNumber }
 router.post('/forgot/reset', authController.postForgotReset); // { email, newPassword, confirmNewPassword }
 
 // Session Management

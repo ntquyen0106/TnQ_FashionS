@@ -286,11 +286,13 @@ export default function UsersPage() {
                       <StatusChip status={r.status} />
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Sửa">
-                        <IconButton onClick={() => openEdit(id)}>
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
+                      {r.role !== 'user' && (
+                        <Tooltip title="Sửa">
+                          <IconButton onClick={() => openEdit(id)}>
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       <Tooltip title={r.status === 'active' ? 'Khoá' : 'Mở khoá'}>
                         <IconButton onClick={() => toggleStatus(id, r.status)}>
                           {actionLoadingId === id ? (

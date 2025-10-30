@@ -390,7 +390,13 @@ export const forgotReset = async ({ resetToken, newPassword }) => {
     throw new Error('resetToken không hợp lệ hoặc đã hết hạn');
   }
 
-  const user = await User.findOne({ email: otpDoc.email });
+  // Support both email-based and phone-based reset
+  let user = null;
+  if (otpDoc.email) {
+    user = await User.findOne({ email: otpDoc.email });
+  } else if (otpDoc.phoneNumber) {
+    user = await User.findOne({ phoneNumber: otpDoc.phoneNumber });
+  }
   if (!user) throw new Error('User không tồn tại');
 
   user.passwordHash = await bcrypt.hash(newPassword, 10);
@@ -400,6 +406,64 @@ export const forgotReset = async ({ resetToken, newPassword }) => {
   await Otp.deleteOne({ _id: otpDoc._id });
 
   return { message: 'Đổi mật khẩu thành công' };
+};
+
+// Forgot password via phone: verify Firebase token then issue a resetToken
+export const forgotVerifyPhone = async ({ firebaseIdToken, phoneNumber }) => {
+  if (!firebaseIdToken) {
+    const err = new Error('Thiếu Firebase ID token');
+    err.status = 400;
+    throw err;
+  }
+  if (!phoneNumber) {
+    const err = new Error('Thiếu số điện thoại');
+    err.status = 400;
+    throw err;
+  }
+
+  // Normalize both inputs to compare (+84 vs leading 0)
+  const toVariants = (p) => {
+    const s = String(p).trim();
+    if (s.startsWith('+84')) return [s, '0' + s.slice(3)];
+    if (s.startsWith('0')) return [s, '+84' + s.slice(1)];
+    return [s, s];
+  };
+
+  const decoded = await adminAuth.verifyIdToken(firebaseIdToken);
+  const verifiedPhone = decoded.phone_number; // e.g. +84...
+  if (!verifiedPhone) {
+    const err = new Error('Token không có phone_number');
+    err.status = 400;
+    throw err;
+  }
+
+  const [inputA, inputB] = toVariants(phoneNumber);
+  const [verA, verB] = toVariants(verifiedPhone);
+  if (!(inputA === verA || inputA === verB || inputB === verA || inputB === verB)) {
+    const err = new Error('Số điện thoại xác thực không khớp');
+    err.status = 400;
+    throw err;
+  }
+
+  // Find user by phoneNumber (accept both variants)
+  const user = await User.findOne({ $or: [{ phoneNumber: inputA }, { phoneNumber: inputB }] });
+  if (!user) {
+    const err = new Error('Không tìm thấy tài khoản với số điện thoại này');
+    err.status = 404;
+    throw err;
+  }
+
+  // Issue reset token (10 minutes)
+  const resetToken = randomBytes(32).toString('hex');
+  const resetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await Otp.findOneAndUpdate(
+    { phoneNumber: user.phoneNumber, type: 'forgot' },
+    { resetToken, resetTokenExpiresAt, usedAt: new Date() },
+    { upsert: true, new: true },
+  );
+
+  return { resetToken };
 };
 
 /* -------------------- UTILITY FUNCTIONS -------------------- */

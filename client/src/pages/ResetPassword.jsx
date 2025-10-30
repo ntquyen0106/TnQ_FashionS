@@ -7,7 +7,9 @@ import SuccessModal from '@/components/SuccessModal';
 export default function ResetPassword() {
   const nav = useNavigate();
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [successModal, setSuccessModal] = useState({ open: false, title: '', message: '' });
@@ -31,17 +33,20 @@ export default function ResetPassword() {
     if (loading) return;
     setMsg('');
 
-    if (!password || password.length < 6) return setMsg('Mật khẩu tối thiểu 6 ký tự');
-    if (password !== confirm) return setMsg('Xác nhận mật khẩu không khớp');
+    if (!password || !confirmPassword) return setMsg('Vui lòng nhập mật khẩu và xác nhận');
+    if (password.length < 6) return setMsg('Mật khẩu phải tối thiểu 6 ký tự');
+    if (password !== confirmPassword) return setMsg('Mật khẩu xác nhận không khớp');
 
     try {
       setLoading(true);
       const resetToken = sessionStorage.getItem('pwResetToken');
+      if (!resetToken)
+        return setMsg('Thiếu token đổi mật khẩu. Vui lòng thử lại từ Quên mật khẩu.');
+
       await authApi.resetPassword({ resetToken, newPassword: password });
       sessionStorage.removeItem('pwResetToken');
       sessionStorage.removeItem('pwResetEmail');
 
-      // Show success modal and navigate to login on close
       setSuccessModal({
         open: true,
         title: 'Đổi mật khẩu thành công',
@@ -66,28 +71,46 @@ export default function ResetPassword() {
               <span className={styles.inputIcon}>🔒</span>
               <input
                 className={styles.input}
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••"
                 disabled={loading}
               />
+              <button
+                type="button"
+                className={styles.eyeBtn}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                onClick={() => setShowPassword((s) => !s)}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
           </div>
+
           <div className={styles.field}>
             <label className={styles.label}>Nhập lại mật khẩu</label>
             <div className={styles.inputWrap}>
               <span className={styles.inputIcon}>🔒</span>
               <input
                 className={styles.input}
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••"
                 disabled={loading}
               />
+              <button
+                type="button"
+                className={styles.eyeBtn}
+                aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                onClick={() => setShowConfirmPassword((s) => !s)}
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
             </div>
           </div>
+
           <div className={styles.actions}>
             <button className={styles.btnPrimary} type="submit" disabled={loading}>
               {loading ? 'Đang đổi...' : 'Đổi mật khẩu'}
