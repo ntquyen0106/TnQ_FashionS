@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import validator from 'validator';
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
 import { sendMail } from './mail.service.js';
@@ -11,10 +12,29 @@ const TOKEN_AGE = 60 * 60 * 24 * 7; // 7 ngày
 
 /* -------------------- AUTHENTICATION SERVICES -------------------- */
 
-export const login = async ({ email, password }) => {
-  const user = await User.findOne({ email });
+export const login = async ({ identifier, password }) => {
+  // identifier có thể là email hoặc phone
+  let user;
+  
+  // Kiểm tra xem identifier là email hay phone
+  const isEmail = validator.isEmail(identifier);
+  const isPhone = /^(0|\+84)[3|5|7|8|9]\d{8}$/.test(identifier);
+  
+  if (!isEmail && !isPhone) {
+    const err = new Error('Email hoặc số điện thoại không hợp lệ');
+    err.status = 400;
+    throw err;
+  }
+
+  // Tìm user theo email hoặc phone
+  if (isEmail) {
+    user = await User.findOne({ email: identifier.toLowerCase() });
+  } else {
+    user = await User.findOne({ phoneNumber: identifier });
+  }
+
   if (!user) {
-    const err = new Error('Không tìm thấy email');
+    const err = new Error('Không tìm thấy tài khoản');
     err.status = 401;
     throw err;
   }
@@ -81,62 +101,212 @@ export const firebaseSocialLogin = async ({ idToken }) => {
 // Alias để controller gọi tên nào cũng được
 export const firebaseLogin = firebaseSocialLogin;
 
-export const register = async ({ email, password, name }) => {
-  if (!email || !password || !name) throw new Error('Thiếu thông tin đăng ký');
+/* -------------------- REGISTER WITH PHONE VERIFICATION -------------------- */
 
-  // Nếu đã có user active
-  const existing = await User.findOne({ email, status: 'active' });
-  if (existing) throw new Error('Email đã được sử dụng');
+export const register = async ({ phoneNumber, email, password, confirmPassword, name }) => {
+  console.log('\n📝 [Register] Starting registration process...');
+  console.log(`   Phone: ${phoneNumber}`);
+  console.log(`   Email: ${email || 'N/A'}`);
+  console.log(`   Name: ${name}`);
 
-  // Tạo OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpHash = await bcrypt.hash(otp, 10);
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  const lastSentAt = new Date();
+  const errors = {};
 
-  // Hash password ngay tại đây
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  // Lưu vào Otp
-  await Otp.findOneAndUpdate(
-    { email },
-    { otpHash, expiresAt, lastSentAt, passwordHash, name },
-    { upsert: true, new: true },
-  );
-
-  await sendMail(email, 'Mã xác thực đăng ký', `Mã OTP của bạn là: ${otp}`);
-
-  return { message: 'Đã gửi OTP xác thực đến email' };
-};
-
-export const verifyOtp = async ({ email, otp }) => {
-  const otpDoc = await Otp.findOne({ email });
-  if (!otpDoc || otpDoc.expiresAt < new Date()) {
-    throw new Error('OTP không hợp lệ hoặc đã hết hạn');
+  if (!phoneNumber) {
+    errors.phoneNumber = 'Số điện thoại là bắt buộc';
+  } else if (!/^(0|\+84)[3|5|7|8|9]\d{8}$/.test(phoneNumber)) {
+    errors.phoneNumber = 'Số điện thoại không đúng định dạng';
   }
 
-  const isValid = bcrypt.compare(otp, otpDoc.otpHash);
-  if (!isValid) throw new Error('OTP không hợp lệ');
+  // Validate email (optional nhưng phải hợp lệ nếu có)
+  if (email && !validator.isEmail(email)) {
+    errors.email = 'Email không đúng định dạng';
+  }
 
-  // Tạo/activate user
-  let user = await User.findOne({ email });
-  if (!user) {
-    user = await User.create({
-      email,
-      passwordHash: otpDoc.passwordHash,
-      name: otpDoc.name,
+  const regexName = /^[a-zA-ZÀ-ỹ\s]+$/;
+  if (!name || name.trim() === '') {
+    errors.name = 'Tên là bắt buộc';
+  } else if (!regexName.test(name)) {
+    errors.name = 'Tên chỉ được chứa chữ cái và khoảng trắng';
+  }
+
+  if (!password) {
+    errors.password = 'Mật khẩu là bắt buộc';
+  } else if (password.length < 6) {
+    errors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Xác nhận mật khẩu là bắt buộc';
+  } else if (password && password !== confirmPassword) {
+    errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    const err = new Error('Dữ liệu không hợp lệ');
+    err.status = 400;
+    err.errors = errors;
+    throw err;
+  }
+
+  const existingPhone = await User.findOne({ phoneNumber });
+  if (existingPhone) {
+    const err = new Error('Số điện thoại đã được đăng ký');
+    err.status = 400;
+    err.errors = { phoneNumber: 'Số điện thoại đã được đăng ký' };
+    throw err;
+  }
+
+  // Kiểm tra email đã tồn tại chưa (nếu có email)
+  if (email) {
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
+      const err = new Error('Email đã được đăng ký');
+      err.status = 400;
+      err.errors = { email: 'Email đã được đăng ký' };
+      throw err;
+    }
+  }
+
+  console.log('✅ [Register] Phone and email available');
+  console.log('📱 [Register] Please verify phone via Firebase on client side\n');
+
+  // Trả về thông báo để client thực hiện Firebase phone authentication
+  return { 
+    message: 'Vui lòng xác thực số điện thoại qua SMS',
+    phoneNumber,
+    nextStep: 'verify-phone'
+  };
+};
+
+export const verifyPhoneAndCreateUser = async ({ firebaseIdToken, phoneNumber, email, password, name }) => {
+  console.log('\n🔐 [Verify Phone] Verifying Firebase token...');
+  
+  const errors = {};
+
+  if (!firebaseIdToken) {
+    errors.firebaseIdToken = 'Thiếu Firebase ID token';
+  }
+
+  if (!phoneNumber) {
+    errors.phoneNumber = 'Số điện thoại là bắt buộc';
+  }
+
+  if (!password) {
+    errors.password = 'Mật khẩu là bắt buộc';
+  }
+
+  if (!name || name.trim() === '') {
+    errors.name = 'Tên là bắt buộc';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    const err = new Error('Dữ liệu không hợp lệ');
+    err.status = 400;
+    err.errors = errors;
+    throw err;
+  }
+
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(firebaseIdToken);
+    const { phone_number: verifiedPhone, uid: firebaseUid } = decodedToken;
+
+    console.log(`   Firebase UID: ${firebaseUid}`);
+    console.log(`   Verified Phone: ${verifiedPhone}`);
+
+    // Kiểm tra phone number có khớp không
+    const normalizedPhone = phoneNumber.startsWith('0') 
+      ? phoneNumber.replace('0', '+84') 
+      : phoneNumber;
+    
+    const normalizedVerifiedPhone = verifiedPhone.startsWith('+84') 
+      ? verifiedPhone 
+      : verifiedPhone;
+
+    if (normalizedVerifiedPhone !== normalizedPhone && verifiedPhone !== phoneNumber) {
+      console.error(`❌ Phone mismatch: ${verifiedPhone} !== ${phoneNumber}`);
+      const err = new Error('Số điện thoại xác thực không khớp');
+      err.status = 400;
+      err.errors = { phoneNumber: 'Số điện thoại xác thực không khớp' };
+      throw err;
+    }
+
+    console.log('✅ [Verify Phone] Phone number verified');
+
+    // Kiểm tra lại phone và email chưa bị đăng ký
+    const existingPhone = await User.findOne({ phoneNumber });
+    if (existingPhone) {
+      const err = new Error('Số điện thoại đã được đăng ký');
+      err.status = 400;
+      err.errors = { phoneNumber: 'Số điện thoại đã được đăng ký' };
+      throw err;
+    }
+
+    if (email) {
+      const existingEmail = await User.findOne({ email: email.toLowerCase() });
+      if (existingEmail) {
+        const err = new Error('Email đã được đăng ký');
+        err.status = 400;
+        err.errors = { email: 'Email đã được đăng ký' };
+        throw err;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Tạo user mới
+    const user = await User.create({
+      phoneNumber,
+      email: email ? email.toLowerCase() : undefined,
+      passwordHash,
+      name,
+      phoneVerified: true,
+      firebaseUid,
       status: 'active',
+      role: 'user',
     });
-  } else {
-    user.status = 'active';
-    await user.save();
+
+    console.log(`✅ [Verify Phone] User created: ${user._id}`);
+
+    // Tạo JWT token
+    const token = jwt.sign(
+      { sub: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: TOKEN_AGE }
+    );
+
+    console.log('✅ [Verify Phone] Registration completed\n');
+
+    return { 
+      message: 'Đăng ký thành công',
+      token, 
+      user: sanitize(user) 
+    };
+  } catch (error) {
+    console.error('❌ [Verify Phone] Error:', error.message);
+    
+    if (error.errors) {
+      throw error;
+    }
+    
+    // Xử lý Firebase errors
+    if (error.code === 'auth/id-token-expired') {
+      const err = new Error('Token xác thực đã hết hạn. Vui lòng thử lại');
+      err.status = 401;
+      err.errors = { firebaseIdToken: 'Token xác thực đã hết hạn. Vui lòng thử lại' };
+      throw err;
+    }
+    if (error.code === 'auth/argument-error') {
+      const err = new Error('Firebase ID token không hợp lệ');
+      err.status = 400;
+      err.errors = { firebaseIdToken: 'Firebase ID token không hợp lệ' };
+      throw err;
+    }
+    
+    throw error;
   }
-
-  // Đánh dấu đã dùng
-  await Otp.updateOne({ email }, { $set: { usedAt: new Date() } });
-
-  return { message: 'Xác thực thành công, tài khoản đã được tạo' };
 };
+
+/* -------------------- RESEND OTP -------------------- */
 
 export const resendOtp = async ({ email }) => {
   if (!email) throw new Error('Thiếu email');

@@ -13,6 +13,7 @@ import staffOrdersRoutes from './routes/orders.routes.js'; // staff/admin order 
 import paymentRoutes from './routes/payment.routes.js';
 import promotionRoutes from './routes/promotion.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
 import reviewRoutes from './routes/review.routes.js';
 
 import authRoutes from './routes/auth.routes.js';
@@ -83,6 +84,7 @@ export const createApp = (clientUrl) => {
   app.use('/api/payment', paymentRoutes);
   app.use('/api/promotions', promotionRoutes);
   app.use('/api/inventory', inventoryRoutes);
+  app.use('/api/reports', reportsRoutes);
 
   // Swagger
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));

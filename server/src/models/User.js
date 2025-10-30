@@ -36,8 +36,9 @@ const UserSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: false, 
       unique: true,
+      sparse: true,
       index: true,
       lowercase: true,
       validate: [validator.isEmail, 'Invalid email format'],
@@ -49,8 +50,22 @@ const UserSchema = new mongoose.Schema(
     },
     phoneNumber: {
       type: String,
-      required: false,
+      required: [true, 'Phone number is required'],
       unique: true,
+      index: true,
+      validate: {
+        validator: (v) => /^(0|\+84)[3|5|7|8|9]\d{8}$/.test(v),
+        message: 'Invalid phone number format (must be Vietnamese phone)',
+      },
+    },
+    phoneVerified: {
+      type: Boolean,
+      default: false, // Trạng thái xác thực SĐT
+    },
+    firebaseUid: {
+      type: String,
+      sparse: true, // UID từ Firebase Authentication
+      index: true,
     },
     role: {
       type: String,
