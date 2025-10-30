@@ -9,7 +9,7 @@ export default function Login() {
   const nav = useNavigate();
   const location = useLocation();
   const { setUser } = useAuth(); // <-- dùng context
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // email hoặc SĐT
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await authApi.login({ email, password, remember: true });
+      await authApi.login({ identifier, password, remember: true });
 
       // Đợi cookie được set rồi mới gọi me(); retry nhẹ nếu cần
       let me = null;
@@ -98,15 +98,15 @@ export default function Login() {
         <p className={styles.sub}>Chào mừng bạn quay lại.</p>
         <form onSubmit={onSubmit}>
           <div className={styles.field}>
-            <label className={styles.label}>Email</label>
+            <label className={styles.label}>Email hoặc SĐT</label>
             <div className={styles.inputWrap}>
               <span className={styles.inputIcon}>@</span>
               <input
                 className={styles.input}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                type="email"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="you@example.com hoặc 09xxxxxxxx"
+                type="text"
               />
             </div>
           </div>

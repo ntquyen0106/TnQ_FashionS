@@ -101,8 +101,7 @@ export default function Navbar({
   const [tree, setTree] = useState(null);
   const [loadingCats, setLoadingCats] = useState(true);
 
-  const { user, setUser } = useAuth();
-  const [loadingMe, setLoadingMe] = useState(true);
+  const { user, setUser, loading } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
   const { cart } = useCart();
 
@@ -131,23 +130,7 @@ export default function Navbar({
     return () => (mounted = false);
   }, []);
 
-  // lấy user từ authApi cũ của bạn
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const me = await authApi.me();
-        if (alive) setUser(me || null);
-      } catch {
-        if (alive) setUser(null);
-      } finally {
-        if (alive) setLoadingMe(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Navbar reads `user` and `loading` from AuthProvider. No direct /auth/me call here to avoid duplicate requests.
 
   // ESC để đóng modal
   useEffect(() => {
@@ -306,7 +289,7 @@ export default function Navbar({
         open={showAccount}
         onClose={() => setShowAccount(false)}
         user={user}
-        loading={loadingMe}
+        loading={loading}
         onLogout={doLogout}
         onGotoDashboard={gotoDashboard}
       />
