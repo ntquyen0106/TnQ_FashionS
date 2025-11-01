@@ -50,11 +50,14 @@ const UserSchema = new mongoose.Schema(
     },
     phoneNumber: {
       type: String,
-      required: [true, 'Phone number is required'],
+      required: false, 
       unique: true,
-      index: true,
-      validate: {
-        validator: (v) => /^(0|\+84)[3|5|7|8|9]\d{8}$/.test(v),
+      sparse: true, 
+            validate: {
+        validator: function(v) {
+          if (!v || v.trim() === '') return true;
+          return /^(0|\+84)[3|5|7|8|9]\d{8}$/.test(v);
+        },
         message: 'Invalid phone number format (must be Vietnamese phone)',
       },
     },
