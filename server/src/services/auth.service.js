@@ -68,26 +68,115 @@ export const login = async ({ identifier, password }) => {
 };
 
 export const firebaseSocialLogin = async ({ idToken }) => {
-  if (!idToken) throw new Error('Thiếu idToken');
+  console.log('\n🔐 [Firebase Social Login] Starting...');
+  
+  if (!idToken) {
+    const err = new Error('Thiếu Firebase ID token');
+    err.status = 400;
+    throw err;
+  }
 
-  const decoded = await adminAuth.verifyIdToken(idToken);
+  let decoded;
+  try {
+    decoded = await adminAuth.verifyIdToken(idToken);
+  } catch (error) {
+    console.error('❌ [Firebase] Token verification failed:', error.message);
+    const err = new Error('Firebase token không hợp lệ');
+    err.status = 401;
+    throw err;
+  }
+
   const { email, name, picture, uid, firebase } = decoded;
 
-  if (!email) throw new Error('Firebase token missing email');
+  if (!email) {
+    const err = new Error('Firebase token không chứa email');
+    err.status = 400;
+    throw err;
+  }
 
-  let user = await User.findOne({ email });
+  console.log(`   Email từ Firebase: ${email}`);
+  console.log(`   Firebase UID: ${uid}`);
+
+  let user = await User.findOne({ email: email.toLowerCase() });
+  
   if (!user) {
+    console.log('   ℹ️ User chưa tồn tại, tạo mới với email...');
     user = await User.create({
-      email,
-      name: name || 'Social User',
+      email: email.toLowerCase(),
+      name: name || 'Google User',
       avatar: picture,
       status: 'active',
       role: 'user',
-      provider: firebase?.sign_in_provider || 'firebase',
+      provider: firebase?.sign_in_provider || 'google.com',
+      firebaseUid: uid,
+      phoneNumber: '', // Tạm thời để trống, sẽ yêu cầu bổ sung sau
+      phoneVerified: false,
     });
-  } else if (!user.name && name) {
-    user.name = name; // cập nhật tên nếu trống
-    await user.save();
+    
+    console.log('   ✅ User mới được tạo (chưa có SĐT)');
+  } else {
+    console.log('   ℹ️ User đã tồn tại trong hệ thống');
+    
+    // Cập nhật thông tin nếu cần
+    let updated = false;
+    if (!user.name && name) {
+      user.name = name;
+      updated = true;
+    }
+    if (!user.firebaseUid && uid) {
+      user.firebaseUid = uid;
+      updated = true;
+    }
+    if (updated) {
+      await user.save();
+      console.log('   ✅ Đã cập nhật thông tin user');
+    }
+  }
+
+  // Nếu Firebase token có kèm số điện thoại đã xác thực, tự động liên kết cho user nếu có thể
+  try {
+    const firebasePhone = decoded.phone_number; // ví dụ: +84xxxxxxxxx
+    if (firebasePhone) {
+      const toVariants = (p) => {
+        const s = String(p).trim();
+        if (s.startsWith('+84')) return [s, '0' + s.slice(3)];
+        if (s.startsWith('0')) return [s, '+84' + s.slice(1)];
+        return [s, s];
+      };
+
+      const [verA, verB] = toVariants(firebasePhone);
+
+      // Nếu user CHƯA có phoneNumber => thử gán từ Firebase
+      if (!user.phoneNumber || String(user.phoneNumber).trim() === '') {
+        const conflict = await User.findOne({
+          _id: { $ne: user._id },
+          $or: [{ phoneNumber: verA }, { phoneNumber: verB }],
+        });
+        if (!conflict) {
+          // Ưu tiên lưu dạng 0xxxxxxxxx cho UI VN
+          const localPhone = firebasePhone.startsWith('+84')
+            ? '0' + firebasePhone.slice(3)
+            : firebasePhone;
+          user.phoneNumber = localPhone;
+          user.phoneVerified = true;
+          if (!user.firebaseUid && uid) user.firebaseUid = uid;
+          await user.save();
+          console.log('   ✅ Đã tự động liên kết SĐT từ Firebase cho user');
+        } else {
+          console.log('   ⚠️ Không thể auto-link SĐT từ Firebase do đã thuộc về tài khoản khác');
+        }
+      } else if (user.phoneVerified !== true) {
+        // User đã có phoneNumber nhưng chưa verified: nếu trùng số trên Firebase thì auto verify
+        const [userA, userB] = toVariants(user.phoneNumber);
+        if (userA === verA || userA === verB || userB === verA || userB === verB) {
+          user.phoneVerified = true;
+          await user.save();
+          console.log('   ✅ Đã tự động đánh dấu phoneVerified vì trùng số với Firebase');
+        }
+      }
+    }
+  } catch (autoLinkErr) {
+    console.warn('   ⚠️ Auto-link phone from Firebase failed (ignored):', autoLinkErr.message);
   }
 
   const JWT_SECRET = process.env.JWT_SECRET;
@@ -95,7 +184,28 @@ export const firebaseSocialLogin = async ({ idToken }) => {
     expiresIn: '7d',
   });
 
-  return { user: sanitize(user), token };
+  // Kiểm tra số điện thoại
+  const hasPhone = user.phoneNumber && user.phoneNumber.trim() !== '';
+  const isPhoneVerified = user.phoneVerified === true;
+
+  if (!hasPhone || !isPhoneVerified) {
+    console.log('   ⚠️ User chưa có số điện thoại hoặc chưa xác thực');
+    console.log('   ✅ Vẫn trả về token, nhưng yêu cầu xác thực SĐT\n');
+    
+    return {
+      user: sanitize(user),
+      token,
+      requiresPhone: true, // Flag để FE biết cần yêu cầu SĐT
+      message: 'Đăng nhập thành công. Vui lòng xác thực số điện thoại để tiếp tục.',
+    };
+  }
+
+  console.log('   ✅ User có đủ thông tin, login hoàn tất!\n');
+  return { 
+    user: sanitize(user), 
+    token,
+    requiresPhone: false,
+  };
 };
 
 // Alias để controller gọi tên nào cũng được
@@ -285,6 +395,119 @@ export const verifyPhoneAndCreateUser = async ({
     };
   } catch (error) {
     console.error('❌ [Verify Phone] Error:', error.message);
+
+    if (error.errors) {
+      throw error;
+    }
+
+    // Xử lý Firebase errors
+    if (error.code === 'auth/id-token-expired') {
+      const err = new Error('Token xác thực đã hết hạn. Vui lòng thử lại');
+      err.status = 401;
+      err.errors = { firebaseIdToken: 'Token xác thực đã hết hạn. Vui lòng thử lại' };
+      throw err;
+    }
+    if (error.code === 'auth/argument-error') {
+      const err = new Error('Firebase ID token không hợp lệ');
+      err.status = 400;
+      err.errors = { firebaseIdToken: 'Firebase ID token không hợp lệ' };
+      throw err;
+    }
+
+    throw error;
+  }
+};
+
+/* -------------------- ADD PHONE TO GOOGLE USER -------------------- */
+
+export const addPhoneToGoogleUser = async ({ userId, firebaseIdToken, phoneNumber }) => {
+  console.log('\n📱 [Add Phone] Adding phone to Google user...');
+  console.log(`   User ID: ${userId}`);
+  console.log(`   Phone: ${phoneNumber}`);
+
+  const errors = {};
+
+  if (!userId) {
+    errors.userId = 'User ID là bắt buộc';
+  }
+
+  if (!firebaseIdToken) {
+    errors.firebaseIdToken = 'Thiếu Firebase ID token';
+  }
+
+  if (!phoneNumber) {
+    errors.phoneNumber = 'Số điện thoại là bắt buộc';
+  } else if (!/^(0|\+84)[3|5|7|8|9]\d{8}$/.test(phoneNumber)) {
+    errors.phoneNumber = 'Số điện thoại không đúng định dạng';
+  }
+
+  if (Object.keys(errors).length > 0) {
+    const err = new Error('Dữ liệu không hợp lệ');
+    err.status = 400;
+    err.errors = errors;
+    throw err;
+  }
+
+  try {
+    // Verify Firebase token
+    const decodedToken = await adminAuth.verifyIdToken(firebaseIdToken);
+    const { phone_number: verifiedPhone, uid: firebaseUid } = decodedToken;
+
+    console.log(`   Firebase UID: ${firebaseUid}`);
+    console.log(`   Verified Phone: ${verifiedPhone}`);
+
+    // Kiểm tra phone number có khớp không
+    const normalizedPhone = phoneNumber.startsWith('0')
+      ? phoneNumber.replace('0', '+84')
+      : phoneNumber;
+
+    const normalizedVerifiedPhone = verifiedPhone.startsWith('+84') ? verifiedPhone : verifiedPhone;
+
+    if (normalizedVerifiedPhone !== normalizedPhone && verifiedPhone !== phoneNumber) {
+      console.error(`❌ Phone mismatch: ${verifiedPhone} !== ${phoneNumber}`);
+      const err = new Error('Số điện thoại xác thực không khớp');
+      err.status = 400;
+      err.errors = { phoneNumber: 'Số điện thoại xác thực không khớp' };
+      throw err;
+    }
+
+    console.log('✅ [Add Phone] Phone number verified with Firebase');
+
+    // Tìm user
+    const user = await User.findById(userId);
+    if (!user) {
+      const err = new Error('Không tìm thấy tài khoản');
+      err.status = 404;
+      throw err;
+    }
+
+    // Kiểm tra phone chưa bị đăng ký bởi user khác
+    const existingPhone = await User.findOne({ 
+      phoneNumber, 
+      _id: { $ne: userId } // Không phải user hiện tại
+    });
+    if (existingPhone) {
+      const err = new Error('Số điện thoại đã được đăng ký bởi tài khoản khác');
+      err.status = 400;
+      err.errors = { phoneNumber: 'Số điện thoại đã được đăng ký bởi tài khoản khác' };
+      throw err;
+    }
+
+    user.phoneNumber = phoneNumber;
+    user.phoneVerified = true;
+    if (!user.firebaseUid) {
+      user.firebaseUid = firebaseUid;
+    }
+    await user.save();
+
+    console.log('✅ [Add Phone] Phone added successfully\n');
+
+    return {
+      message: 'Thêm số điện thoại thành công',
+      user: sanitize(user),
+    };
+  } catch (error) {
+    console.error('❌ [Add Phone] Error:', error.message);
 
     if (error.errors) {
       throw error;
