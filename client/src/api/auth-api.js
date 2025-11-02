@@ -23,6 +23,10 @@ export const authApi = {
   resetPassword: ({ resetToken, newPassword }) =>
     http.post('/auth/forgot/reset', { resetToken, newPassword }).then((r) => r.data),
 
+  // Link phone number to a Google-authenticated account (requires cookie auth)
+  addPhone: ({ firebaseIdToken, phoneNumber }) =>
+    http.post('/auth/add-phone', { firebaseIdToken, phoneNumber }).then((r) => r.data),
+
   // First-login password change (requires auth cookie)
   changePasswordFirst: ({ newPassword }) =>
     http.post('/auth/change-password-first', { newPassword }).then((r) => r.data),

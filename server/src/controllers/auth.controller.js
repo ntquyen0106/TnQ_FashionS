@@ -192,7 +192,8 @@ export const postChangePasswordFirst = async (req, res, next) => {
 export const postAddPhoneToGoogleUser = async (req, res, next) => {
   try {
     const { firebaseIdToken, phoneNumber } = req.body;
-    const { userId } = req.user._id;
+    // req.user được gán từ requireAuth -> chứa _id của user hiện tại
+    const userId = req.user._id;
     console.log('Adding phone to Google user:', { userId, phoneNumber });
     const result = await auth.addPhoneToGoogleUser({ userId, firebaseIdToken, phoneNumber });
     res.json(result);
@@ -215,9 +216,9 @@ export const postFirebaseLogin = async (req, res, next) => {
     const { idToken } = req.body;
 
     const result = await auth.firebaseLogin({ idToken });
-    
+
     setAuthCookie(res, result.token, SEVEN_DAYS);
-    
+
     res.json({
       user: result.user,
       requiresPhone: result.requiresPhone || false, // FE dùng để biết có cần yêu cầu thêm SĐT không

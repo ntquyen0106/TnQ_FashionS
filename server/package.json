@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "seed:promotions": "node ./scripts/seedPromotions.js",
+    "migrate:drop-legacy-review-index": "node ./scripts/dropLegacyReviewIndex.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

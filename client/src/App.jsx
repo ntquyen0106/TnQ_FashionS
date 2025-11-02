@@ -9,6 +9,7 @@ import Forgot from './pages/Forgot';
 import ResetPassword from './pages/ResetPassword';
 import { ProtectedRoute, RoleRoute, MustChangePasswordGuard } from './auth/guards';
 import FirstLoginChangePassword from '@/pages/FirstLoginChangePassword';
+import AddPhone from '@/pages/AddPhone';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
 import ProductDetail from '@/pages/ProductDetail';
@@ -20,6 +21,7 @@ import MyOrders from '@/pages/MyOrders';
 import AccountProfile from '@/pages/AccountProfile';
 import OrderDetail from '@/pages/OrderDetail';
 import OrderSuccess from '@/pages/OrderSuccess';
+import ReviewOrder from '@/pages/ReviewOrder';
 
 export default function App() {
   return (
@@ -40,6 +42,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/orders" element={<MyOrders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
+            <Route path="/orders/:id/review" element={<ReviewOrder />} />
             <Route path="/account" element={<AccountProfile />} />
           </Route>
           <Route path="/login" element={<Login />} />
@@ -53,6 +56,8 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           {/* First-login change password page */}
           <Route path="/first-change-password" element={<FirstLoginChangePassword />} />
+          {/* Add phone after Google login */}
+          <Route path="/add-phone" element={<AddPhone />} />
 
           {/* All other protected routes must pass through the must-change guard */}
           <Route element={<MustChangePasswordGuard />}>

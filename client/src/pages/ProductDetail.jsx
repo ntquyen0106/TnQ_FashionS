@@ -30,6 +30,7 @@ export default function ProductDetail() {
   const [variant, setVariant] = useState(null);
   const lastColorRef = useRef(null);
   const [promos, setPromos] = useState([]);
+  const [soldQty, setSoldQty] = useState(0);
 
   // đặt gần đầu file
   // chuẩn hoá bỏ dấu để so khớp màu với alt/publicId bất kể dấu
@@ -114,6 +115,22 @@ export default function ProductDetail() {
         const data = await promotionsApi.available(0, { all: true, productIds: [p._id] });
         const applicable = (data || []).filter((x) => x.applicable);
         if (alive) setPromos(applicable);
+      } catch {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [p?._id]);
+
+  // Fetch sold qty for product
+  useEffect(() => {
+    if (!p?._id) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await productsApi.salesCount([p._id]);
+        const counts = res?.counts || {};
+        if (alive) setSoldQty(Number(counts[p._id] || 0));
       } catch {}
     })();
     return () => {
@@ -233,6 +250,16 @@ export default function ProductDetail() {
 
             <div className={styles.meta}>
               <span className={styles.stock}>{currentStock > 0 ? `` : 'Hết hàng'}</span>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', color: '#6b7280' }}>
+                {Number(p?.ratingCount || 0) > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>★</span>
+                    <span>{Number(p.ratingAvg).toFixed(1)}</span>
+                  </div>
+                )}
+                <div>{Intl.NumberFormat('vi-VN').format(Number(p?.ratingCount || 0))} đánh giá</div>
+                <div>{Intl.NumberFormat('vi-VN').format(Number(soldQty || 0))} đã bán</div>
+              </div>
             </div>
 
             <div className={styles.price}>

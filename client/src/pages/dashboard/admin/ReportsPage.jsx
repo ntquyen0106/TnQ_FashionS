@@ -34,8 +34,12 @@ function daysAgo(n) {
 }
 
 function toParamDate(d) {
+  // Return YYYY-MM-DD in LOCAL time to avoid UTC shift dropping to previous day
   const dt = new Date(d);
-  return dt.toISOString().slice(0, 10);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 const presets = [
@@ -858,8 +862,9 @@ function StaffPanel({ from, to }) {
   const f = new Date(from + 'T00:00:00');
   const t = new Date(to + 'T23:59:59');
   const days = [];
+  // Build list of days using LOCAL date, not UTC toISOString (which shifts back a day in VN)
   for (let d = new Date(f); d <= t; d.setDate(d.getDate() + 1)) {
-    days.push(new Date(d).toISOString().slice(0, 10));
+    days.push(toParamDate(d));
   }
 
   const pages = Math.max(1, Math.ceil(days.length / PAGE_SIZE));

@@ -1,8 +1,15 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 
+// Parse YYYY-MM-DD as a LOCAL date to avoid UTC shift (which would move the day back)
 const toDate = (v, def) => {
   if (!v) return def;
+  // If matches YYYY-MM-DD, construct as local midnight
+  const m = /^\d{4}-\d{2}-\d{2}$/.exec(String(v));
+  if (m) {
+    const [y, mth, d] = String(v).split('-').map(Number);
+    return new Date(y, mth - 1, d);
+  }
   const d = new Date(v);
   return isNaN(d.getTime()) ? def : d;
 };

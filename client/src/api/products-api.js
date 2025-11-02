@@ -14,6 +14,12 @@ export const productsApi = {
   listByCategory: (categoryId, params) =>
     http.get(`/products/category/${categoryId}`, { params }).then((r) => r.data),
 
+  // Sales count for a set of product IDs
+  salesCount: (ids = []) =>
+    http
+      .get('/products/sales-count', { params: { ids: Array.isArray(ids) ? ids.join(',') : ids } })
+      .then((r) => r.data),
+
   // CRUD
   create: (body) => http.post('/products', body).then((r) => r.data),
 

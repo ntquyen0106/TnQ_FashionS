@@ -61,11 +61,16 @@ export default function Login() {
       const result = await loginWithGoogle();
       const idToken = await result.user.getIdToken();
 
-      // trả về { user }, không destructure data
-      const { user } = await authApi.firebaseLogin(idToken);
+      // Server may respond with { user, requiresPhone }
+      const data = await authApi.firebaseLogin(idToken);
 
-      setUser(user);
-      nav('/', { replace: true });
+      setUser(data?.user || null);
+      if (data?.requiresPhone) {
+        // Chuyển đến luồng thêm SĐT sau khi login bằng Google
+        nav('/add-phone', { replace: true });
+      } else {
+        nav('/', { replace: true });
+      }
     } catch (err) {
       console.error(err);
       setMsg('Đăng nhập Google thất bại');

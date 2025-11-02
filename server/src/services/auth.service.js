@@ -69,7 +69,7 @@ export const login = async ({ identifier, password }) => {
 
 export const firebaseSocialLogin = async ({ idToken }) => {
   console.log('\n🔐 [Firebase Social Login] Starting...');
-  
+
   if (!idToken) {
     const err = new Error('Thiếu Firebase ID token');
     err.status = 400;
@@ -98,9 +98,10 @@ export const firebaseSocialLogin = async ({ idToken }) => {
   console.log(`   Firebase UID: ${uid}`);
 
   let user = await User.findOne({ email: email.toLowerCase() });
-  
+
   if (!user) {
     console.log('   ℹ️ User chưa tồn tại, tạo mới với email...');
+    // Không set phoneNumber = '' để tránh trùng unique index (sparse)
     user = await User.create({
       email: email.toLowerCase(),
       name: name || 'Google User',
@@ -109,14 +110,13 @@ export const firebaseSocialLogin = async ({ idToken }) => {
       role: 'user',
       provider: firebase?.sign_in_provider || 'google.com',
       firebaseUid: uid,
-      phoneNumber: '', // Tạm thời để trống, sẽ yêu cầu bổ sung sau
       phoneVerified: false,
     });
-    
+
     console.log('   ✅ User mới được tạo (chưa có SĐT)');
   } else {
     console.log('   ℹ️ User đã tồn tại trong hệ thống');
-    
+
     // Cập nhật thông tin nếu cần
     let updated = false;
     if (!user.name && name) {
@@ -191,7 +191,7 @@ export const firebaseSocialLogin = async ({ idToken }) => {
   if (!hasPhone || !isPhoneVerified) {
     console.log('   ⚠️ User chưa có số điện thoại hoặc chưa xác thực');
     console.log('   ✅ Vẫn trả về token, nhưng yêu cầu xác thực SĐT\n');
-    
+
     return {
       user: sanitize(user),
       token,
@@ -201,8 +201,8 @@ export const firebaseSocialLogin = async ({ idToken }) => {
   }
 
   console.log('   ✅ User có đủ thông tin, login hoàn tất!\n');
-  return { 
-    user: sanitize(user), 
+  return {
+    user: sanitize(user),
     token,
     requiresPhone: false,
   };
@@ -482,9 +482,9 @@ export const addPhoneToGoogleUser = async ({ userId, firebaseIdToken, phoneNumbe
     }
 
     // Kiểm tra phone chưa bị đăng ký bởi user khác
-    const existingPhone = await User.findOne({ 
-      phoneNumber, 
-      _id: { $ne: userId } // Không phải user hiện tại
+    const existingPhone = await User.findOne({
+      phoneNumber,
+      _id: { $ne: userId }, // Không phải user hiện tại
     });
     if (existingPhone) {
       const err = new Error('Số điện thoại đã được đăng ký bởi tài khoản khác');
