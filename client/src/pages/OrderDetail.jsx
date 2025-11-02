@@ -4,6 +4,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ordersApi from '@/api/orders-api';
 import paymentsApi from '@/api/payments-api';
 import { productsApi } from '@/api/products-api';
+import { reviewsApi } from '@/api/reviews-api';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useAuth } from '@/auth/AuthProvider';
 import styles from './OrderDetail.module.css';
@@ -11,6 +12,7 @@ import styles from './OrderDetail.module.css';
 const fmtVND = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0);
 const STATUS_LABEL = {
   PENDING: 'Chờ xác nhận',
+  AWAITING_PAYMENT: 'Chờ thanh toán',
   CONFIRMED: 'Đã xác nhận',
   SHIPPING: 'Vận chuyển',
   DELIVERING: 'Đang giao',
@@ -52,6 +54,7 @@ export default function OrderDetail() {
   const [reasonOther, setReasonOther] = useState('');
   const [remainSec, setRemainSec] = useState(null); // đếm ngược thời gian còn lại để thanh toán
   const [autoCancelling, setAutoCancelling] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const buildImageUrl = useCloudImage();
   const { user } = useAuth();
 
@@ -146,6 +149,29 @@ export default function OrderDetail() {
     };
   }, [id, user?.role]);
 
+  // Check if the current order has already been reviewed (for customer)
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        const isStaff = !!(user && (user.role === 'staff' || user.role === 'admin'));
+        if (isStaff || !order?._id) {
+          if (!stop) setAlreadyReviewed(false);
+          return;
+        }
+        const res = await reviewsApi.mine();
+        const list = Array.isArray(res?.reviews) ? res.reviews : res || [];
+        const match = list.some((rv) => String(rv.orderId) === String(order._id || order.id));
+        if (!stop) setAlreadyReviewed(!!match);
+      } catch {
+        if (!stop) setAlreadyReviewed(false);
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [order?._id, order?.id, user?.role]);
+
   // Đếm ngược 24h cho đơn đang chờ thanh toán (khách hàng)
   useEffect(() => {
     // luôn đăng ký hook (không phụ thuộc early return) để không vi phạm Rules of Hooks
@@ -203,7 +229,9 @@ export default function OrderDetail() {
     !isStaff &&
     String(order.paymentMethod).toUpperCase() === 'BANK' &&
     String(order.status).toUpperCase() === 'AWAITING_PAYMENT';
-  const canCancel = String(order.status || 'PENDING').toUpperCase() === 'PENDING';
+  const canCancel = ['PENDING', 'AWAITING_PAYMENT'].includes(
+    String(order.status || 'PENDING').toUpperCase(),
+  );
   const inQueue = isStaff && loc.state?.from === 'staff' && loc.state?.queue;
   const canEditItems = isStaff && String(order.status).toUpperCase() === 'PENDING';
 
@@ -499,6 +527,14 @@ export default function OrderDetail() {
                 Thanh toán ngay
               </button>
             )}
+            {['DONE', 'RETURNED'].includes(String(order.status).toUpperCase()) && (
+              <button
+                className={`btn ${styles.btnPrimary}`}
+                onClick={() => nav(`/orders/${order._id || order.id}/review`)}
+              >
+                {alreadyReviewed ? 'Xem đánh giá' : 'Đánh giá'}
+              </button>
+            )}
           </div>
         )}
 
@@ -632,10 +668,20 @@ export default function OrderDetail() {
           cancelText="Quay lại"
           confirmType="danger"
           onConfirm={async () => {
+            const isAwaitingBank =
+              String(order.paymentMethod).toUpperCase() === 'BANK' &&
+              String(order.status).toUpperCase() === 'AWAITING_PAYMENT';
+
             // If staff/admin, send cancel via staff route so history note is recorded
             if (isStaff) {
               setConfirm(false);
               try {
+                // Try cancel pending online payment first (best-effort)
+                if (isAwaitingBank) {
+                  try {
+                    await paymentsApi.userCancelPayment(order._id || order.id);
+                  } catch {}
+                }
                 const payload = {};
                 if (Array.isArray(reasons) && reasons.length) payload.reasons = reasons;
                 if (reasonOther && String(reasonOther).trim()) payload.other = reasonOther;
@@ -656,7 +702,15 @@ export default function OrderDetail() {
             }
 
             // default: customer cancel flow
-            await doCancel();
+            try {
+              if (isAwaitingBank) {
+                try {
+                  await paymentsApi.userCancelPayment(order._id || order.id);
+                } catch {}
+              }
+            } finally {
+              await doCancel();
+            }
           }}
           onCancel={() => setConfirm(false)}
         />

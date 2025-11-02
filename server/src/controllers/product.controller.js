@@ -61,3 +61,21 @@ export const listByCategory = async (req, res, next) => {
     next(e);
   }
 };
+
+// GET /api/products/sales-count?ids=1,2,3
+export const getSalesCount = async (req, res, next) => {
+  try {
+    const idsParam = req.query.ids;
+    const idsArr = Array.isArray(idsParam)
+      ? idsParam
+      : String(idsParam || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+    const counts = await svc.getSalesCount(idsArr);
+    res.json({ counts });
+  } catch (e) {
+    next(e);
+  }
+};

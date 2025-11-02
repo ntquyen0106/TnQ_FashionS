@@ -7,6 +7,7 @@ const router = Router();
 //All role
 router.get('/', ctrl.list);
 router.get('/slug/:slug', ctrl.getOneBySlug);
+router.get('/sales-count', ctrl.getSalesCount);
 router.get('/category/:categoryId', ctrl.listByCategory ?? ctrl.getProductsByCategory);
 router.get('/:id', optionalAuth, ctrl.getOne);
 

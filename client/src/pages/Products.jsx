@@ -32,6 +32,7 @@ export default function Products() {
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [promosByProduct, setPromosByProduct] = useState({}); // id -> [codes]
+  const [salesByProduct, setSalesByProduct] = useState({}); // id -> sold qty
 
   // === Title theo path ===
   const title = useMemo(() => {
@@ -91,6 +92,23 @@ export default function Products() {
           }
         }
         if (alive) setPromosByProduct((prev) => ({ ...prev, ...next }));
+      } catch {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [rows]);
+
+  // Fetch sold count for products on current page
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const ids = (rows || []).map((x) => x?._id).filter(Boolean);
+      if (!ids.length) return;
+      try {
+        const res = await productsApi.salesCount(ids);
+        const counts = res?.counts || {};
+        if (alive) setSalesByProduct((prev) => ({ ...prev, ...counts }));
       } catch {}
     })();
     return () => {
@@ -192,6 +210,30 @@ export default function Products() {
                   <div className={s.info}>
                     <div className={s.name}>{p.name}</div>
                     <div className={s.price}>{hasPrice ? formatVND(rawPrice) : 'Liên hệ'}</div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 12.5,
+                        color: '#6b7280',
+                        display: 'flex',
+                        gap: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      {Number(p.ratingCount || 0) > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: '#f59e0b', fontWeight: 700 }}>★</span>
+                          <span>{Number(p.ratingAvg).toFixed(1)}</span>
+                        </div>
+                      )}
+                      <div>
+                        {Intl.NumberFormat('vi-VN').format(Number(p.ratingCount || 0))} đánh giá
+                      </div>
+                      <div>
+                        {Intl.NumberFormat('vi-VN').format(Number(salesByProduct[p._id] || 0))} đã
+                        bán
+                      </div>
+                    </div>
                     {!!promosByProduct[p._id]?.length && (
                       <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {promosByProduct[p._id].map((code) => (

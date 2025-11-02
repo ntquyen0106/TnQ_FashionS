@@ -1,6 +1,7 @@
 // services/product.service.js
 import mongoose from 'mongoose';
 import Product from '../models/Product.js';
+import Order from '../models/Order.js';
 import Category from '../models/Category.js';
 
 const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -318,4 +319,29 @@ export const getProductsByCategory = async (categoryId) => {
   const allIds = allCats.map((c) => c._id);
 
   return Product.find({ categoryId: { $in: allIds } }).lean();
+};
+
+export const getSalesCount = async (ids = []) => {
+  const objIds = (Array.isArray(ids) ? ids : [])
+    .map((id) => {
+      try {
+        return new mongoose.Types.ObjectId(String(id));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  if (!objIds.length) return {};
+
+  const agg = await Order.aggregate([
+    { $match: { status: { $in: ['DONE', 'done'] } } },
+    { $unwind: '$items' },
+    { $match: { 'items.productId': { $in: objIds } } },
+    { $group: { _id: '$items.productId', qty: { $sum: '$items.qty' } } },
+  ]);
+
+  const map = {};
+  for (const it of agg) map[String(it._id)] = it.qty || 0;
+  return map;
 };

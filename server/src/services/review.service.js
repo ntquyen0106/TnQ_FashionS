@@ -19,7 +19,11 @@ export const validateOrderForReview = async (orderId, userId) => {
     return { valid: false, code: 403, message: 'Đơn hàng không thuộc về bạn' };
   }
   if (order.status !== 'DONE' && order.status !== 'RETURNED') {
-    return { valid: false, code: 400, message: 'Chỉ được đánh giá đơn hàng đã hoàn thành hoặc đã trả hàng' };
+    return {
+      valid: false,
+      code: 400,
+      message: 'Chỉ được đánh giá đơn hàng đã hoàn thành hoặc đã trả hàng',
+    };
   }
 
   // Check if already reviewed
@@ -45,15 +49,18 @@ export const createReview = async ({ userId, orderId, rating, comment }) => {
 
   const order = validation.order;
 
-  // Create review for each product in the order
-  const reviewPromises = order.items.map(item => 
+  // Create a review document for each product in the order.
+  // We allow the same user to review the same product again in a new order.
+  // Uniqueness is enforced per (orderId, productId) via the schema index,
+  // and validateOrderForReview prevents re-reviewing the same order twice.
+  const reviewPromises = order.items.map((item) =>
     Review.create({
       orderId,
       userId,
       productId: item.productId,
       rating,
-      comment: comment || ''
-    })
+      comment: comment || '',
+    }),
   );
 
   const reviews = await Promise.all(reviewPromises);
@@ -62,20 +69,20 @@ export const createReview = async ({ userId, orderId, rating, comment }) => {
   for (const item of order.items) {
     const agg = await Review.aggregate([
       { $match: { productId: item.productId } },
-      { 
-        $group: { 
-          _id: '$productId', 
-          avg: { $avg: '$rating' }, 
-          count: { $sum: 1 } 
-        } 
-      }
+      {
+        $group: {
+          _id: '$productId',
+          avg: { $avg: '$rating' },
+          count: { $sum: 1 },
+        },
+      },
     ]);
-    
+
     if (agg.length > 0) {
       const stats = agg[0];
       await Product.findByIdAndUpdate(item.productId, {
-        averageRating: Math.round(stats.avg * 10) / 10,
-        reviewCount: stats.count
+        ratingAvg: Math.round(stats.avg * 10) / 10,
+        ratingCount: stats.count,
       });
     }
   }
@@ -110,27 +117,32 @@ export const listUserReviews = async (userId) => {
       select: 'createdAt items amounts.grandTotal status',
       populate: {
         path: 'items.productId',
-        select: 'name thumbnail'
-      }
+        select: 'name thumbnail',
+      },
     })
     .sort({ createdAt: -1 })
     .lean();
-  
-  return reviews.map(review => ({
+
+  return reviews.map((review) => ({
     _id: review._id,
-    orderId: review.orderId._id,
-    orderDate: review.orderId.createdAt,
-    orderStatus: review.orderId.status,
-    totalAmount: review.orderId.amounts.grandTotal,
-    products: review.orderId.items.map(item => ({
-      productId: item.productId._id,
-      productName: item.productId.name,
-      productImage: item.productId.thumbnail,
-      variantSku: item.variantSku,
-      qty: item.qty
-    })),
+    orderId: review.orderId?._id || null,
+    orderDate: review.orderId?.createdAt || null,
+    orderStatus: review.orderId?.status || null,
+    totalAmount: review.orderId?.amounts?.grandTotal || null,
+    products: Array.isArray(review.orderId?.items)
+      ? review.orderId.items.map((item) => {
+          const p = item.productId || {};
+          return {
+            productId: p._id || p || null,
+            productName: p.name || null,
+            productImage: p.thumbnail || p.imagePublicId || null,
+            variantSku: item.variantSku || null,
+            qty: item.qty || 0,
+          };
+        })
+      : [],
     rating: review.rating,
     comment: review.comment,
-    createdAt: review.createdAt
+    createdAt: review.createdAt,
   }));
 };
