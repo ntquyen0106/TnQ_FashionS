@@ -1,5 +1,6 @@
 import Order from '../models/Order.js';
 import { cancelPayOSPayment } from './payment.service.js';
+import { releaseInventoryForOrder } from './inventory.service.js';
 
 /**
  * Tự động hủy các đơn hàng AWAITING_PAYMENT quá 24h
@@ -44,6 +45,15 @@ export const cancelExpiredOrders = async () => {
             console.warn(`   ⚠️  Failed to cancel PayOS link: ${error.message}`);
             // Vẫn tiếp tục hủy order trong DB
           }
+        }
+
+        // Trả lại tồn kho
+        console.log(`   🔄 Releasing inventory...`);
+        try {
+          await releaseInventoryForOrder(order);
+        } catch (err) {
+          console.error(`   ⚠️  Failed to release inventory: ${err.message}`);
+          // Vẫn tiếp tục cancel order
         }
 
         // Cập nhật status trong DB

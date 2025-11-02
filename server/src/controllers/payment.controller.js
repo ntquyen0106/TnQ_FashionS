@@ -8,6 +8,7 @@ import {
   cancelPayOSPayment,
   createPayOSPayment,
 } from '../services/payment.service.js';
+import { releaseInventoryForOrder } from '../services/inventory.service.js';
 
 /**
  * PayOS Webhook Handler
@@ -169,6 +170,15 @@ export const handleUserCancelPayment = async (req, res, next) => {
       }
     }
 
+    // Trả lại tồn kho
+    console.log(`\n🔄 [User Cancel Payment] Releasing inventory...`);
+    try {
+      await releaseInventoryForOrder(order);
+    } catch (err) {
+      console.error(`⚠️  [User Cancel Payment] Failed to release inventory:`, err.message);
+      // Vẫn tiếp tục cancel order
+    }
+
     // Cập nhật trạng thái trong DB
     order.status = 'CANCELLED';
     order.history.push({
@@ -231,6 +241,15 @@ export const cancelUnpaidOrder = async (req, res, next) => {
         console.error('💥 [Cancel Order] PayOS cancel API error:', error.message);
         // Vẫn tiếp tục hủy order trong DB
       }
+    }
+
+    // Trả lại tồn kho
+    console.log(`\n🔄 [Cancel Order] Releasing inventory...`);
+    try {
+      await releaseInventoryForOrder(order);
+    } catch (err) {
+      console.error(`⚠️  [Cancel Order] Failed to release inventory:`, err.message);
+      // Vẫn tiếp tục cancel order
     }
 
     // Cập nhật trạng thái trong DB

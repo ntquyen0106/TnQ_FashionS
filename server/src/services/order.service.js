@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import { getCartTotal } from './cart.service.js';
 import { computeShippingFee } from '../utils/shipping.js';
 import { createPayOSPayment } from './payment.service.js';
+import { reserveOrderItems, releaseInventoryForOrder } from './inventory.service.js';
 
 // FE → Model status mapping (giữ theo FE của bạn)
 const FE_TO_MODEL = {
@@ -83,7 +84,18 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
   const pm = methodUpper === 'COD' ? 'COD' : 'BANK';
   const status = pm === 'COD' ? 'PENDING' : 'AWAITING_PAYMENT';
 
-  // 7) Tạo order
+  // 7) Reserve inventory TRƯỚC KHI tạo order
+  try {
+    await reserveOrderItems(orderItems);
+  } catch (err) {
+    console.error(`❌ [Checkout] Inventory reservation failed:`, err.message);
+    const error = new Error(err?.message || 'Không đủ tồn kho');
+    error.status = 400;
+    error.code = err?.code || 'OUT_OF_STOCK';
+    throw error;
+  }
+
+  // 8) Tạo order
   const order = await Order.create({
     userId,
     items: orderItems,
@@ -91,6 +103,11 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     shippingAddress,
     paymentMethod: pm,
     status,
+    inventory: {
+      reserved: true,
+      released: false,
+      reservedAt: new Date(),
+    },
     history: [
       {
         action: 'CREATE',
@@ -102,7 +119,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     ],
   });
 
-  // 8) Nếu BANK → tạo link PayOS
+  // 9) Nếu BANK → tạo link PayOS
   let paymentData = null;
   if (pm === 'BANK') {
     try {
@@ -120,7 +137,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     }
   }
 
-  // 9) Xoá item đã mua khỏi cart
+  // 10) Xoá item đã mua khỏi cart
   cart.items = cart.items.filter(
     (ci) =>
       !orderItems.some(
@@ -199,7 +216,7 @@ export const updateStatus = async ({ orderId, status, byUserId, note, reasons, o
   const to = toModelStatus(status);
   if (!to) throw new Error('Invalid status');
 
-  const order = await Order.findById(orderId).lean();
+  const order = await Order.findById(orderId);
   if (!order) throw new Error('Order not found');
 
   const from = order.status;
@@ -234,16 +251,21 @@ export const updateStatus = async ({ orderId, status, byUserId, note, reasons, o
   };
   if (finalNote) historyEntry.note = finalNote;
 
-  const updated = await Order.findByIdAndUpdate(
-    orderId,
-    {
-      $set: { status: to },
-      $push: { history: historyEntry },
-    },
-    { new: true },
-  ).lean();
+  // Nếu chuyển sang CANCELLED/RETURNED → trả lại tồn kho
+  if (to === 'CANCELLED' || to === 'RETURNED') {
+    console.log(`\n🔄 [Order] Status changing to ${to}, releasing inventory...`);
+    try {
+      await releaseInventoryForOrder(order);
+    } catch (err) {
+      console.error(`⚠️  [Order] Failed to release inventory:`, err.message);
+    }
+  }
 
-  return updated;
+  order.status = to;
+  order.history.push(historyEntry);
+  await order.save();
+
+  return order.toObject();
 };
 
 export const statsForUser = async ({ staffId, from, to, status }) => {
