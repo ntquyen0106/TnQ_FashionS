@@ -187,6 +187,26 @@ export const postChangePasswordFirst = async (req, res, next) => {
   }
 };
 
+/* -------------------- ADD PHONE TO GOOGLE USER -------------------- */
+
+export const postAddPhoneToGoogleUser = async (req, res, next) => {
+  try {
+    const { firebaseIdToken, phoneNumber } = req.body;
+    const { userId } = req.user._id;
+    console.log('Adding phone to Google user:', { userId, phoneNumber });
+    const result = await auth.addPhoneToGoogleUser({ userId, firebaseIdToken, phoneNumber });
+    res.json(result);
+  } catch (e) {
+    if (e.errors) {
+      return res.status(e.status || 400).json({
+        message: e.message,
+        errors: e.errors,
+      });
+    }
+    next(e);
+  }
+};
+
 /* -------------------- SOCIAL LOGINS -------------------- */
 
 // Firebase (Google)
@@ -194,13 +214,15 @@ export const postFirebaseLogin = async (req, res, next) => {
   try {
     const { idToken } = req.body;
 
-    // ⚠️ đảm bảo bạn có export hàm 'firebaseLogin' trong services/auth.service.js
-    // (đúng tên như dưới). Nếu bạn đã viết tên khác như 'firebaseSocialLogin'
-    // thì đổi về 'firebaseLogin' hoặc sửa dòng gọi này cho khớp.
-    const { user, token } = await auth.firebaseLogin({ idToken });
-
-    setAuthCookie(res, token, SEVEN_DAYS);
-    res.json({ user });
+    const result = await auth.firebaseLogin({ idToken });
+    
+    setAuthCookie(res, result.token, SEVEN_DAYS);
+    
+    res.json({
+      user: result.user,
+      requiresPhone: result.requiresPhone || false, // FE dùng để biết có cần yêu cầu thêm SĐT không
+      message: result.message,
+    });
   } catch (e) {
     next(e);
   }
