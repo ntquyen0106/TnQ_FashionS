@@ -1,5 +1,6 @@
 import payos from '../config/payos.js';
 import Order from '../models/Order.js';
+import { releaseInventoryForOrder } from './inventory.service.js';
 
 /**
  * Tạo link thanh toán PayOS bằng SDK
@@ -14,11 +15,11 @@ export const createPayOSPayment = async ({
   try {
     const orderCode = Number(Date.now().toString().slice(-9));
 
-    const numericAmount = Number(amount); // ✅ ép kiểu number
+    const numericAmount = Number(amount);
 
     const paymentData = {
       orderCode,
-      amount: numericAmount, // ✅ DÙNG numericAmount, KHÔNG dùng amount
+      amount: numericAmount,
       description: description || `Thanh toán đơn #${orderCode}`,
       returnUrl: returnUrl || `${process.env.CLIENT_URL}/order/success`,
       cancelUrl: cancelUrl || `${process.env.CLIENT_URL}/cart`,
@@ -26,7 +27,7 @@ export const createPayOSPayment = async ({
         {
           name: `DH ${orderId.slice(-8)}`,
           quantity: 1,
-          price: numericAmount, // ✅ số, không phải chuỗi
+          price: numericAmount, 
         },
       ],
     };
@@ -49,7 +50,6 @@ export const createPayOSPayment = async ({
       paymentLinkId: paymentLinkResponse.paymentLinkId,
     };
   } catch (error) {
-    // Ghi log chi tiết hơn từ PayOS SDK nếu có
     const status = error?.status || error?.response?.status;
     const data = error?.data || error?.response?.data;
     const code = data?.code;
@@ -158,6 +158,15 @@ export const processPaymentFailure = async (orderCode, code, desc, reference) =>
   }
 
   if (order.status === 'AWAITING_PAYMENT') {
+    // Trả lại tồn kho trước khi cancel
+    console.log(`\n🔄 [PayOS] Payment failed, releasing inventory...`);
+    try {
+      await releaseInventoryForOrder(order);
+    } catch (err) {
+      console.error(`⚠️  [PayOS] Failed to release inventory:`, err.message);
+      // Vẫn tiếp tục cancel order
+    }
+
     order.status = 'CANCELLED';
     order.history.push({
       action: 'PAYMENT_FAILED',
@@ -238,6 +247,14 @@ export const syncOrderStatusWithPayOS = async (orderId) => {
 
     // Sync status: CANCELLED
     if (paymentInfo.status === 'CANCELLED' && order.status === 'AWAITING_PAYMENT') {
+      // Trả lại tồn kho
+      console.log(`\n🔄 [PayOS Sync] Payment cancelled, releasing inventory...`);
+      try {
+        await releaseInventoryForOrder(order);
+      } catch (err) {
+        console.error(`⚠️  [PayOS Sync] Failed to release inventory:`, err.message);
+      }
+
       order.status = 'CANCELLED';
       order.history.push({
         action: 'PAYMENT_CANCELLED',

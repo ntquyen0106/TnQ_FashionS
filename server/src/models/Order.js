@@ -79,6 +79,14 @@ const OrderSchema = new mongoose.Schema(
     // PayOS
     paymentOrderCode: { type: Number, default: null },
 
+    // Inventory reservation tracking
+    inventory: {
+      reserved: { type: Boolean, default: false },
+      released: { type: Boolean, default: false },
+      reservedAt: { type: Date, default: null },
+      releasedAt: { type: Date, default: null },
+    },
+
     // Staff assignment
     assignedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
