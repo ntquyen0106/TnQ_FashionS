@@ -3,19 +3,19 @@ import * as reviewService from '../services/review.service.js';
 export const postCreateReview = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { orderId, rating, comment } = req.body;
+    const { orderId, reviews } = req.body;
 
     if (!orderId) {
       return res.status(400).json({ message: 'orderId là bắt buộc' });
     }
-    if (!rating) {
-      return res.status(400).json({ message: 'rating là bắt buộc' });
+    if (!Array.isArray(reviews) || reviews.length === 0) {
+      return res.status(400).json({ message: 'Phải gửi ít nhất một đánh giá sản phẩm' });
     }
 
-    const reviews = await reviewService.createReview({ userId, orderId, rating, comment });
+    const createdReviews = await reviewService.createReview({ userId, orderId, reviews });
     return res.status(201).json({
-      message: `Đã tạo ${reviews.length} đánh giá cho ${reviews.length} sản phẩm`,
-      reviews,
+      message: `Đã tạo ${createdReviews.length} đánh giá cho ${createdReviews.length} sản phẩm`,
+      reviews: createdReviews,
     });
   } catch (error) {
     console.error('Create review error:', error);

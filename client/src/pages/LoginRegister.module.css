@@ -1,249 +1,558 @@
-/* Page background */
+/* Page background - Modal Overlay with Blur */
 .authPage {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 60%);
-  padding: 32px 16px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
 }
 
-/* Card container */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Card container - Clean Modal with Close Button */
 .wrap {
   width: 100%;
   max-width: 480px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), #ffffff);
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.08);
-  padding: 28px 26px;
-  transition: transform 160ms ease, box-shadow 160ms ease;
-}
-.wrap:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.1);
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25), 0 10px 20px rgba(0, 0, 0, 0.15);
+  padding: 40px;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Header */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Custom scrollbar for modal */
+.wrap::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wrap::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+
+.wrap::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.wrap::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Close Button */
+.closeBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 20px;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.closeBtn:hover {
+  background: #1f2937;
+  color: #ffffff;
+  transform: rotate(90deg);
+}
+
+.closeBtn:active {
+  transform: rotate(90deg) scale(0.9);
+}
+
+/* Header - Clean Typography */
 .h1 {
   margin: 0 0 8px;
-  font-size: 28px;
+  padding-right: 40px;
+  font-size: 32px;
   font-weight: 700;
-  color: #0b1220;
-  letter-spacing: -0.2px;
-}
-.sub {
-  margin: 0 0 18px;
-  color: #475569;
-  font-size: 13px;
+  color: #111827;
+  letter-spacing: -0.5px;
+  text-align: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Fields */
+.sub {
+  margin: 0 0 32px;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Fields - Elegant Input Design */
 .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 24px;
+  position: relative;
 }
+
 .label {
   font-size: 13px;
-  color: #334155;
+  color: #374151;
   font-weight: 600;
+  letter-spacing: 0.3px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: color 0.2s ease;
 }
+
+.field:focus-within .label {
+  color: #1f2937;
+}
+
 .inputWrap {
   position: relative;
 }
+
 .inputIcon {
   position: absolute;
-  left: 12px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #9aa7b2;
-  font-size: 14px;
+  color: #9ca3af;
+  font-size: 18px;
+  transition: color 0.2s ease;
+  z-index: 1;
 }
+
+.inputWrap:focus-within .inputIcon {
+  color: #2563eb;
+}
+
 .input {
   width: 100%;
-  padding: 14px 44px 14px 44px;
-  border: 1px solid rgba(14, 45, 77, 0.06);
+  padding: 14px 50px 14px 48px;
+  border: 1.5px solid #e5e7eb;
   border-radius: 12px;
   background: #ffffff;
   font-size: 15px;
-  transition: box-shadow 120ms ease, border-color 120ms ease;
-}
-.input:focus {
-  outline: none;
-  border-color: rgba(77, 163, 255, 0.9);
-  box-shadow: 0 6px 20px rgba(77, 163, 255, 0.08);
-}
-.input:hover {
-  border-color: rgba(14, 45, 77, 0.1);
-}
-.input::placeholder {
-  color: #9aa7b2;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #111827;
+  transition: all 0.2s ease;
 }
 
-/* Actions & links */
+.input:hover {
+  border-color: #d1d5db;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+/* Actions & Links - Clean Style */
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  margin-top: 28px;
 }
+
 .btnPrimary {
-  background: linear-gradient(90deg, #4da3ff 0%, #2b8cff 100%);
+  background: #1f2937;
   border: none;
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  box-shadow: 0 8px 20px rgba(43, 140, 255, 0.12);
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-.btnPrimary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(43, 140, 255, 0.14);
-}
-.btnPrimary:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-.btnGhost {
-  background: transparent;
-  border: none;
-  color: #475569;
-  padding: 8px 12px;
+  color: #ffffff;
+  padding: 14px 28px;
   border-radius: 10px;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+.btnPrimary:hover {
+  background: #111827;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.btnPrimary:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btnGhost {
+  background: transparent;
+  border: 1.5px solid #e5e7eb;
+  color: #374151;
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.btnGhost:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btnGhost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .link {
-  color: #2563eb;
+  color: #6b7280;
   text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 0.2s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
 .link:hover {
+  color: #111827;
   text-decoration: underline;
 }
 
-/* Horizontal divider */
+/* Horizontal Divider - Clean */
 .divider {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #64748b;
-  font-size: 13px;
-  margin: 16px 0;
+  gap: 16px;
+  color: #9ca3af;
+  font-size: 12px;
+  margin: 28px 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
 .divider::before,
 .divider::after {
   content: '';
   height: 1px;
   flex: 1;
-  background: rgba(14, 45, 77, 0.06);
+  background: #e5e7eb;
 }
 
-/* Social */
+/* Social Login - Clean Design */
 .social {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
+
 .btnGoogle,
 .btnFacebook {
-  padding: 10px 14px;
+  padding: 12px 20px;
   border-radius: 10px;
   border: none;
-  background: #fff;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   font-weight: 600;
-}
-.btnGoogle {
-  background: linear-gradient(90deg, #fff 0%, #fff 100%);
-  color: #111827;
-  border: 1px solid rgba(14, 45, 77, 0.06);
-}
-.btnFacebook {
-  background: linear-gradient(90deg, #1877f2 0%, #0f62d6 100%);
-  color: #fff;
-}
-.btnGoogle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(14, 45, 77, 0.06);
-}
-.btnFacebook:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(15, 66, 210, 0.12);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
 }
 
-/* Notices */
-.err {
-  color: #8b1d1d;
-  background: #fff1f1;
-  border: 1px solid rgba(139, 29, 29, 0.08);
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin-top: 12px;
-  font-weight: 600;
+.btnGoogle {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1.5px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+
+.btnGoogle:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.btnFacebook {
+  background: #1f2937;
+  color: #ffffff;
+  border: 1.5px solid #1f2937;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btnFacebook:hover {
+  background: #111827;
+  border-color: #111827;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Social icons */
+.socialIcon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Notices - Clean Alert Design */
+.err {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-top: 16px;
+  font-weight: 500;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 .ok {
   color: #065f46;
   background: #ecfdf5;
-  border: 1px solid rgba(6, 95, 70, 0.08);
-  padding: 10px 12px;
+  border: 1.5px solid #a7f3d0;
+  padding: 12px 16px;
   border-radius: 10px;
-  margin-top: 12px;
+  margin-top: 16px;
+  font-weight: 500;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* OTP input (single-field, spaced digits) */
+/* OTP Input - Clean Design */
 .otpInput {
   width: 100%;
   max-width: 320px;
-  margin: 6px auto 0;
-  letter-spacing: 12px;
-  font-size: 22px;
+  margin: 12px auto 0;
+  letter-spacing: 14px;
+  font-size: 24px;
   text-align: center;
-  padding: 12px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(14, 45, 77, 0.08);
-  background: #fff;
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  background: #ffffff;
+  font-weight: 600;
+  color: #1f2937;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
 }
+
 .otpInput:focus {
   outline: none;
-  border-color: rgba(77, 163, 255, 0.9);
-  box-shadow: 0 6px 20px rgba(77, 163, 255, 0.08);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Eye (show/hide) button inside inputs */
+.otpInput:hover {
+  border-color: #d1d5db;
+}
+
+/* Eye Button - Clean Design */
 .eyeBtn {
   position: absolute;
-  right: 10px;
+  right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  background: transparent;
-  border: none;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
-  padding: 6px;
+  padding: 6px 8px;
+  transition: all 0.2s ease;
+  z-index: 2;
 }
 
-/* Responsive tweaks */
-@media (max-width: 480px) {
+.eyeBtn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.eyeBtn:active {
+  background: #e5e7eb;
+}
+
+/* Responsive Design - Mobile Optimization */
+@media (max-width: 640px) {
+  .authPage {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
   .wrap {
-    padding: 20px;
-    margin: 12px;
-    border-radius: 12px;
+    padding: 32px 24px;
+    margin: 0;
+    border-radius: 16px;
+    max-width: 100%;
+    max-height: calc(100vh - 60px);
   }
-  .input {
-    padding: 12px 12px 12px 40px;
+
+  .closeBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    top: 16px;
+    right: 16px;
   }
+
   .h1 {
+    font-size: 26px;
+    padding-right: 36px;
+  }
+
+  .sub {
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .input {
+    padding: 13px 44px 13px 44px;
+    font-size: 14px;
+  }
+
+  .inputIcon {
+    font-size: 16px;
+    left: 14px;
+  }
+
+  .eyeBtn {
+    right: 12px;
+    font-size: 16px;
+    padding: 5px 7px;
+  }
+
+  .btnPrimary {
+    width: 100%;
+    padding: 13px 24px;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .link {
+    text-align: center;
+  }
+
+  .otpInput {
+    font-size: 20px;
+    letter-spacing: 10px;
+    padding: 13px 10px;
+  }
+
+  .divider {
+    margin: 24px 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .wrap {
+    padding: 28px 20px;
+  }
+
+  .h1 {
+    font-size: 24px;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  .btnPrimary {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .closeBtn {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+}
+
+/* High-resolution screens */
+@media (min-width: 1920px) {
+  .wrap {
+    max-width: 540px;
+    padding: 48px 44px;
+  }
+
+  .h1 {
+    font-size: 36px;
+  }
+
+  .sub {
+    font-size: 15px;
+  }
+
+  .input {
+    font-size: 16px;
+    padding: 16px 52px 16px 50px;
+  }
+
+  .closeBtn {
+    width: 40px;
+    height: 40px;
     font-size: 22px;
   }
 }

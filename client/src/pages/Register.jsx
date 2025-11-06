@@ -198,6 +198,14 @@ export default function Register() {
   return (
     <div className={styles.authPage}>
       <div className={styles.wrap}>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={() => nav('/')}
+          aria-label="Đóng"
+        >
+          ✕
+        </button>
         <h2 className={styles.h1}>Đăng ký</h2>
         <p className={styles.sub}>Sử dụng SĐT để đăng ký. Email là không bắt buộc.</p>
 

@@ -1,0 +1,235 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.backBtn {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.2s;
+}
+
+.backBtn:hover {
+  background: #f9fafb;
+  border-color: #111;
+}
+
+.header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.productName {
+  font-size: 14px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.filterBar {
+  background: #fff;
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.filterButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterButtons button {
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.filterButtons button:hover {
+  background: #f9fafb;
+  border-color: #111;
+}
+
+.filterButtons button.active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.loading,
+.empty {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.reviewList {
+  display: grid;
+  gap: 16px;
+}
+
+.reviewItem {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.reviewUser {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userName {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.reviewDate {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.variantSku {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.reviewComment {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #374151;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.readMore {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 8px;
+  text-decoration: underline;
+}
+
+.readMore:hover {
+  color: #1d4ed8;
+}
+
+.reviewImages {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.reviewImage {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.reviewImage:hover {
+  transform: scale(1.05);
+}
+
+.reviewVideo {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.pagination button {
+  padding: 8px 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.pagination button:not(:disabled):hover {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination span {
+  font-size: 14px;
+  color: #6b7280;
+}

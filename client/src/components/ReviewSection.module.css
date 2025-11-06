@@ -1,0 +1,143 @@
+.reviewSection {
+  margin-top: 32px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.reviewSection h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #111;
+}
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.reviewList {
+  display: grid;
+  gap: 20px;
+}
+
+.reviewItem {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.reviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.reviewUser {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userName {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.reviewDate {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.variantSku {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.reviewComment {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.readMore {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 8px;
+  text-decoration: underline;
+}
+
+.readMore:hover {
+  color: #1d4ed8;
+}
+
+.reviewImages {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.reviewImage {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.reviewImage:hover {
+  transform: scale(1.05);
+}
+
+.reviewVideo {
+  max-width: 300px;
+  border-radius: 8px;
+}
+
+.viewAllContainer {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.viewAllBtn {
+  padding: 12px 32px;
+  background: #fff;
+  border: 2px solid #111;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.viewAllBtn:hover {
+  background: #111;
+  color: #fff;
+}

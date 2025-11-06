@@ -35,10 +35,11 @@ export const validateOrderForReview = async (orderId, userId) => {
   return { valid: true, order };
 };
 
-export const createReview = async ({ userId, orderId, rating, comment }) => {
-  // Validate rating
-  if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-    throw { code: 400, message: 'Điểm đánh giá phải là số nguyên từ 1 đến 5' };
+export const createReview = async ({ userId, orderId, reviews: reviewsArray }) => {
+  // reviewsArray: [{ productId, rating, comment, variantSku, images: [], video: '' }, ...]
+
+  if (!Array.isArray(reviewsArray) || reviewsArray.length === 0) {
+    throw { code: 400, message: 'Phải gửi ít nhất một đánh giá sản phẩm' };
   }
 
   // Validate order
@@ -49,26 +50,46 @@ export const createReview = async ({ userId, orderId, rating, comment }) => {
 
   const order = validation.order;
 
-  // Create a review document for each product in the order.
-  // We allow the same user to review the same product again in a new order.
-  // Uniqueness is enforced per (orderId, productId) via the schema index,
-  // and validateOrderForReview prevents re-reviewing the same order twice.
-  const reviewPromises = order.items.map((item) =>
-    Review.create({
+  // Map productIds in order for quick validation
+  const orderProductIds = order.items.map((item) => item.productId.toString());
+
+  // Validate each review
+  const createdReviews = [];
+  for (const reviewData of reviewsArray) {
+    const { productId, rating, comment, variantSku, images, video } = reviewData;
+
+    // Validate productId is in order
+    if (!orderProductIds.includes(productId.toString())) {
+      throw { code: 400, message: `Sản phẩm ${productId} không có trong đơn hàng` };
+    }
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+      throw { code: 400, message: 'Điểm đánh giá phải là số nguyên từ 1 đến 5' };
+    }
+
+    // Validate images (max 3)
+    if (images && images.length > 3) {
+      throw { code: 400, message: 'Tối đa 3 ảnh cho mỗi đánh giá sản phẩm' };
+    }
+
+    // Create review
+    const review = await Review.create({
       orderId,
       userId,
-      productId: item.productId,
+      productId,
       rating,
       comment: comment || '',
-    }),
-  );
+      variantSku: variantSku || '',
+      images: images || [],
+      video: video || '',
+    });
 
-  const reviews = await Promise.all(reviewPromises);
+    createdReviews.push(review);
 
-  // Update rating for each product in order
-  for (const item of order.items) {
+    // Update product rating stats
     const agg = await Review.aggregate([
-      { $match: { productId: item.productId } },
+      { $match: { productId: new mongoose.Types.ObjectId(productId) } },
       {
         $group: {
           _id: '$productId',
@@ -80,14 +101,14 @@ export const createReview = async ({ userId, orderId, rating, comment }) => {
 
     if (agg.length > 0) {
       const stats = agg[0];
-      await Product.findByIdAndUpdate(item.productId, {
+      await Product.findByIdAndUpdate(productId, {
         ratingAvg: Math.round(stats.avg * 10) / 10,
         ratingCount: stats.count,
       });
     }
   }
 
-  return reviews;
+  return createdReviews;
 };
 
 export const listReviewsByProduct = async (productId, { page = 1, limit = 10 } = {}) => {
@@ -101,6 +122,7 @@ export const listReviewsByProduct = async (productId, { page = 1, limit = 10 } =
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
+    .select('rating comment variantSku images video userId createdAt')
     .lean();
   const total = await Review.countDocuments({ productId });
   return { reviews, total, page, limit };
@@ -125,7 +147,9 @@ export const listUserReviews = async (userId) => {
 
   return reviews.map((review) => ({
     _id: review._id,
-    orderId: review.orderId?._id || null,
+    orderId: review.orderId?._id || review.orderId || null,
+    productId: review.productId || null,
+    variantSku: review.variantSku || null,
     orderDate: review.orderId?.createdAt || null,
     orderStatus: review.orderId?.status || null,
     totalAmount: review.orderId?.amounts?.grandTotal || null,
@@ -143,6 +167,8 @@ export const listUserReviews = async (userId) => {
       : [],
     rating: review.rating,
     comment: review.comment,
+    images: review.images || [],
+    video: review.video || '',
     createdAt: review.createdAt,
   }));
 };

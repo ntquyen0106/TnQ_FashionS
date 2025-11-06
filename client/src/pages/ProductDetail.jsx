@@ -6,6 +6,7 @@ import styles from './ProductDetail.module.css';
 import { useCart } from '@/contexts/CartProvider';
 import { showAddToCartToast } from '@/components/showAddToCartToast';
 import { promotionsApi } from '@/api/promotions-api';
+import ReviewSection from '@/components/ReviewSection';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 // Encode each path segment so publicId có dấu/khoảng trắng vẫn hiển thị đúng
@@ -188,6 +189,51 @@ export default function ProductDetail() {
     return p?.price;
   }, [p, variant]);
 
+  // Calculate maximum discount from all applicable promotions
+  const { finalPrice, discountPercent, discountAmount, hasDiscount, bestPromo } = useMemo(() => {
+    if (!Number.isFinite(price) || !promos.length) {
+      return {
+        finalPrice: price,
+        discountPercent: 0,
+        discountAmount: 0,
+        hasDiscount: false,
+        bestPromo: null,
+      };
+    }
+
+    // Find the promotion that gives maximum discount
+    let maxDiscount = 0;
+    let maxDiscountPercent = 0;
+    let bestPromotion = null;
+
+    for (const promo of promos) {
+      let discount = 0;
+      let percentValue = 0;
+
+      if (promo.type === 'percent') {
+        discount = Math.round(price * (promo.value / 100));
+        percentValue = promo.value;
+      } else if (promo.type === 'amount') {
+        discount = promo.value;
+        percentValue = Math.round((discount / price) * 100);
+      }
+
+      if (discount > maxDiscount) {
+        maxDiscount = discount;
+        maxDiscountPercent = percentValue;
+        bestPromotion = promo;
+      }
+    }
+
+    return {
+      finalPrice: Math.max(0, price - maxDiscount),
+      discountPercent: maxDiscountPercent,
+      discountAmount: maxDiscount,
+      hasDiscount: maxDiscount > 0,
+      bestPromo: bestPromotion,
+    };
+  }, [price, promos]);
+
   if (!p)
     return (
       <div className={styles.container}>
@@ -262,11 +308,27 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <div className={styles.price}>
-              {Number.isFinite(price)
-                ? new Intl.NumberFormat('vi-VN').format(price) + ' VND'
-                : 'Liên hệ'}
-            </div>
+            {Number.isFinite(price) ? (
+              <div className={styles.priceSection}>
+                {hasDiscount ? (
+                  <>
+                    <div className={styles.priceNow}>
+                      {new Intl.NumberFormat('vi-VN').format(finalPrice)} VND
+                    </div>
+                    <div className={styles.priceOriginal}>
+                      {new Intl.NumberFormat('vi-VN').format(price)} VND
+                    </div>
+                    <div className={styles.discountBadge}>-{discountPercent}%</div>
+                  </>
+                ) : (
+                  <div className={styles.price}>
+                    {new Intl.NumberFormat('vi-VN').format(price)} VND
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={styles.price}>Liên hệ</div>
+            )}
 
             {!!promos.length && (
               <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -366,6 +428,9 @@ export default function ProductDetail() {
             </div>
           </div>
         </div>
+
+        {/* Review Section */}
+        {p._id && <ReviewSection productId={p._id} />}
       </div>
     </div>
   );
