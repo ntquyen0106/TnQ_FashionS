@@ -1,82 +1,100 @@
 .wrapper {
-  max-width: 680px;
-  margin: 40px auto;
-  padding: 24px;
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 48px 32px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   text-align: center;
+  border: 1px solid #e5e5e5;
 }
 
 .icon {
-  opacity: 0.9;
+  opacity: 0.95;
+  font-size: 64px;
+  margin-bottom: 16px;
 }
 
 .title {
-  margin: 12px 0 4px;
-  font-size: 1.4rem;
+  margin: 16px 0 8px;
+  font-size: 24px;
   font-weight: 600;
+  color: #111;
+  letter-spacing: -0.3px;
 }
 
 .code {
-  color: #555;
+  color: #6b7280;
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 8px;
 }
 
 .actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 16px;
+  margin-top: 32px;
 }
 
 .btn {
-  padding: 10px 16px;
-  border-radius: 6px;
+  padding: 14px 28px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 600;
   text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .btnHome {
-  border: 1px solid #e5e7eb;
+  border: 2px solid #111;
   background: #fff;
-  color: #111827;
+  color: #111;
 }
 
 .btnHome:hover {
-  background: #f9fafb;
+  background: #fafafa;
 }
 
 .btnBlue {
-  border: 1px solid #0ea5e9;
-  background: #0ea5e9;
+  border: 2px solid #2563eb;
+  background: #2563eb;
   color: #fff;
 }
 
 .btnBlue:hover {
-  background: #0284c7;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 .btnDark {
-  border: 1px solid #111827;
-  background: #111827;
+  border: 2px solid #111;
+  background: #111;
   color: #fff;
 }
 
 .btnDark:hover {
-  background: #1f2937;
+  background: #000;
+  border-color: #000;
 }
 
 .btnDanger {
-  border: 1px solid #ef4444;
-  background: #ef4444;
+  border: 2px solid #dc2626;
+  background: #dc2626;
   color: #fff;
 }
 
 .btnDanger:hover {
-  background: #dc2626;
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .status {

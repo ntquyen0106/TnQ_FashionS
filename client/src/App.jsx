@@ -22,6 +22,7 @@ import AccountProfile from '@/pages/AccountProfile';
 import OrderDetail from '@/pages/OrderDetail';
 import OrderSuccess from '@/pages/OrderSuccess';
 import ReviewOrder from '@/pages/ReviewOrder';
+import AllReviews from '@/pages/AllReviews';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/product/:slug" element={<ProductDetail />} />
+          <Route path="/products/:productId/reviews" element={<AllReviews />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<Checkout />} />
           {/* Support both legacy and hyphenated success paths */}

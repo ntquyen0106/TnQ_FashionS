@@ -33,7 +33,7 @@
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid #e5e7eb;
-  background: #bddeff;
+  background: #f3f4f6;
   font-weight: 700;
   color: #111827;
   font-size: 15px;
@@ -52,23 +52,23 @@
 .logoPrimary {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
     'Apple Color Emoji', 'Segoe UI Emoji';
-  font-weight: 900;
-  letter-spacing: 1.5px;
-  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 22px;
   line-height: 1;
   color: #111827; /* gray-900 */
 }
 .logoSecondary {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
     'Apple Color Emoji', 'Segoe UI Emoji';
-  font-weight: 700;
-  font-size: 20px;
+  font-weight: 600;
+  font-size: 18px;
   line-height: 1;
-  color: #0084e2; /* brand accent */
+  color: #2563eb; /* brand accent - blue */
 }
 @media (max-width: 600px) {
   .logoPrimary {
-    font-size: 22px;
+    font-size: 20px;
   }
   .logoSecondary {
     font-size: 16px;
@@ -91,12 +91,12 @@
   padding: 22px 0;
   font-weight: 600;
   font-size: 17px;
-  color: #000000;
+  color: #111827;
   text-decoration: none;
   transition: color 0.2s;
 }
 .link:hover {
-  color: #e63946;
+  color: #2563eb;
 }
 .link::after {
   content: '';
@@ -105,7 +105,7 @@
   bottom: 14px;
   width: 0%;
   height: 2px;
-  background: #e63946;
+  background: #1f2937;
   transition: width 0.25s ease-in-out;
 }
 .link:hover::after {
@@ -160,12 +160,12 @@
   display: block;
   padding: 6px 0;
   font-size: 15px;
-  color: #444;
+  color: #4b5563;
   text-decoration: none;
   transition: color 0.2s;
 }
 .colLink:hover {
-  color: #e63946;
+  color: #2563eb;
 }
 
 /* --- Search & icons --- */
@@ -178,10 +178,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f5f7fb;
+  background: #f9fafb;
   border-radius: 999px;
   padding: 6px 14px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
 }
 .search input {
   border: none;
@@ -189,21 +189,23 @@
   outline: none;
   font-size: 14px;
   min-width: 200px;
+  color: #111827;
 }
 .search button {
   border: none;
   background: none;
   cursor: pointer;
   font-size: 16px;
+  color: #6b7280;
 }
 .search:focus-within {
-  background: #eef3ff;
-  border-color: rgba(37, 99, 235, 0.35);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 .icon {
   font-size: 20px;
-  color: #333;
+  color: #111827;
   text-decoration: none;
   position: relative;
   display: inline-flex;
@@ -212,28 +214,28 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
   background: #fff;
   transition: all 0.2s ease;
 }
 .icon:hover {
-  color: #e63946;
-  background: #f3f6ff; /* subtle bluish hover */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 0, 0, 0.12);
+  color: #2563eb;
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 .badge {
   position: absolute;
   top: -6px;
   right: -10px;
-  background: #2563eb; /* blue-600 */
+  background: #1f2937;
   color: #fff;
   font-size: 11px;
   font-weight: bold;
   border-radius: 999px;
   padding: 2px 5px;
   line-height: 1;
-  border: 1px solid #fff; /* small ring to separate from background */
+  border: 2px solid #fff;
 }
 /* Responsive - Tablet */
 @media (max-width: 992px) {

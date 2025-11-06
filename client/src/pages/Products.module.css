@@ -7,56 +7,95 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 8px;
 }
 
 .controls {
   display: flex;
   gap: 12px;
+  align-items: center;
+}
+
+.displayLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  letter-spacing: 0.3px;
 }
 
 .search {
-  padding: 8px 10px;
-  border: 1px solid #ddd;
+  padding: 10px 14px;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   min-width: 220px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .select {
-  padding: 8px 10px;
+  padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .count {
-  margin: 6px 0 18px;
-  color: #666;
+  margin: 8px 0 20px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
 }
 
 .card {
-  border: 1px solid #eee;
-  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
   overflow: hidden;
   background: #fff;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  border-color: #d4d4d4;
 }
 
 .imgBox {
   aspect-ratio: 4/5;
   position: relative;
   overflow: hidden;
-  background: #f7f7f7;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .imgFront {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s ease, transform 0.4s ease;
   position: relative;
 }
 
@@ -68,61 +107,127 @@
   top: 0;
   left: 0;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
-/* Hover đổi ảnh */
+/* Hover effects */
 .card:hover .imgFront {
   opacity: 0;
+  transform: scale(1.05);
 }
 .card:hover .imgBack {
   opacity: 1;
+  transform: scale(1.05);
+}
+
+.discountBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+  z-index: 10;
 }
 
 .info {
-  padding: 10px 12px;
+  padding: 14px 16px;
 }
 
 .name {
   font-weight: 600;
-  line-height: 1.35;
-  min-height: 40px;
-  margin-bottom: 4px;
+  line-height: 1.4;
+  min-height: 44px;
+  margin-bottom: 8px;
   color: #111;
+  font-size: 15px;
+}
+
+.priceBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.priceNow {
+  font-weight: 700;
+  font-size: 16px;
+  color: #dc2626;
+}
+
+.priceOld {
+  font-size: 13px;
+  color: #9ca3af;
+  text-decoration: line-through;
+  font-weight: 500;
 }
 
 .price {
   font-weight: 700;
+  font-size: 16px;
   color: #111;
+  margin-bottom: 4px;
 }
 
 .empty {
-  padding: 32px 0;
-  color: #777;
+  padding: 48px 20px;
+  color: #9ca3af;
   text-align: center;
+  font-size: 15px;
 }
 
 .pagination {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 40px;
 }
 
 .pageBtn {
-  padding: 6px 12px;
-  border: 1px solid #ddd;
+  padding: 8px 14px;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   background: #fff;
   color: #111;
   cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pageBtn:hover {
+  border-color: #111;
+  background: #fafafa;
 }
 
 .pageBtnActive {
-  padding: 6px 12px;
+  padding: 8px 14px;
   border: 1px solid #111;
   border-radius: 8px;
   background: #111;
   color: #fff;
   cursor: default;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+  }
+
+  .name {
+    font-size: 14px;
+    min-height: 38px;
+  }
 }

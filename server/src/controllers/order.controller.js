@@ -188,31 +188,25 @@ export const cancelMine = async (req, res, next) => {
     const { reasons = [], other } = req.body || {};
     const one = await Order.findOne({ _id: id, userId }).lean();
     if (!one) return res.status(404).json({ message: 'Order not found' });
-    if (!['PENDING', 'pending'].includes(String(one.status))) {
-      return res.status(400).json({ message: 'Chỉ được hủy khi đơn đang chờ xác nhận' });
+    // Idempotent: nếu đã hủy rồi thì trả về luôn, tránh báo lỗi khi FE gọi 2 bước (cancel payment → cancel order)
+    if (String(one.status).toUpperCase() === 'CANCELLED') {
+      return res.json(one);
     }
-    const list = Array.isArray(reasons) ? reasons.filter(Boolean) : [];
-    const noteParts = list.slice(0);
-    if (other && String(other).trim()) noteParts.push(`Khác: ${String(other).trim()}`);
-    const noteText = noteParts.length
-      ? `Customer cancel: ${noteParts.join(', ')}`
-      : 'Customer cancel';
-    const updated = await Order.findByIdAndUpdate(
-      id,
-      {
-        $set: { status: 'CANCELLED' },
-        $push: {
-          history: {
-            action: 'CANCEL',
-            fromStatus: one.status,
-            toStatus: 'CANCELLED',
-            byUserId: userId,
-            note: noteText,
-          },
-        },
-      },
-      { new: true },
-    ).lean();
+    const st = String(one.status).toUpperCase();
+    if (!['PENDING', 'AWAITING_PAYMENT'].includes(st)) {
+      return res
+        .status(400)
+        .json({ message: 'Chỉ được hủy khi đơn đang chờ xác nhận hoặc chờ thanh toán' });
+    }
+
+    // Use centralized service to handle history + inventory release
+    const updated = await orderService.updateStatus({
+      orderId: id,
+      status: 'canceled',
+      byUserId: userId,
+      reasons,
+      other,
+    });
     res.json(updated);
   } catch (e) {
     next(e);

@@ -139,6 +139,14 @@ export default function VerifyCode() {
   return (
     <div className={styles.authPage}>
       <div className={styles.wrap}>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={() => nav('/')}
+          aria-label="Đóng"
+        >
+          ✕
+        </button>
         <h2 className={styles.h1}>Xác thực OTP quên mật khẩu</h2>
         <p className={styles.sub}>
           Mã xác thực đã được gửi tới <b>{email}</b>.

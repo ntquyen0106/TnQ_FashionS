@@ -62,6 +62,14 @@ export default function ResetPassword() {
   return (
     <div className={styles.authPage}>
       <div className={styles.wrap}>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={() => nav('/')}
+          aria-label="Đóng"
+        >
+          ✕
+        </button>
         <h2 className={styles.h1}>Tạo mật khẩu mới</h2>
         <p className={styles.sub}>Mật khẩu cần tối thiểu 6 ký tự và dễ nhớ với bạn.</p>
         <form onSubmit={onSubmit}>

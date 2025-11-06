@@ -1,78 +1,88 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modal {
-  width: min(96vw, 800px);
-  max-height: 88vh;
+  width: min(94vw, 560px);
+  max-height: 90vh;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3), 0 6px 20px rgba(15, 23, 42, 0.18);
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  transform: translateY(8px) scale(0.98);
+  transform: translateY(12px) scale(0.96);
   opacity: 0;
-  animation: modalIn 0.16s ease-out forwards;
+  animation: modalIn 0.25s ease-out forwards;
 }
 
 .header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #eef2f7;
-  font-weight: 700;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid #e5e5e5;
+  font-weight: 600;
+  font-size: 18px;
+  color: #111;
+  letter-spacing: -0.2px;
 }
 
 .content {
-  padding: 16px 20px;
-  color: #1f2937;
+  padding: 24px;
+  color: #374151;
   overflow: auto;
+  line-height: 1.6;
+  font-size: 15px;
 }
 
 .actions {
   display: flex;
   gap: 12px;
-  padding: 14px 20px 20px;
+  padding: 16px 24px 24px;
   justify-content: flex-end;
-  border-top: 1px solid #eef2f7;
+  border-top: 1px solid #e5e5e5;
 }
 
 .btn {
-  padding: 10px 14px;
+  padding: 12px 24px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
+  border: 2px solid #e5e5e5;
   background: #fff;
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.02s ease;
+  font-size: 15px;
+  transition: all 0.2s ease;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn:hover {
-  background: #f5f5f5;
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.btn:active {
-  transform: translateY(1px);
+.btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .primary {
-  background: #0f172a;
-  border-color: #0f172a;
+  background: #111;
+  border-color: #111;
   color: #fff;
 }
 
-.primary:hover {
-  background: #111827;
-  border-color: #111827;
+.primary:hover:not(:disabled) {
+  background: #000;
+  border-color: #000;
 }
 
 .danger {
@@ -81,13 +91,28 @@
   color: #fff;
 }
 
-.danger:hover {
+.danger:hover:not(:disabled) {
   background: #b91c1c;
   border-color: #b91c1c;
 }
 
 .ghost {
   background: #fff;
+  border-color: #d4d4d4;
+}
+
+.ghost:hover:not(:disabled) {
+  background: #fafafa;
+  border-color: #9ca3af;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes modalIn {

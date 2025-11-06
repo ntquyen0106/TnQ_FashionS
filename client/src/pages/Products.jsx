@@ -31,7 +31,7 @@ export default function Products() {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [promosByProduct, setPromosByProduct] = useState({}); // id -> [codes]
+  const [promosByProduct, setPromosByProduct] = useState({}); // id -> [promo objects with type, value, code]
   const [salesByProduct, setSalesByProduct] = useState({}); // id -> sold qty
 
   // === Title theo path ===
@@ -67,7 +67,7 @@ export default function Products() {
     };
   }, [path, q, sort, page, limit]);
 
-  // Fetch applicable promo codes for products in the current page (show tags)
+  // Fetch applicable promotions for products in the current page (store full promo objects)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -83,10 +83,8 @@ export default function Products() {
           }
           try {
             const data = await promotionsApi.available(0, { all: true, productIds: [id] });
-            next[id] = (data || [])
-              .filter((x) => x.applicable)
-              .map((x) => x.code)
-              .slice(0, 2);
+            // Store full promo objects (with type, value, code) for up to 2 promotions
+            next[id] = (data || []).filter((x) => x.applicable).slice(0, 2);
           } catch {
             next[id] = [];
           }
@@ -134,16 +132,10 @@ export default function Products() {
         <h1 style={{ margin: '12px 0' }}>{title}</h1>
 
         <div className={s.controls}>
-          {/* Search nhanh */}
-          <input
-            defaultValue={q}
-            placeholder="Tìm kiếm nhanh…"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') setParam({ q: e.currentTarget.value });
-            }}
-            className={s.search}
-            aria-label="Tìm kiếm sản phẩm"
-          />
+          {/* Display label (quick search removed - main search exists elsewhere) */}
+          <div className={s.displayLabel} aria-hidden="true">
+            Hiện thị
+          </div>
 
           {/* Sort */}
           <select
@@ -188,6 +180,42 @@ export default function Products() {
 
             const hasPrice = Number.isFinite(rawPrice);
 
+            // Calculate maximum discount if multiple promotions apply
+            const promoList = promosByProduct[p._id] || [];
+            let finalPrice = rawPrice;
+            let discountPercent = 0;
+            let discountAmount = 0;
+            let bestPromo = null;
+
+            if (hasPrice && promoList.length > 0) {
+              // Calculate discount for each promotion and pick the one with maximum savings
+              let maxDiscount = 0;
+              let maxDiscountPercent = 0;
+
+              for (const promo of promoList) {
+                let discount = 0;
+                let percentValue = 0;
+
+                if (promo.type === 'percent') {
+                  discount = Math.round(rawPrice * (promo.value / 100));
+                  percentValue = promo.value;
+                } else if (promo.type === 'amount') {
+                  discount = promo.value;
+                  percentValue = Math.round((discount / rawPrice) * 100);
+                }
+
+                if (discount > maxDiscount) {
+                  maxDiscount = discount;
+                  maxDiscountPercent = percentValue;
+                  bestPromo = promo;
+                }
+              }
+
+              discountAmount = maxDiscount;
+              discountPercent = maxDiscountPercent;
+              finalPrice = Math.max(0, rawPrice - discountAmount);
+            }
+
             return (
               <Link
                 key={p._id}
@@ -205,11 +233,27 @@ export default function Products() {
                         loading="lazy"
                       />
                     )}
+                    {discountPercent > 0 && (
+                      <div className={s.discountBadge}>-{discountPercent}%</div>
+                    )}
                   </div>
 
                   <div className={s.info}>
                     <div className={s.name}>{p.name}</div>
-                    <div className={s.price}>{hasPrice ? formatVND(rawPrice) : 'Liên hệ'}</div>
+                    {hasPrice ? (
+                      <div className={s.priceBox}>
+                        {discountPercent > 0 ? (
+                          <>
+                            <div className={s.priceNow}>{formatVND(finalPrice)}</div>
+                            <div className={s.priceOld}>{formatVND(rawPrice)}</div>
+                          </>
+                        ) : (
+                          <div className={s.price}>{formatVND(rawPrice)}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={s.price}>Liên hệ</div>
+                    )}
                     <div
                       style={{
                         marginTop: 4,
@@ -236,9 +280,9 @@ export default function Products() {
                     </div>
                     {!!promosByProduct[p._id]?.length && (
                       <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {promosByProduct[p._id].map((code) => (
+                        {promosByProduct[p._id].map((promo) => (
                           <span
-                            key={code}
+                            key={promo.code}
                             style={{
                               display: 'inline-block',
                               fontSize: 12,
@@ -250,9 +294,9 @@ export default function Products() {
                               borderRadius: 6,
                               lineHeight: 1.3,
                             }}
-                            title={`Khuyến mãi: ${code}`}
+                            title={`Khuyến mãi: ${promo.code}`}
                           >
-                            {code}
+                            {promo.code}
                           </span>
                         ))}
                       </div>

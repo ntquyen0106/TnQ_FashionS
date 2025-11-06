@@ -50,6 +50,14 @@ export default function Forgot() {
   return (
     <div className={styles.authPage}>
       <div className={styles.wrap}>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={() => nav('/')}
+          aria-label="Đóng"
+        >
+          ✕
+        </button>
         <h2 className={styles.h1}>Quên mật khẩu</h2>
         <p className={styles.sub}>
           Nhập email hoặc số điện thoại để nhận mã xác thực đặt lại mật khẩu.

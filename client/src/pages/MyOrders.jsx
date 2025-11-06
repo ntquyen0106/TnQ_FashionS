@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ordersApi from '@/api/orders-api';
+import { reviewsApi } from '@/api/reviews-api';
 import styles from './MyOrders.module.css';
 
 const fmtVND = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0);
@@ -27,7 +28,6 @@ const STATUS_LABEL = {
 };
 
 const STATUS_KEYS = [
-  'ALL',
   'PENDING',
   'CONFIRMED',
   'SHIPPING',
@@ -35,6 +35,7 @@ const STATUS_KEYS = [
   'DONE',
   'CANCELLED',
   'RETURNED',
+  'ALL',
 ];
 const PM_LABEL = {
   COD: 'Thanh toán khi nhận hàng',
@@ -45,7 +46,8 @@ export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState('ALL');
+  const [filter, setFilter] = useState('PENDING'); // Mặc định là "Chờ xác nhận"
+  const [reviewedOrders, setReviewedOrders] = useState(new Set());
 
   useEffect(() => {
     (async () => {
@@ -56,6 +58,25 @@ export default function MyOrders() {
         setOrders([]);
       } finally {
         setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Load reviewed orders
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await reviewsApi.mine();
+        const list = Array.isArray(res?.reviews) ? res.reviews : res || [];
+        const orderIds = new Set(
+          list.map((rv) => {
+            const oid = typeof rv.orderId === 'object' ? rv.orderId?._id : rv.orderId;
+            return String(oid);
+          }),
+        );
+        setReviewedOrders(orderIds);
+      } catch (e) {
+        console.error('Failed to load reviews:', e);
       }
     })();
   }, []);
@@ -137,58 +158,107 @@ export default function MyOrders() {
                     first.imageSnapshot,
                   ).replace(/%2F/g, '/')}`
               : '/no-image.png';
+
+            const canReview = ['DONE', 'RETURNED'].includes(status.toUpperCase());
+            const hasReviewed = reviewedOrders.has(String(o._id));
+
             return (
-              <Link to={`/orders/${o._id}`} className={styles.card}>
-                <div className={styles.rowTop}>
-                  <div className={styles.prodHead}>
-                    <img src={img} alt={first?.nameSnapshot || 'Sản phẩm'} />
-                    <div className={styles.prodMeta}>
-                      <div className={styles.prodName}>
-                        {first?.nameSnapshot || 'Sản phẩm'}
-                        {o.items?.length > 1 && (
-                          <span className={styles.more}> +{o.items.length - 1} sản phẩm</span>
-                        )}
-                      </div>
-                      {/* Ẩn mã đơn ở danh sách theo yêu cầu */}
-                      <div className={styles.codeSmall} style={{ visibility: 'hidden', height: 0 }}>
-                        &nbsp;
+              <div key={o._id} className={styles.card}>
+                <Link to={`/orders/${o._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className={styles.rowTop}>
+                    <div className={styles.prodHead}>
+                      <img src={img} alt={first?.nameSnapshot || 'Sản phẩm'} />
+                      <div className={styles.prodMeta}>
+                        <div className={styles.prodName}>
+                          {first?.nameSnapshot || 'Sản phẩm'}
+                          {o.items?.length > 1 && (
+                            <span className={styles.more}> +{o.items.length - 1} sản phẩm</span>
+                          )}
+                        </div>
+                        {/* Ẩn mã đơn ở danh sách theo yêu cầu */}
+                        <div
+                          className={styles.codeSmall}
+                          style={{ visibility: 'hidden', height: 0 }}
+                        >
+                          &nbsp;
+                        </div>
                       </div>
                     </div>
+                    <div className={`${styles.chip} ${styles[`st_${status}`]}`}>{label}</div>
                   </div>
-                  <div className={`${styles.chip} ${styles[`st_${status}`]}`}>{label}</div>
-                </div>
 
-                <div className={styles.rowMid}>
-                  {/* <div>
-                    <div className={styles.k}>Ngày đặt</div>
-                    <div className={styles.v}>{fmtDate(o.createdAt)}</div>
-                  </div> */}
-                  <div>
-                    <div className={styles.k}>Sản phẩm</div>
-                    <div className={styles.v}>{o.items?.length || 0} mặt hàng</div>
-                  </div>
-                  <div>
-                    <div className={styles.k}>Phương thức</div>
-                    <div className={styles.v}>
-                      {PM_LABEL[o.paymentMethod] || o.paymentMethod || '—'}
+                  <div className={styles.rowMid}>
+                    {/* <div>
+                      <div className={styles.k}>Ngày đặt</div>
+                      <div className={styles.v}>{fmtDate(o.createdAt)}</div>
+                    </div> */}
+                    <div>
+                      <div className={styles.k}>Sản phẩm</div>
+                      <div className={styles.v}>{o.items?.length || 0} mặt hàng</div>
+                    </div>
+                    <div>
+                      <div className={styles.k}>Phương thức</div>
+                      <div className={styles.v}>
+                        {PM_LABEL[o.paymentMethod] || o.paymentMethod || '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.k}>Tạm tính</div>
+                      <div className={styles.v}>{fmtVND(sub)}₫</div>
+                    </div>
+                    <div>
+                      <div className={styles.k}>Giảm giá</div>
+                      <div className={styles.v}>-{fmtVND(discount)}₫</div>
                     </div>
                   </div>
-                  <div>
-                    <div className={styles.k}>Tạm tính</div>
-                    <div className={styles.v}>{fmtVND(sub)}₫</div>
-                  </div>
-                  <div>
-                    <div className={styles.k}>Giảm giá</div>
-                    <div className={styles.v}>-{fmtVND(discount)}₫</div>
-                  </div>
-                </div>
 
-                <div className={styles.rowBot}>
-                  <div className={styles.total}>
-                    Tổng thanh toán: <strong>{fmtVND(total)}₫</strong>
+                  <div className={styles.rowBot}>
+                    <div className={styles.total}>
+                      Tổng thanh toán: <strong>{fmtVND(total)}₫</strong>
+                    </div>
+                    {canReview && (
+                      <Link
+                        to={`/orders/${o._id}/review`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 20px',
+                          background: hasReviewed
+                            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                            : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                          color: '#fff',
+                          borderRadius: '8px',
+                          textDecoration: 'none',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          boxShadow: hasReviewed
+                            ? '0 4px 12px rgba(102, 126, 234, 0.4)'
+                            : '0 4px 12px rgba(245, 87, 108, 0.4)',
+                          transition: 'all 0.3s ease',
+                          border: 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = hasReviewed
+                            ? '0 6px 20px rgba(102, 126, 234, 0.5)'
+                            : '0 6px 20px rgba(245, 87, 108, 0.5)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = hasReviewed
+                            ? '0 4px 12px rgba(102, 126, 234, 0.4)'
+                            : '0 4px 12px rgba(245, 87, 108, 0.4)';
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span style={{ fontSize: '16px' }}>{hasReviewed ? '👁️' : '⭐'}</span>
+                        <span>{hasReviewed ? 'Xem đánh giá' : 'Đánh giá ngay'}</span>
+                      </Link>
+                    )}
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
             );
           })}
         </div>

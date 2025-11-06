@@ -18,11 +18,20 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Missing file' });
 
+    // Determine resource type from mimetype
+    const mimeType = req.file.mimetype || '';
+    let resourceType = 'image'; // default
+    if (mimeType.startsWith('video/')) {
+      resourceType = 'video';
+    } else if (mimeType.startsWith('audio/')) {
+      resourceType = 'raw'; // or 'video' depending on use case
+    }
+
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          folder: 'products', // <-- tuỳ bạn
-          resource_type: 'image',
+          folder: 'products',
+          resource_type: resourceType,
           use_filename: true,
           unique_filename: true,
           overwrite: false,
@@ -33,11 +42,13 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     });
 
     return res.json({
-      publicId: result.public_id, // <-- FE/DB dùng cái này
+      publicId: result.public_id,
       url: result.secure_url,
       width: result.width,
       height: result.height,
       format: result.format,
+      resourceType: result.resource_type,
+      duration: result.duration, // For videos
     });
   } catch (e) {
     next(e);

@@ -1,16 +1,29 @@
 /* ==== Reset & base ==== */
-* { box-sizing: border-box; }
-html, body { height: 100%; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   background: #f5f5f5;
   color: #333;
 }
-a { color: inherit; text-decoration: none; }
+a {
+  color: inherit;
+  text-decoration: none;
+}
 
 /* Ảnh/iframe co giãn đúng tỉ lệ */
-img, video { max-width: 100%; height: auto; display: block; }
+img,
+video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
 
 /* ==== Layout chung ==== */
 .container {
@@ -20,53 +33,92 @@ img, video { max-width: 100%; height: auto; display: block; }
   padding: 0 16px;
 }
 
-/* Nút chung */
+/* Nút chung - Black & White Theme */
 .btn {
   display: inline-block;
   padding: 10px 18px;
-  background: #007bff;
+  background: #1f2937;
   color: #fff;
-  border-radius: 6px;
-  font-weight: bold;
+  border-radius: 8px;
+  font-weight: 600;
   border: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
-.btn:hover { background: #0056b3; }
-.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn:hover {
+  background: #111827;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-/* ==== Navbar (mobile-first) ==== */
+/* ==== Navbar (mobile-first) - Black & White Theme ==== */
 .nav {
-  position: sticky; top: 0; z-index: 10;
-  background: #222; color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #1f2937;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 .nav .container {
-  display: flex; align-items: center; gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 12px 0;
 }
-.nav .brand { font-size: 20px; font-weight: bold; }
+.nav .brand {
+  font-size: 20px;
+  font-weight: 700;
+}
 
 /* Link menu: mobile cho phép xuống dòng để không vỡ layout */
 .nav-links {
   margin-left: auto;
-  display: flex; gap: 12px; flex-wrap: wrap;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
-.nav a, .nav button { color: #fff; }
+.nav a,
+.nav button {
+  color: #fff;
+  transition: color 0.2s ease;
+}
+.nav a:hover,
+.nav button:hover {
+  color: #d1d5db;
+}
 
 /* ==== Helper để canh giữa form đẹp trên desktop ==== */
-.page-center { padding: 16px; }
-.card-narrow { background: #fff; border: 1px solid #eaeaea; border-radius: 12px; }
+.page-center {
+  padding: 16px;
+}
+.card-narrow {
+  background: #fff;
+  border: 1px solid #eaeaea;
+  border-radius: 12px;
+}
 
 /* >=768px: tăng khoảng, hạn chế wrap */
 @media (min-width: 768px) {
-  .nav-links { gap: 16px; flex-wrap: nowrap; }
-  .page-center { padding: 24px; }
+  .nav-links {
+    gap: 16px;
+    flex-wrap: nowrap;
+  }
+  .page-center {
+    padding: 24px;
+  }
 }
 
 /* >=1024px: form thu hẹp và căn giữa */
 @media (min-width: 1024px) {
   .page-center {
     min-height: calc(100vh - 56px);
-    display: grid; place-items: center;
+    display: grid;
+    place-items: center;
   }
-  .card-narrow { width: 420px; }
+  .card-narrow {
+    width: 420px;
+  }
 }

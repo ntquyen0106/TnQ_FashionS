@@ -35,7 +35,7 @@ const getPriceRange = (p) => {
 };
 
 export default function ProductCard({ product }) {
-  const [promoCodes, setPromoCodes] = useState([]);
+  const [promos, setPromos] = useState([]);
   const imgId = getPrimaryImageId(product);
   const img = buildImg(imgId);
   const price = getPriceRange(product);
@@ -50,12 +50,9 @@ export default function ProductCard({ product }) {
           all: true,
           productIds: [product._id],
         });
-        // show only promotions that apply to this product/category regardless of subtotal
-        const codes = (data || [])
-          .filter((p) => p.applicable)
-          .map((p) => p.code)
-          .slice(0, 2);
-        if (isMounted) setPromoCodes(codes);
+        // Store full promo objects for discount calculation
+        const applicablePromos = (data || []).filter((p) => p.applicable).slice(0, 2);
+        if (isMounted) setPromos(applicablePromos);
       } catch (e) {
         // ignore
       }
@@ -65,6 +62,38 @@ export default function ProductCard({ product }) {
     };
   }, [product?._id]);
 
+  // Calculate maximum discount if multiple promotions apply
+  let discountPercent = 0;
+  let finalPrice = price?.min;
+
+  if (price?.min && promos.length > 0) {
+    let maxDiscount = 0;
+    let maxDiscountPercent = 0;
+
+    for (const promo of promos) {
+      let discount = 0;
+      let percentValue = 0;
+
+      if (promo.type === 'percent') {
+        discount = Math.round(price.min * (promo.value / 100));
+        percentValue = promo.value;
+      } else if (promo.type === 'amount') {
+        discount = promo.value;
+        percentValue = Math.round((discount / price.min) * 100);
+      }
+
+      if (discount > maxDiscount) {
+        maxDiscount = discount;
+        maxDiscountPercent = percentValue;
+      }
+    }
+
+    if (maxDiscount > 0) {
+      discountPercent = maxDiscountPercent;
+      finalPrice = Math.max(0, price.min - maxDiscount);
+    }
+  }
+
   return (
     <Link to={to} className="product-card" style={styles.card} aria-label={product.name}>
       <div style={styles.media}>
@@ -73,21 +102,31 @@ export default function ProductCard({ product }) {
         ) : (
           <div style={styles.fallback} />
         )}
+        {discountPercent > 0 && (
+          <div style={styles.discountBadge}>-{Math.round(discountPercent)}%</div>
+        )}
       </div>
       <div style={styles.body}>
         <h3 style={styles.title} title={product.name}>
           {product.name}
         </h3>
         {price ? (
-          <div style={styles.price}>{`${formatVND(price.min)} đ`}</div>
+          discountPercent > 0 ? (
+            <div style={styles.priceBox}>
+              <div style={styles.priceNow}>{`${formatVND(finalPrice)} đ`}</div>
+              <div style={styles.priceOld}>{`${formatVND(price.min)} đ`}</div>
+            </div>
+          ) : (
+            <div style={styles.price}>{`${formatVND(price.min)} đ`}</div>
+          )
         ) : (
           <div style={styles.priceMuted}>Liên hệ</div>
         )}
-        {!!promoCodes.length && (
+        {!!promos.length && (
           <div style={styles.promoRow}>
-            {promoCodes.map((c) => (
-              <span key={c} style={styles.promoTag} title={`Khuyến mãi: ${c}`}>
-                {c}
+            {promos.map((p) => (
+              <span key={p.code} style={styles.promoTag} title={`Khuyến mãi: ${p.code}`}>
+                {p.code}
               </span>
             ))}
           </div>
@@ -108,12 +147,24 @@ const styles = {
     overflow: 'hidden',
     transition: 'transform .15s ease, box-shadow .15s ease',
   },
-  media: { width: '100%', aspectRatio: '1 / 1', background: '#f7f7f7' },
+  media: { width: '100%', aspectRatio: '1 / 1', background: '#f7f7f7', position: 'relative' },
   img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   fallback: {
     width: '100%',
     height: '100%',
     background: 'linear-gradient(135deg,#f3f4f6,#e5e7eb)',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    background: '#dc2626',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 700,
+    padding: '4px 8px',
+    borderRadius: 6,
+    boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)',
   },
   body: { padding: '12px 12px 14px' },
   title: {
@@ -125,6 +176,9 @@ const styles = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  priceBox: { marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 },
+  priceNow: { color: '#dc2626', fontWeight: 800, fontSize: 15 },
+  priceOld: { color: '#9ca3af', fontSize: 13, textDecoration: 'line-through', fontWeight: 500 },
   price: { marginTop: 6, color: '#e11d48', fontWeight: 800 },
   priceMuted: { marginTop: 6, color: '#6b7280', fontWeight: 600 },
   promoRow: { marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' },
