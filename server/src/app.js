@@ -20,6 +20,9 @@ import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import adminUserRoutes from './routes/admin-user.routes.js';
 
+import chatbotRoutes from './routes/chatbot.routes.js';
+import trainingRoutes from './routes/training.routes.js';
+
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
 
@@ -85,6 +88,10 @@ export const createApp = (clientUrl) => {
   app.use('/api/promotions', promotionRoutes);
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/reports', reportsRoutes);
+
+  // Chatbot & AI Training
+  app.use('/api/chatbot', chatbotRoutes);
+  app.use('/api/training', trainingRoutes);
 
   // Swagger
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));

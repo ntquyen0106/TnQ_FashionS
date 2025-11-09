@@ -4,11 +4,18 @@ const ChatMessageSchema = new mongoose.Schema(
   {
     sessionId: { type: String, required: true, index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    from: { type: String, enum: ["user", "bot"], required: true },
+    from: { type: String, enum: ["user", "bot", "staff"], required: true },
     text: { type: String, required: true },
     intents: [String],
     confidence: { type: Number, default: 0 },
-    suggestedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }]
+    suggestedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+    staffId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    staffName: { type: String },
+    metadata: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    }
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
