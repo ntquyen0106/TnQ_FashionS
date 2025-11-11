@@ -8,7 +8,7 @@ import Policy from '../models/Policy.js';
  */
 export const postSendMessage = async (req, res) => {
   try {
-    const { sessionId, text, customerInfo } = req.body;
+    const { sessionId, text, customerInfo, attachment } = req.body;
     const userId = req.user?._id || null;
 
     if (!sessionId || !text?.trim()) {
@@ -23,6 +23,8 @@ export const postSendMessage = async (req, res) => {
       userId,
       text: text.trim(),
       customerInfo: customerInfo || {},
+      attachment: attachment || null,
+      io: req.io,
     });
 
     // Chỉ trả data cần thiết cho frontend
@@ -34,6 +36,7 @@ export const postSendMessage = async (req, res) => {
           from: result.userMessage.from,
           text: result.userMessage.text,
           createdAt: result.userMessage.createdAt,
+          attachment: result.userMessage.attachment || null,
         },
         botMessage: result.botMessage
           ? {
@@ -41,6 +44,7 @@ export const postSendMessage = async (req, res) => {
               from: result.botMessage.from,
               text: result.botMessage.text,
               createdAt: result.botMessage.createdAt,
+              attachment: result.botMessage.attachment || null,
             }
           : null,
         session: {
@@ -71,6 +75,9 @@ export const getHistory = async (req, res) => {
 
     const messages = await chatbotService.getHistory(sessionId, limit ? parseInt(limit) : 50);
 
+    // Get session info to include staff details
+    const session = await chatbotService.getSessionInfo(sessionId);
+
     // Chỉ trả fields cần thiết
     const simplifiedMessages = messages.map((m) => ({
       _id: m._id,
@@ -78,11 +85,24 @@ export const getHistory = async (req, res) => {
       text: m.text,
       createdAt: m.createdAt,
       staffName: m.staffName,
+      attachment: m.attachment || null,
+      productData:
+        (m.metadata && (m.metadata.get ? m.metadata.get('productData') : m.metadata.productData)) ||
+        null,
     }));
 
     res.json({
       success: true,
-      data: { messages: simplifiedMessages },
+      data: {
+        messages: simplifiedMessages,
+        session: session
+          ? {
+              status: session.status,
+              assignedStaffName: session.assignedStaffId?.name || null,
+              aiEnabled: session.aiEnabled,
+            }
+          : null,
+      },
     });
   } catch (error) {
     console.error('❌ [Chatbot Controller] Error:', error);
@@ -100,7 +120,7 @@ export const getHistory = async (req, res) => {
  */
 export const postRequestStaff = async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, customerInfo } = req.body;
 
     if (!sessionId) {
       return res.status(400).json({
@@ -109,7 +129,7 @@ export const postRequestStaff = async (req, res) => {
       });
     }
 
-    await chatbotService.requestStaff(sessionId);
+    await chatbotService.requestStaff(sessionId, req.io, customerInfo || {});
 
     res.json({
       success: true,
@@ -125,13 +145,50 @@ export const postRequestStaff = async (req, res) => {
 };
 
 /**
+ * @route   POST /api/chatbot/toggle-ai
+ * @desc    Public endpoint to toggle AI for a session (enable AI for customer)
+ * @access  Public
+ */
+export const postToggleAIPublic = async (req, res) => {
+  try {
+    const { sessionId, enabled } = req.body;
+
+    if (!sessionId || typeof enabled === 'undefined') {
+      return res
+        .status(400)
+        .json({ success: false, message: 'sessionId and enabled are required' });
+    }
+
+    const session = await chatbotService.toggleAI(sessionId, !!enabled);
+
+    // Notify chat room about AI toggle if socket present
+    if (req.io) {
+      req.io.to(`chat:${sessionId}`).emit('ai_toggled', {
+        sessionId,
+        aiEnabled: session.aiEnabled,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { session: { sessionId: session.sessionId, aiEnabled: session.aiEnabled } },
+    });
+  } catch (error) {
+    console.error('❌ [Chatbot Controller] Error toggling AI (public):', error);
+    res
+      .status(error.code || 500)
+      .json({ success: false, message: error.message || 'Internal server error' });
+  }
+};
+
+/**
  * @route   POST /api/chatbot/staff/message
  * @desc    Staff send message
  * @access  Private (staff/admin)
  */
 export const postStaffSendMessage = async (req, res) => {
   try {
-    const { sessionId, text } = req.body;
+    const { sessionId, text, attachment, productData } = req.body;
     const staffId = req.user._id;
     const staffName = req.user.name || 'Staff';
 
@@ -147,6 +204,9 @@ export const postStaffSendMessage = async (req, res) => {
       staffId,
       staffName,
       text: text.trim(),
+      attachment: attachment || null,
+      productData: productData || null,
+      io: req.io,
     });
 
     res.json({
@@ -158,6 +218,11 @@ export const postStaffSendMessage = async (req, res) => {
           text: result.message.text,
           staffName: result.message.staffName,
           createdAt: result.message.createdAt,
+          attachment: result.message.attachment || null,
+          productData:
+            result.message.metadata?.get?.('productData') ||
+            result.message.metadata?.productData ||
+            null,
         },
       },
     });
@@ -177,12 +242,14 @@ export const postStaffSendMessage = async (req, res) => {
  */
 export const getStaffSessions = async (req, res) => {
   try {
-    const { status, assignedToMe, page, limit } = req.query;
-    const staffId = assignedToMe === 'true' ? req.user._id : null;
+    const { status, assignedToMe, includeWaitingAndMine, page, limit } = req.query;
+    const staffId =
+      assignedToMe === 'true' || includeWaitingAndMine === 'true' ? req.user._id : null;
 
     const result = await chatbotService.listStaffSessions({
       status,
       assignedToMe: assignedToMe === 'true',
+      includeWaitingAndMine: includeWaitingAndMine === 'true',
       staffId,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
@@ -195,7 +262,10 @@ export const getStaffSessions = async (req, res) => {
       aiEnabled: s.aiEnabled,
       customerInfo: s.customerInfo,
       lastMessageAt: s.lastMessageAt,
-      assignedStaff: s.assignedStaffId ? { name: s.assignedStaffId.name } : null,
+      createdAt: s.createdAt,
+      // Provide both id and name for client-side logic (e.g., highlight "Bạn")
+      assignedStaffId: s.assignedStaffId ? String(s.assignedStaffId._id) : null,
+      assignedStaffName: s.assignedStaffId ? s.assignedStaffId.name : null,
     }));
 
     res.json({
@@ -248,6 +318,42 @@ export const postToggleAI = async (req, res) => {
       success: false,
       message: error.message || 'Internal server error',
     });
+  }
+};
+
+/**
+ * @route   POST /api/chatbot/staff/accept
+ * @desc    Staff accepts a waiting session
+ * @access  Private (staff/admin)
+ */
+export const postStaffAccept = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const staffId = req.user._id;
+    const staffName = req.user.name || 'Staff';
+
+    if (!sessionId) {
+      return res.status(400).json({ success: false, message: 'sessionId is required' });
+    }
+
+    const result = await chatbotService.acceptSession(sessionId, staffId, staffName, req.io);
+
+    res.json({
+      success: true,
+      data: {
+        session: {
+          sessionId: result.session.sessionId,
+          status: result.session.status,
+          aiEnabled: result.session.aiEnabled,
+          assignedStaffId: result.session.assignedStaffId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('❌ [Chatbot Controller] Error:', error);
+    res
+      .status(error.code || 500)
+      .json({ success: false, message: error.message || 'Internal error' });
   }
 };
 
@@ -381,7 +487,7 @@ export const putTrainingData = async (req, res) => {
           ...(metadata && { metadata }),
         },
       },
-      { new: true }
+      { new: true },
     );
 
     if (!policy) {

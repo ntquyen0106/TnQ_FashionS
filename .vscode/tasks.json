@@ -506,6 +506,66 @@
 			],
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after centralizing options",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after centralizing options",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after centralizing options",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "dev: quick client build after centralizing options",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "update todo",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"(Get-Content -Raw 'client\\TODO.md') -replace 'Step 4.*','Step 4: Build & verify ✅ (npm run build) 2024-01-13' | Set-Content 'client\\TODO.md'"
+			],
+			"group": "build"
 		}
 	]
 }

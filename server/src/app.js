@@ -31,6 +31,9 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js
 export const createApp = (clientUrl) => {
   const app = express();
 
+  // Serve static files cho uploads
+  app.use('/uploads', express.static('uploads'));
+
   // Log mọi request vào server
   app.use((req, res, next) => {
     console.log('[IN]', req.method, req.originalUrl);
