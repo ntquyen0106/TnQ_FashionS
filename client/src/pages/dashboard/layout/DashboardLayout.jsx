@@ -56,15 +56,35 @@ export default function DashboardLayout({ links = [] }) {
                 to={l.to}
                 end
                 style={({ isActive }) => ({
-                  display: 'block',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
                   padding: '10px 12px',
                   borderRadius: 8,
                   textDecoration: 'none',
                   color: isActive ? '#fff' : '#111',
                   background: isActive ? '#111' : 'transparent',
+                  fontWeight: isActive ? 600 : 500,
                 })}
               >
-                {l.label}
+                <span>{l.label}</span>
+                {typeof l.badge === 'number' && l.badge > 0 && (
+                  <span
+                    style={{
+                      background: '#ff4d4f',
+                      color: '#fff',
+                      borderRadius: 999,
+                      minWidth: 24,
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textAlign: 'center',
+                    }}
+                  >
+                    {l.badge > 99 ? '99+' : l.badge}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
