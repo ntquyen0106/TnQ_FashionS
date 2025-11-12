@@ -10,4 +10,8 @@ router.get('/orders-by-staff', requireAuth, requireRole('admin'), ctl.ordersBySt
 router.get('/top-products', requireAuth, requireRole('admin'), ctl.topProducts);
 router.get('/daily-orders', requireAuth, requireRole('admin'), ctl.dailyOrders);
 
+// API báo cáo doanh thu theo tháng
+router.get('/monthly-revenue', requireAuth, requireRole('admin'), ctl.monthlyRevenueSummary); //query params: year, month. nếu không có params thì lấy tháng hiện tại
+router.get('/monthly-revenue/export', requireAuth, requireRole('admin'), ctl.monthlyRevenueExport); //query params: year, month. nếu không có params thì lấy tháng hiện tại
+
 export default router;

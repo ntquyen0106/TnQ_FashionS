@@ -4,6 +4,8 @@ import {
   getOrdersByStaff,
   getTopProducts,
   getDailyOrders,
+  getMonthlyRevenueSummary,
+  generateMonthlyRevenueExcel,
 } from '../services/reports.service.js';
 
 // GET /api/reports/overview?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -60,3 +62,43 @@ export const dailyOrders = async (req, res, next) => {
     next(e);
   }
 };
+
+/**
+ * Xem tổng quan doanh thu theo tháng (JSON)
+ * GET /api/reports/monthly-revenue?year=2025&month=10
+ */
+export const monthlyRevenueSummary = async (req, res, next) => {
+  try {
+    const data = await getMonthlyRevenueSummary({
+      year: req.query.year,
+      month: req.query.month,
+    });
+    res.json(data);
+  } catch (e) {
+    next(e);
+  }
+};
+
+/**
+ * Xuất báo cáo doanh thu theo tháng (Excel với định dạng)
+ * GET /api/reports/monthly-revenue/export?year=2025&month=10
+ */
+export const monthlyRevenueExport = async (req, res, next) => {
+  try {
+    const { filename, workbook } = await generateMonthlyRevenueExcel({
+      year: req.query.year,
+      month: req.query.month,
+    });
+
+    // Set headers để download file Excel
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Stream workbook to response
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    next(e);
+  }
+};
+
