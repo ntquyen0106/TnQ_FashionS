@@ -398,6 +398,140 @@
   background: var(--primary-700);
   transform: translateY(-1px);
 }
+.monthSection {
+  margin-top: 16px;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.94), #ffffff 60%);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+}
+.monthHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.monthControls {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.monthSubtitle {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.monthBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary-700);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+.monthCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.monthCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(79, 70, 229, 0.08);
+  background: linear-gradient(160deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.9));
+  box-shadow: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.monthCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+.monthCardHighlight {
+  background: linear-gradient(145deg, rgba(79, 70, 229, 0.08), rgba(99, 102, 241, 0.08));
+  border-color: rgba(99, 102, 241, 0.18);
+}
+.monthCardLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.monthCardValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+.monthCardHighlight .monthCardValue {
+  color: var(--primary-700);
+}
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.monthPanel {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.monthTableTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.monthControls input[type='month']::-webkit-calendar-picker-indicator {
+  filter: invert(35%) sepia(10%) saturate(900%) hue-rotate(215deg) brightness(92%) contrast(86%);
+}
+.monthScrollable {
+  max-height: 260px;
+  overflow: auto;
+}
+.monthPanel .smallTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.monthPanel .smallTable thead th {
+  background: rgba(248, 250, 252, 0.9);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.monthPanel .smallTable th,
+.monthPanel .smallTable td {
+  border-color: rgba(148, 163, 184, 0.28);
+}
+.monthPanel .smallTable tbody tr:nth-child(even) {
+  background: rgba(248, 250, 252, 0.7);
+}
+.monthPanel .smallTable tbody tr:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+.monthPanel .smallTable td {
+  font-size: 13px;
+}
 .exportBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

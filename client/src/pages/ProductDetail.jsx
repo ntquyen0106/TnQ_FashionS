@@ -190,49 +190,59 @@ export default function ProductDetail() {
   }, [p, variant]);
 
   // Calculate maximum discount from all applicable promotions
-  const { finalPrice, discountPercent, discountAmount, hasDiscount, bestPromo } = useMemo(() => {
-    if (!Number.isFinite(price) || !promos.length) {
+  const { finalPrice, discountPercent, discountAmount, hasDiscount, bestPromo, isPercentPromo } =
+    useMemo(() => {
+      if (!Number.isFinite(price) || !promos.length) {
+        return {
+          finalPrice: price,
+          discountPercent: 0,
+          discountAmount: 0,
+          hasDiscount: false,
+          bestPromo: null,
+        };
+      }
+
+      // Find the promotion that gives maximum discount
+      let maxDiscount = 0;
+      let maxDiscountPercent = 0;
+      let bestPromotion = null;
+      let isPercentPromo = false;
+
+      for (const promo of promos) {
+        let discount = 0;
+        let percentValue = 0;
+
+        if (promo.type === 'percent') {
+          discount = Math.round(price * (promo.value / 100));
+          percentValue = promo.value;
+
+          if (discount > maxDiscount) {
+            maxDiscount = discount;
+            maxDiscountPercent = percentValue;
+            bestPromotion = promo;
+            isPercentPromo = true;
+          }
+        } else if (promo.type === 'amount') {
+          discount = promo.value;
+
+          if (discount > maxDiscount) {
+            maxDiscount = discount;
+            maxDiscountPercent = 0; // Don't show % for amount type
+            bestPromotion = promo;
+            isPercentPromo = false;
+          }
+        }
+      }
+
       return {
-        finalPrice: price,
-        discountPercent: 0,
-        discountAmount: 0,
-        hasDiscount: false,
-        bestPromo: null,
+        finalPrice: Math.max(0, price - maxDiscount),
+        discountPercent: isPercentPromo ? maxDiscountPercent : 0,
+        discountAmount: maxDiscount,
+        hasDiscount: maxDiscount > 0,
+        bestPromo: bestPromotion,
+        isPercentPromo: isPercentPromo,
       };
-    }
-
-    // Find the promotion that gives maximum discount
-    let maxDiscount = 0;
-    let maxDiscountPercent = 0;
-    let bestPromotion = null;
-
-    for (const promo of promos) {
-      let discount = 0;
-      let percentValue = 0;
-
-      if (promo.type === 'percent') {
-        discount = Math.round(price * (promo.value / 100));
-        percentValue = promo.value;
-      } else if (promo.type === 'amount') {
-        discount = promo.value;
-        percentValue = Math.round((discount / price) * 100);
-      }
-
-      if (discount > maxDiscount) {
-        maxDiscount = discount;
-        maxDiscountPercent = percentValue;
-        bestPromotion = promo;
-      }
-    }
-
-    return {
-      finalPrice: Math.max(0, price - maxDiscount),
-      discountPercent: maxDiscountPercent,
-      discountAmount: maxDiscount,
-      hasDiscount: maxDiscount > 0,
-      bestPromo: bestPromotion,
-    };
-  }, [price, promos]);
+    }, [price, promos]);
 
   if (!p)
     return (
@@ -318,7 +328,11 @@ export default function ProductDetail() {
                     <div className={styles.priceOriginal}>
                       {new Intl.NumberFormat('vi-VN').format(price)} VND
                     </div>
-                    <div className={styles.discountBadge}>-{discountPercent}%</div>
+                    <div className={styles.discountBadge}>
+                      {isPercentPromo
+                        ? `-${discountPercent}%`
+                        : `Giảm ${new Intl.NumberFormat('vi-VN').format(discountAmount)}đ`}
+                    </div>
                   </>
                 ) : (
                   <div className={styles.price}>

@@ -1,7 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { chatbotApi } from '@/api';
 import { toast } from '@/components/Toast';
 import styles from './ChatbotPage.module.css';
+
+const POLICY_TYPES = {
+  shipping: '🚚 Vận chuyển',
+  return: '↩️ Đổi trả',
+  payment: '💳 Thanh toán',
+  warranty: '🛡️ Bảo hành',
+  faq: '❓ Câu hỏi thường gặp',
+  about: 'ℹ️ Giới thiệu',
+};
+
+const SORT_OPTIONS = [
+  { value: 'order', label: 'Thứ tự hiển thị' },
+  { value: 'updatedAtDesc', label: 'Mới cập nhật' },
+  { value: 'titleAsc', label: 'Tiêu đề A-Z' },
+];
+
+const getRelativeTime = (timestamp) => {
+  if (!timestamp) return 'Chưa có cập nhật';
+  const diff = Date.now() - timestamp;
+  if (diff < 60_000) return 'Vừa xong';
+  const minutes = Math.round(diff / 60_000);
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days} ngày trước`;
+  return new Date(timestamp).toLocaleDateString('vi-VN');
+};
 
 export default function ChatbotPage() {
   const [policies, setPolicies] = useState({});
@@ -9,20 +37,17 @@ export default function ChatbotPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('order');
+  const [onlyActive, setOnlyActive] = useState(false);
 
-  // 6 loại dữ liệu training mà chatbot sẽ học
-  const POLICY_TYPES = {
-    shipping: '🚚 Vận chuyển',
-    return: '↩️ Đổi trả',
-    payment: '💳 Thanh toán',
-    warranty: '🛡️ Bảo hành',
-    faq: '❓ Câu hỏi thường gặp',
-    about: 'ℹ️ Giới thiệu',
-  };
-
-  // Load dữ liệu khi component mount
-  const loadPolicies = async () => {
-    setLoading(true);
+  const loadPolicies = useCallback(async ({ silent = false } = {}) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const res = await chatbotApi.getAllPolicies();
       if (res.success) {
@@ -32,13 +57,75 @@ export default function ChatbotPage() {
       console.error('❌ Lỗi tải dữ liệu:', error);
       toast.error('Không thể tải dữ liệu. Vui lòng kiểm tra kết nối!');
     } finally {
-      setLoading(false);
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadPolicies();
-  }, []);
+  }, [loadPolicies]);
+
+  const allPolicies = useMemo(
+    () =>
+      Object.entries(policies).flatMap(([type, items]) =>
+        (items || []).map((item) => ({ ...item, type })),
+      ),
+    [policies],
+  );
+
+  const totalCount = allPolicies.length;
+  const activeCount = allPolicies.filter((item) => item.isActive).length;
+  const inactiveCount = totalCount - activeCount;
+
+  const filteredPolicies = useMemo(() => {
+    let list =
+      selectedType === 'all'
+        ? allPolicies
+        : allPolicies.filter((item) => item.type === selectedType);
+
+    if (onlyActive) {
+      list = list.filter((item) => item.isActive);
+    }
+
+    const query = searchTerm.trim().toLowerCase();
+    if (query) {
+      list = list.filter(
+        (item) =>
+          item.title.toLowerCase().includes(query) || item.content.toLowerCase().includes(query),
+      );
+    }
+
+    const sorted = [...list];
+    switch (sortBy) {
+      case 'updatedAtDesc':
+        sorted.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+        break;
+      case 'titleAsc':
+        sorted.sort((a, b) => a.title.localeCompare(b.title, 'vi', { sensitivity: 'base' }));
+        break;
+      default:
+        sorted.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        break;
+    }
+
+    return sorted;
+  }, [allPolicies, selectedType, onlyActive, searchTerm, sortBy]);
+
+  const lastUpdatedTimestamp = useMemo(
+    () =>
+      allPolicies.reduce((latest, item) => {
+        const time = item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
+        return time > latest ? time : latest;
+      }, 0),
+    [allPolicies],
+  );
+
+  const lastUpdatedLabel = getRelativeTime(lastUpdatedTimestamp);
+  const activePercentage = totalCount ? Math.round((activeCount / totalCount) * 100) : 0;
 
   // Mở form tạo mới
   const handleCreateNew = (type) => {
@@ -52,70 +139,52 @@ export default function ChatbotPage() {
     setShowModal(true);
   };
 
-  // Lưu dữ liệu (tạo mới hoặc cập nhật)
   const handleSave = async (formData) => {
     try {
-      if (editingPolicy._id) {
-        // Cập nhật
+      if (editingPolicy?._id) {
         await chatbotApi.updatePolicy(editingPolicy._id, formData);
         toast.success('Cập nhật thành công!');
       } else {
-        // Tạo mới
         await chatbotApi.createPolicy(formData);
         toast.success('Thêm mới thành công!');
       }
       setShowModal(false);
       setEditingPolicy(null);
-      await loadPolicies();
+      await loadPolicies({ silent: true });
     } catch (error) {
       console.error('❌ Lỗi lưu:', error);
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu!');
     }
   };
 
-  // Bật/Tắt trạng thái
   const handleToggle = async (id, currentStatus) => {
     try {
       await chatbotApi.togglePolicyStatus(id);
       toast.success(currentStatus ? 'Đã tắt thành công!' : 'Đã bật thành công!');
-      await loadPolicies();
+      await loadPolicies({ silent: true });
     } catch (error) {
       console.error('❌ Lỗi toggle:', error);
       toast.error('Không thể thay đổi trạng thái!');
     }
   };
 
-  // Xóa dữ liệu
   const handleDelete = async (id, title) => {
     if (!confirm(`⚠️ Bạn chắc chắn muốn xóa "${title}"?\n\nHành động này không thể hoàn tác!`))
       return;
     try {
       await chatbotApi.deletePolicy(id);
-      alert('🗑️ Đã xóa thành công!');
-      await loadPolicies();
+      toast.success('🗑️ Đã xóa thành công!');
+      await loadPolicies({ silent: true });
     } catch (error) {
       console.error('❌ Lỗi xóa:', error);
-      alert('❌ Không thể xóa: ' + (error.response?.data?.message || error.message));
+      toast.error('❌ Không thể xóa: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  // Lọc dữ liệu theo loại đã chọn
-  const getFilteredPolicies = () => {
-    if (selectedType === 'all') {
-      return Object.entries(policies).flatMap(([type, items]) =>
-        items.map((item) => ({ ...item, type })),
-      );
-    }
-    return (policies[selectedType] || []).map((item) => ({ ...item, type: selectedType }));
-  };
-
-  const filteredPolicies = getFilteredPolicies();
-  const totalCount = Object.values(policies).reduce((acc, arr) => acc + arr.length, 0);
-
-  if (loading) {
+  if (loading && !isRefreshing) {
     return (
       <div className={styles.container}>
-        <div style={{ textAlign: 'center', padding: '60px' }}>
+        <div className={styles.loadingState}>
           <p>⏳ Đang tải dữ liệu...</p>
         </div>
       </div>
@@ -124,13 +193,60 @@ export default function ChatbotPage() {
 
   return (
     <div className={styles.container}>
-      {/* HEADER - Tiêu đề và mô tả */}
       <div className={styles.header}>
-        <h2>🧠 Quản lý Training Data - Chatbot AI</h2>
-        <p>
-          Thêm và quản lý dữ liệu để chatbot học và trả lời khách hàng tốt hơn về các chính sách,
-          quy định của shop
-        </p>
+        <div className={styles.headerTop}>
+          <div>
+            <h2>🧠 Quản lý Training Data - Chatbot AI</h2>
+            <p>
+              Thêm và quản lý dữ liệu để chatbot học và trả lời khách hàng tốt hơn về các chính
+              sách, quy định của shop
+            </p>
+          </div>
+          <button
+            className={styles.refreshBtn}
+            onClick={() => loadPolicies({ silent: true })}
+            disabled={isRefreshing}
+            type="button"
+          >
+            {isRefreshing ? '🔄 Đang cập nhật...' : '↻ Làm mới'}
+          </button>
+        </div>
+        <div className={styles.headerMeta}>
+          <span>
+            📦 Tổng: <strong>{totalCount}</strong>
+          </span>
+          <span>
+            ✅ Hoạt động: <strong>{activeCount}</strong>
+          </span>
+          <span>
+            🕒 Cập nhật: <strong>{lastUpdatedLabel}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.overviewGrid}>
+        <div className={`${styles.overviewCard} ${styles.highlight}`}>
+          <span className={styles.overviewLabel}>Tổng dữ liệu</span>
+          <span className={styles.overviewValue}>{totalCount}</span>
+          <span className={styles.overviewHint}>Tất cả chính sách đã tạo</span>
+        </div>
+        <div className={styles.overviewCard}>
+          <span className={styles.overviewLabel}>Tỷ lệ hoạt động</span>
+          <span className={styles.overviewValue}>{activePercentage}%</span>
+          <div className={styles.overviewProgress}>
+            <div style={{ width: `${activePercentage}%` }} />
+          </div>
+          <span className={styles.overviewHint}>
+            {activeCount} bật • {inactiveCount} tắt
+          </span>
+        </div>
+        <div className={styles.overviewCard}>
+          <span className={styles.overviewLabel}>Đang xem</span>
+          <span className={styles.overviewValue}>
+            {selectedType === 'all' ? 'Tất cả' : POLICY_TYPES[selectedType]}
+          </span>
+          <span className={styles.overviewHint}>{filteredPolicies.length} mục</span>
+        </div>
       </div>
 
       {/* BỘ LỌC THEO LOẠI */}
@@ -160,87 +276,126 @@ export default function ChatbotPage() {
         </div>
       </div>
 
-      {/* THANH TIÊU ĐỀ VÀ NÚT THÊM MỚI */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '24px',
-        }}
-      >
-        <h3>
-          {selectedType === 'all'
-            ? `📋 Tất cả dữ liệu (${totalCount} mục)`
-            : `${POLICY_TYPES[selectedType]} (${policies[selectedType]?.length || 0} mục)`}
-        </h3>
-        {selectedType !== 'all' && (
-          <button className={styles.addButton} onClick={() => handleCreateNew(selectedType)}>
-            ➕ Thêm {POLICY_TYPES[selectedType]}
-          </button>
-        )}
+      <div className={styles.listHeader}>
+        <div>
+          <h3>📋 {selectedType === 'all' ? 'Tất cả dữ liệu' : POLICY_TYPES[selectedType]}</h3>
+          <p className={styles.listSubtitle}>
+            Hiển thị {filteredPolicies.length} mục
+            {searchTerm && ` • Tìm kiếm: "${searchTerm}"`}
+            {onlyActive && ' • Chỉ đang hoạt động'}
+          </p>
+        </div>
+        <div className={styles.listActions}>
+          <div className={styles.filtersBar}>
+            <label className={styles.searchField}>
+              <span className={styles.searchIcon}>🔍</span>
+              <input
+                type="search"
+                placeholder="Tìm kiếm..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </label>
+            <label className={styles.toggleActive}>
+              <input
+                type="checkbox"
+                checked={onlyActive}
+                onChange={(e) => setOnlyActive(e.target.checked)}
+              />
+              <span>Chỉ đang hoạt động</span>
+            </label>
+            <select
+              className={styles.sortSelect}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedType !== 'all' && (
+            <button
+              className={styles.addButton}
+              onClick={() => handleCreateNew(selectedType)}
+              type="button"
+            >
+              ➕ Thêm mới
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* DANH SÁCH DỮ LIỆU */}
       <div className={styles.policiesList}>
         {filteredPolicies.length === 0 ? (
           <div className={styles.emptyState}>
-            <p style={{ fontSize: '48px', margin: '0 0 16px 0' }}>📭</p>
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+            <p className={styles.emptyEmoji}>📭</p>
+            <p className={styles.emptyTitle}>
               {selectedType === 'all'
                 ? 'Chưa có dữ liệu training nào'
-                : `Chưa có dữ liệu ${POLICY_TYPES[selectedType]}`}
+                : `Chưa có ${POLICY_TYPES[selectedType]}`}
             </p>
-            <p style={{ fontSize: '14px', color: '#9ca3af' }}>
-              {selectedType !== 'all' && `Nhấn nút "Thêm ${POLICY_TYPES[selectedType]}" để bắt đầu`}
+            <p className={styles.emptyDescription}>
+              {selectedType !== 'all' && 'Nhấn nút "Thêm mới" để bắt đầu'}
             </p>
           </div>
         ) : (
-          filteredPolicies
-            .sort((a, b) => a.order - b.order) // Sắp xếp theo order
-            .map((policy) => (
-              <div
-                key={policy._id}
-                className={`${styles.policyCard} ${!policy.isActive ? styles.inactive : ''}`}
-              >
-                {/* Header của card */}
-                <div className={styles.policyHeader}>
+          filteredPolicies.map((policy) => (
+            <div
+              key={policy._id}
+              className={`${styles.policyCard} ${!policy.isActive ? styles.inactive : ''}`}
+            >
+              <div className={styles.policyHeader}>
+                <div>
                   <h4 className={styles.policyTitle}>{policy.title}</h4>
-                  <span className={styles.policyBadge}>{POLICY_TYPES[policy.type]}</span>
+                  <div className={styles.policyTags}>
+                    <span className={styles.policyBadge}>{POLICY_TYPES[policy.type]}</span>
+                    <span
+                      className={`${styles.statusPill} ${
+                        policy.isActive ? styles.statusActive : styles.statusInactive
+                      }`}
+                    >
+                      {policy.isActive ? 'Hoạt động' : 'Tắt'}
+                    </span>
+                  </div>
                 </div>
-
-                {/* Nội dung */}
-                <div className={styles.policyContent}>{policy.content}</div>
-
-                {/* Thông tin meta */}
-                <div className={styles.policyMeta}>
-                  <span>📊 Thứ tự: {policy.order}</span>
-                  <span>{policy.isActive ? '✅ Đang hoạt động' : '⏸️ Đã tắt'}</span>
-                  {policy.updatedAt && (
-                    <span>🕒 Cập nhật: {new Date(policy.updatedAt).toLocaleString('vi-VN')}</span>
-                  )}
-                </div>
-
-                {/* Các nút hành động */}
-                <div className={styles.policyActions}>
-                  <button className={styles.editBtn} onClick={() => handleEdit(policy)}>
-                    ✏️ Sửa
-                  </button>
-                  <button
-                    className={styles.toggleBtn}
-                    onClick={() => handleToggle(policy._id, policy.isActive)}
-                  >
-                    {policy.isActive ? '⏸️ Tắt' : '▶️ Bật'}
-                  </button>
-                  <button
-                    className={styles.deleteBtn}
-                    onClick={() => handleDelete(policy._id, policy.title)}
-                  >
-                    🗑️ Xóa
-                  </button>
-                </div>
+                <div className={styles.policyOrder}>#{policy.order ?? 0}</div>
               </div>
-            ))
+
+              <div className={styles.policyContent}>{policy.content}</div>
+
+              <div className={styles.policyMeta}>
+                <span className={styles.metaChip}>📊 Thứ tự: {policy.order ?? 0}</span>
+                {policy.updatedAt && (
+                  <span className={styles.metaChip}>
+                    🕒 {new Date(policy.updatedAt).toLocaleString('vi-VN')}
+                  </span>
+                )}
+              </div>
+
+              <div className={styles.policyActions}>
+                <button className={styles.editBtn} onClick={() => handleEdit(policy)} type="button">
+                  ✏️ Sửa
+                </button>
+                <button
+                  className={styles.toggleBtn}
+                  onClick={() => handleToggle(policy._id, policy.isActive)}
+                  type="button"
+                >
+                  {policy.isActive ? '⏸️ Tắt' : '▶️ Bật'}
+                </button>
+                <button
+                  className={styles.deleteBtn}
+                  onClick={() => handleDelete(policy._id, policy.title)}
+                  type="button"
+                >
+                  🗑️ Xóa
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
@@ -260,7 +415,6 @@ export default function ChatbotPage() {
   );
 }
 
-// ============ MODAL COMPONENT ============
 function PolicyModal({ policy, policyTypes, onSave, onClose }) {
   const [formData, setFormData] = useState({
     type: policy?.type || 'faq',
@@ -269,6 +423,8 @@ function PolicyModal({ policy, policyTypes, onSave, onClose }) {
     order: policy?.order || 0,
     isActive: policy?.isActive ?? true,
   });
+
+  const contentLength = formData.content.trim().length;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -284,7 +440,7 @@ function PolicyModal({ policy, policyTypes, onSave, onClose }) {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>{policy?._id ? '✏️ Chỉnh sửa dữ liệu' : '➕ Thêm dữ liệu mới'}</h3>
-          <button className={styles.closeBtn} onClick={onClose}>
+          <button className={styles.closeBtn} onClick={onClose} type="button">
             ×
           </button>
         </div>
@@ -332,6 +488,7 @@ function PolicyModal({ policy, policyTypes, onSave, onClose }) {
               required
             />
             <small>💡 Chatbot sẽ học và sử dụng nội dung này để trả lời khách hàng</small>
+            <div className={styles.charCounter}>{contentLength} ký tự</div>
           </div>
 
           {/* Thứ tự */}
@@ -348,15 +505,14 @@ function PolicyModal({ policy, policyTypes, onSave, onClose }) {
           </div>
 
           {/* Trạng thái */}
-          <div className={styles.formGroup}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <div className={styles.formGroupCheckbox}>
+            <label>
               <input
                 type="checkbox"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                style={{ width: 'auto', cursor: 'pointer' }}
               />
-              ✅ Kích hoạt ngay (chatbot có thể dùng để trả lời)
+              <span>✅ Kích hoạt ngay (chatbot có thể dùng để trả lời)</span>
             </label>
           </div>
 

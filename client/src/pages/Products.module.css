@@ -62,6 +62,142 @@
   font-weight: 500;
 }
 
+/* ===== Promotion tiles ===== */
+.dealStrip {
+  margin: 24px 0 32px;
+  padding: 0 4px;
+}
+
+.dealGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dealCard {
+  position: relative;
+  border: none;
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  animation: slideUp 0.5s ease-out both;
+}
+
+.dealCard::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.dealCard:hover::before {
+  opacity: 1;
+}
+
+.dealCard:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(102, 126, 234, 0.5);
+}
+
+.dealActive {
+  outline: 3px solid #fbbf24;
+  outline-offset: 3px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 0 20px 40px rgba(245, 87, 108, 0.5);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.dealBadge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(251, 191, 36, 0.95);
+  color: #78350f;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.4);
+}
+
+.dealKicker {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  opacity: 0.92;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.dealTitle {
+  display: block;
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 12px 0;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  line-height: 1;
+}
+
+.dealCode {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.88;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+
+.dealPercentIcon {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 64px;
+  font-weight: 900;
+  opacity: 0.12;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

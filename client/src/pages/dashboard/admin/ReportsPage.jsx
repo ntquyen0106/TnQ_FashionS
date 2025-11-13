@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import reportsApi from '@/api/reports-api';
 import s from './ReportsPage.module.css';
 
@@ -71,6 +71,13 @@ function TabBar({ active, onChange }) {
         onClick={() => onChange('overview')}
       >
         Tổng quan
+      </button>
+      <button
+        role="tab"
+        className={`${s.tab} ${active === 'monthly' ? s.tabActive : ''}`}
+        onClick={() => onChange('monthly')}
+      >
+        Báo cáo doanh thu
       </button>
       <button
         role="tab"
@@ -694,6 +701,330 @@ function OverviewPanel({ data, loading, from, to }) {
   );
 }
 
+function MonthlyRevenueSection({ defaultMonth }) {
+  const getInitialPeriod = useCallback(() => {
+    let baseDate = defaultMonth ? new Date(defaultMonth) : new Date();
+    if (Number.isNaN(baseDate.getTime())) baseDate = new Date();
+    const initialYear = baseDate.getFullYear();
+    const initialMonth = baseDate.getMonth() + 1;
+    const toInput = `${initialYear}-${String(initialMonth).padStart(2, '0')}`;
+    return { year: initialYear, month: initialMonth, input: toInput };
+  }, [defaultMonth]);
+
+  const initial = getInitialPeriod();
+  const [period, setPeriod] = useState(() => ({ year: initial.year, month: initial.month }));
+  const [monthValue, setMonthValue] = useState(() => initial.input);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    const next = getInitialPeriod();
+    setPeriod((prev) => {
+      if (prev.year === next.year && prev.month === next.month) return prev;
+      return { year: next.year, month: next.month };
+    });
+    setMonthValue((prev) => (prev === next.input ? prev : next.input));
+  }, [getInitialPeriod]);
+
+  const updatePeriod = useCallback((value) => {
+    setMonthValue(value);
+    const [y, m] = (value || '').split('-').map((v) => Number(v));
+    if (!Number.isFinite(y) || !Number.isFinite(m)) return;
+    setPeriod({ year: y, month: Math.min(Math.max(m, 1), 12) });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFetchError('');
+    (async () => {
+      try {
+        const data = await reportsApi.monthlyRevenue({ year: period.year, month: period.month });
+        if (cancelled) return;
+        setSummary(data || null);
+      } catch (err) {
+        if (cancelled) return;
+        setSummary(null);
+        setFetchError(err?.response?.data?.message || 'Không thể tải dữ liệu báo cáo tháng.');
+      } finally {
+        !cancelled && setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [period.year, period.month]);
+
+  const handleExport = useCallback(async () => {
+    if (!summary) return;
+    setExporting(true);
+    try {
+      const res = await reportsApi.monthlyRevenueExport({ year: period.year, month: period.month });
+      const disposition = res?.headers?.['content-disposition'] || '';
+      let filename = `bao-cao-doanh-thu-${String(period.month).padStart(2, '0')}-${
+        period.year
+      }.xlsx`;
+      const match = /filename\*?=(?:UTF-8''|"?)([^";]+)/i.exec(disposition);
+      if (match && match[1]) {
+        try {
+          filename = decodeURIComponent(match[1].replace(/"/g, '').trim());
+        } catch (err) {
+          filename = match[1].replace(/"/g, '').trim();
+        }
+      }
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      // lỗi sẽ được interceptor toast, tránh ném tiếp
+    } finally {
+      setExporting(false);
+    }
+  }, [period.year, period.month, summary]);
+
+  const periodLabel = summary?.period?.monthName;
+  const tax = summary?.taxReport || {};
+  const orderStats = summary?.orderStats || {};
+  const paymentRows = summary?.paymentMethods || [];
+  const statusRows = useMemo(() => {
+    if (!summary?.statusBreakdown) return [];
+    return Object.entries(summary.statusBreakdown).map(([status, info]) => ({
+      status,
+      count: info?.count || 0,
+      totalValue: info?.totalValue || 0,
+    }));
+  }, [summary]);
+
+  const dailyRows = summary?.daily || [];
+  const summaryCards = useMemo(
+    () => [
+      {
+        key: 'salesRevenue',
+        label: 'Doanh thu bán hàng',
+        value: fmtVND(tax.salesRevenue || 0),
+        tone: 'highlight',
+      },
+      {
+        key: 'netRevenue',
+        label: 'Doanh thu thuần',
+        value: fmtVND(tax.netRevenue || 0),
+        tone: 'highlight',
+      },
+      {
+        key: 'outputVAT',
+        label: 'Thuế GTGT (8%)',
+        value: fmtVND(tax.outputVAT || 0),
+        tone: 'highlight',
+      },
+      {
+        key: 'totalRevenueWithVAT',
+        label: 'Tổng thu (bao gồm VAT)',
+        value: fmtVND(tax.totalRevenueWithVAT || 0),
+        tone: 'highlight',
+      },
+      {
+        key: 'totalDiscount',
+        label: 'Giảm giá đã áp dụng',
+        value: fmtVND(tax.totalDiscount || 0),
+      },
+      {
+        key: 'totalShipping',
+        label: 'Phí vận chuyển',
+        value: fmtVND(tax.totalShipping || 0),
+      },
+      {
+        key: 'totalOrders',
+        label: 'Đơn hoàn tất',
+        value: Number(orderStats.totalOrders || 0).toLocaleString('vi-VN'),
+      },
+      {
+        key: 'avgOrderValue',
+        label: 'Giá trị TB/đơn',
+        value: fmtVND(orderStats.avgOrderValue || 0),
+      },
+    ],
+    [
+      orderStats.avgOrderValue,
+      orderStats.totalOrders,
+      tax.outputVAT,
+      tax.salesRevenue,
+      tax.totalDiscount,
+      tax.totalRevenueWithVAT,
+      tax.totalShipping,
+      tax.netRevenue,
+    ],
+  );
+
+  return (
+    <section className={`${s.panel} ${s.monthSection}`}>
+      <div className={s.monthHeader}>
+        <div>
+          <h3 style={{ marginBottom: 4 }}>Báo cáo doanh thu theo tháng</h3>
+          <div className={s.monthSubtitle}>
+            {periodLabel ? (
+              <span className={s.monthBadge}>{periodLabel}</span>
+            ) : (
+              'Chọn tháng để xem chi tiết.'
+            )}
+          </div>
+        </div>
+        <div className={s.monthControls}>
+          <input
+            type="month"
+            className={s.input}
+            value={monthValue}
+            onChange={(e) => updatePeriod(e.target.value)}
+            aria-label="Chọn tháng báo cáo"
+          />
+          <button
+            className={`${s.legendBtn} ${s.exportBtn}`}
+            onClick={handleExport}
+            disabled={!summary || exporting}
+          >
+            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className={s.empty}>Đang tải dữ liệu...</div>
+      ) : fetchError ? (
+        <div className={s.empty}>{fetchError}</div>
+      ) : !summary ? (
+        <div className={s.empty}>Không có dữ liệu cho tháng đã chọn.</div>
+      ) : (
+        <>
+          <div className={s.monthCards}>
+            {summaryCards.map((card) => (
+              <div
+                key={card.key}
+                className={`${s.card} ${s.monthCard} ${
+                  card.tone === 'highlight' ? s.monthCardHighlight : ''
+                }`}
+              >
+                <span className={s.monthCardLabel}>{card.label}</span>
+                <span className={s.monthCardValue}>{card.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className={s.monthGrid}>
+            <div className={s.monthPanel}>
+              <h4 className={s.monthTableTitle}>Trạng thái đơn hàng</h4>
+              <table className={s.smallTable}>
+                <thead>
+                  <tr>
+                    <th>Trạng thái</th>
+                    <th>Số đơn</th>
+                    <th>Tổng giá trị</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statusRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                        Không có dữ liệu
+                      </td>
+                    </tr>
+                  ) : (
+                    statusRows.map((row) => (
+                      <tr key={row.status}>
+                        <td>{row.status}</td>
+                        <td className={s.centerCell}>{row.count}</td>
+                        <td style={{ textAlign: 'right' }}>{fmtVND(row.totalValue)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className={s.monthPanel}>
+              <h4 className={s.monthTableTitle}>Phương thức thanh toán</h4>
+              <table className={s.smallTable}>
+                <thead>
+                  <tr>
+                    <th>Phương thức</th>
+                    <th>Đơn</th>
+                    <th>Tỷ trọng</th>
+                    <th>Tổng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                        Không có dữ liệu
+                      </td>
+                    </tr>
+                  ) : (
+                    paymentRows.map((row) => (
+                      <tr key={row.method}>
+                        <td>{row.methodName || row.method}</td>
+                        <td className={s.centerCell}>{row.orders || 0}</td>
+                        <td className={s.centerCell}>{row.percentage || 0}%</td>
+                        <td style={{ textAlign: 'right' }}>{fmtVND(row.revenue || 0)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className={s.monthPanel}>
+              <h4 className={s.monthTableTitle}>Doanh thu theo ngày</h4>
+              <div className={s.monthScrollable}>
+                {dailyRows.length === 0 ? (
+                  <div className={s.empty} style={{ paddingLeft: 0 }}>
+                    Không có dữ liệu
+                  </div>
+                ) : (
+                  <table className={s.smallTable}>
+                    <thead>
+                      <tr>
+                        <th>Ngày</th>
+                        <th>Đơn</th>
+                        <th>Doanh thu</th>
+                        <th>Doanh thu thuần</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyRows.map((row) => (
+                        <tr key={row.date}>
+                          <td>
+                            {new Date(row.date).toLocaleDateString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td className={s.centerCell}>{row.orders || row.count || 0}</td>
+                          <td style={{ textAlign: 'right' }}>{fmtVND(row.revenue || 0)}</td>
+                          <td style={{ textAlign: 'right' }}>{fmtVND(row.netRevenue || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function ProductsPanel({ from, to }) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
@@ -1068,6 +1399,7 @@ function ReportsPage() {
       {active === 'overview' && (
         <OverviewPanel data={overview} loading={loading} from={from} to={to} />
       )}
+      {active === 'monthly' && <MonthlyRevenueSection defaultMonth={to} />}
       {active === 'products' && <ProductsPanel from={from} to={to} />}
       {active === 'staff' && <StaffPanel from={from} to={to} />}
     </div>
