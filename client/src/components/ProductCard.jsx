@@ -64,7 +64,10 @@ export default function ProductCard({ product }) {
 
   // Calculate maximum discount if multiple promotions apply
   let discountPercent = 0;
+  let discountAmount = 0;
   let finalPrice = price?.min;
+  let hasDiscount = false;
+  let isPercentPromo = false;
 
   if (price?.min && promos.length > 0) {
     let maxDiscount = 0;
@@ -77,19 +80,27 @@ export default function ProductCard({ product }) {
       if (promo.type === 'percent') {
         discount = Math.round(price.min * (promo.value / 100));
         percentValue = promo.value;
+
+        if (discount > maxDiscount) {
+          maxDiscount = discount;
+          maxDiscountPercent = percentValue;
+          isPercentPromo = true;
+        }
       } else if (promo.type === 'amount') {
         discount = promo.value;
-        percentValue = Math.round((discount / price.min) * 100);
-      }
 
-      if (discount > maxDiscount) {
-        maxDiscount = discount;
-        maxDiscountPercent = percentValue;
+        if (discount > maxDiscount) {
+          maxDiscount = discount;
+          maxDiscountPercent = 0; // Don't show % for amount type
+          isPercentPromo = false;
+        }
       }
     }
 
     if (maxDiscount > 0) {
-      discountPercent = maxDiscountPercent;
+      hasDiscount = true;
+      discountAmount = maxDiscount;
+      discountPercent = isPercentPromo ? maxDiscountPercent : 0;
       finalPrice = Math.max(0, price.min - maxDiscount);
     }
   }
@@ -102,8 +113,12 @@ export default function ProductCard({ product }) {
         ) : (
           <div style={styles.fallback} />
         )}
-        {discountPercent > 0 && (
-          <div style={styles.discountBadge}>-{Math.round(discountPercent)}%</div>
+        {hasDiscount && (
+          <div style={styles.discountBadge}>
+            {isPercentPromo
+              ? `-${Math.round(discountPercent)}%`
+              : `Giảm ${formatVND(discountAmount)}đ`}
+          </div>
         )}
       </div>
       <div style={styles.body}>
@@ -111,7 +126,7 @@ export default function ProductCard({ product }) {
           {product.name}
         </h3>
         {price ? (
-          discountPercent > 0 ? (
+          hasDiscount ? (
             <div style={styles.priceBox}>
               <div style={styles.priceNow}>{`${formatVND(finalPrice)} đ`}</div>
               <div style={styles.priceOld}>{`${formatVND(price.min)} đ`}</div>

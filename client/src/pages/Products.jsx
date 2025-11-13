@@ -14,7 +14,7 @@ const img = (publicId, w = 700) =>
     : '/no-image.png';
 
 const formatVND = (n) =>
-  new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n) + ' VND';
+  new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n) + 'đ';
 
 export default function Products() {
   const [sp, setSp] = useSearchParams();
@@ -22,7 +22,9 @@ export default function Products() {
   // === Query params ===
   const path = sp.get('path') || ''; // từ Navbar
   const q = sp.get('q') || '';
-  const sort = sp.get('sort') || 'price:asc'; // price:asc | price:desc | newest
+  const isPromoPage = (path || '').toLowerCase() === 'khuyen-mai';
+  const sort = sp.get('sort') || (isPromoPage ? 'best' : 'price:asc'); // price:asc | price:desc | newest | best
+  const selectedPromo = sp.get('promo') || '';
   const page = parseInt(sp.get('page') || '1', 10);
   const limit = parseInt(sp.get('limit') || '24', 10);
 
@@ -33,6 +35,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [promosByProduct, setPromosByProduct] = useState({}); // id -> [promo objects with type, value, code]
   const [salesByProduct, setSalesByProduct] = useState({}); // id -> sold qty
+  const [activePromos, setActivePromos] = useState([]); // available promotions for tiles
 
   // === Title theo path ===
   const title = useMemo(() => {
@@ -45,8 +48,11 @@ export default function Products() {
     let alive = true;
     setLoading(true);
 
+    const params = { q, sort, page, limit };
+    if (!isPromoPage && path) params.path = path; // trang khuyến mãi: lấy tất cả sp rồi lọc ở FE
+
     productsApi
-      .list({ path, q, sort, page, limit })
+      .list(params)
       .then((res) => {
         const items = res.items ?? res.data ?? [];
         if (!alive) return;
@@ -67,29 +73,52 @@ export default function Products() {
     };
   }, [path, q, sort, page, limit]);
 
+  // If on promotion page, fetch all currently available promotions to show nice tiles
+  useEffect(() => {
+    if (!isPromoPage) return;
+    let alive = true;
+    (async () => {
+      try {
+        const list = await promotionsApi.available(0, { all: true });
+        if (!alive) return;
+        // Only take active ones; sort by best value: percent desc first, then amount desc
+        const sorted = (Array.isArray(list) ? list : [])
+          .filter((p) => p && p.status !== 'inactive')
+          .sort((a, b) => {
+            const aIsPct = a.type === 'percent';
+            const bIsPct = b.type === 'percent';
+            if (aIsPct && bIsPct) return (b.value || 0) - (a.value || 0);
+            if (aIsPct !== bIsPct) return aIsPct ? -1 : 1; // percent trước
+            return (b.value || 0) - (a.value || 0);
+          });
+        setActivePromos(sorted);
+      } catch {
+        setActivePromos([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isPromoPage]);
+
   // Fetch applicable promotions for products in the current page (store full promo objects)
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const next = {};
-        for (const p of rows || []) {
+        const tasks = (rows || []).map(async (p) => {
           const id = p?._id;
-          if (!id) continue;
-          // cache: if already have, reuse
-          if (promosByProduct[id]) {
-            next[id] = promosByProduct[id];
-            continue;
-          }
+          if (!id) return;
           try {
             const data = await promotionsApi.available(0, { all: true, productIds: [id] });
-            // Store full promo objects (with type, value, code) for up to 2 promotions
-            next[id] = (data || []).filter((x) => x.applicable).slice(0, 2);
+            next[id] = (data || []).filter((x) => x.applicable);
           } catch {
             next[id] = [];
           }
-        }
-        if (alive) setPromosByProduct((prev) => ({ ...prev, ...next }));
+        });
+        await Promise.all(tasks);
+        if (alive) setPromosByProduct(next);
       } catch {}
     })();
     return () => {
@@ -121,9 +150,44 @@ export default function Products() {
       v == null || v === '' ? next.delete(k) : next.set(k, String(v)),
     );
     // reset page về 1 khi đổi filter chính
-    if ('q' in kv || 'sort' in kv || 'path' in kv) next.set('page', '1');
+    if ('q' in kv || 'sort' in kv || 'path' in kv || 'promo' in kv) next.set('page', '1');
     setSp(next, { replace: true });
   };
+
+  // Helper: compute the maximum discount amount for a product (for sorting use)
+  const getMaxDiscount = (p) => {
+    const rawPrice =
+      p.minPrice ??
+      (Array.isArray(p.variants) && p.variants.length
+        ? Math.min(...p.variants.map((v) => Number(v?.price ?? NaN)))
+        : undefined);
+    if (!Number.isFinite(rawPrice)) return 0;
+    const promoList = promosByProduct[p._id] || [];
+    let max = 0;
+    for (const promo of promoList) {
+      if (promo.type === 'percent') max = Math.max(max, Math.round(rawPrice * (promo.value / 100)));
+      else if (promo.type === 'amount') max = Math.max(max, promo.value || 0);
+    }
+    return max;
+  };
+
+  // Derived rows for render on khuyen-mai page
+  const rowsForRender = useMemo(() => {
+    let arr = rows.slice();
+    if (isPromoPage) {
+      // show only products that have at least 1 applicable promotion
+      arr = arr.filter((p) => (promosByProduct[p._id] || []).length > 0);
+      if (selectedPromo) {
+        arr = arr.filter((p) =>
+          (promosByProduct[p._id] || []).some((x) => x.code === selectedPromo),
+        );
+      }
+      if (sort === 'best') {
+        arr = arr.sort((a, b) => getMaxDiscount(b) - getMaxDiscount(a));
+      }
+    }
+    return arr;
+  }, [rows, isPromoPage, promosByProduct, selectedPromo, sort]);
 
   return (
     <div className={`container ${s.wrap}`}>
@@ -144,6 +208,7 @@ export default function Products() {
             aria-label="Sắp xếp"
             className={s.select}
           >
+            {isPromoPage && <option value="best">Giảm nhiều nhất</option>}
             <option value="price:asc">Giá thấp → cao</option>
             <option value="price:desc">Giá cao → thấp</option>
             <option value="newest">Mới nhất</option>
@@ -151,16 +216,49 @@ export default function Products() {
         </div>
       </div>
 
-      <p className={s.count}>{Intl.NumberFormat('vi-VN').format(total)} sản phẩm</p>
+      <p className={s.count}>
+        {Intl.NumberFormat('vi-VN').format(isPromoPage ? rowsForRender.length : total)} sản phẩm
+      </p>
+
+      {/* Promotion tiles (only for /khuyen-mai) */}
+      {isPromoPage && (
+        <div className={s.dealStrip}>
+          <div className={s.dealGrid}>
+            {activePromos.map((p, idx) => {
+              const isActive = selectedPromo === p.code;
+              const isPercent = p.type === 'percent';
+              return (
+                <button
+                  key={p.code}
+                  className={`${s.dealCard} ${isActive ? s.dealActive : ''}`}
+                  onClick={() => setParam({ promo: isActive ? '' : p.code })}
+                  title={`Áp dụng: ${p.code}`}
+                  style={{
+                    animationDelay: `${idx * 0.08}s`,
+                  }}
+                >
+                  <div className={s.dealBadge}>HOT DEAL</div>
+                  <span className={s.dealKicker}>GIẢM ĐẾN</span>
+                  <span className={s.dealTitle}>
+                    {isPercent ? `${p.value}%` : formatVND(p.value)}
+                  </span>
+                  <span className={s.dealCode}>{p.code}</span>
+                  {isPercent && <div className={s.dealPercentIcon}>%</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* List */}
       {loading ? (
         <p>Đang tải…</p>
-      ) : rows.length === 0 ? (
+      ) : rowsForRender.length === 0 ? (
         <div className={s.empty}>Không có sản phẩm phù hợp.</div>
       ) : (
         <div className={s.grid}>
-          {rows.map((p) => {
+          {rowsForRender.map((p) => {
             // Ảnh trước / sau
             const primaryImg =
               p.coverPublicId ||
@@ -186,6 +284,7 @@ export default function Products() {
             let discountPercent = 0;
             let discountAmount = 0;
             let bestPromo = null;
+            let isPercentPromo = false;
 
             if (hasPrice && promoList.length > 0) {
               // Calculate discount for each promotion and pick the one with maximum savings
@@ -199,21 +298,35 @@ export default function Products() {
                 if (promo.type === 'percent') {
                   discount = Math.round(rawPrice * (promo.value / 100));
                   percentValue = promo.value;
+
+                  if (discount > maxDiscount) {
+                    maxDiscount = discount;
+                    maxDiscountPercent = percentValue;
+                    bestPromo = promo;
+                    isPercentPromo = true;
+                  }
                 } else if (promo.type === 'amount') {
                   discount = promo.value;
-                  percentValue = Math.round((discount / rawPrice) * 100);
-                }
 
-                if (discount > maxDiscount) {
-                  maxDiscount = discount;
-                  maxDiscountPercent = percentValue;
-                  bestPromo = promo;
+                  if (discount > maxDiscount) {
+                    maxDiscount = discount;
+                    maxDiscountPercent = 0; // Don't show % for amount type
+                    bestPromo = promo;
+                    isPercentPromo = false;
+                  }
                 }
               }
 
               discountAmount = maxDiscount;
               discountPercent = maxDiscountPercent;
               finalPrice = Math.max(0, rawPrice - discountAmount);
+
+              // Debug log
+              if (p._id) {
+                console.log(
+                  `${p.name}: raw=${rawPrice}, final=${finalPrice}, discount=${discountAmount}, %=${discountPercent}, promo=${bestPromo?.code}`,
+                );
+              }
             }
 
             return (
@@ -233,8 +346,12 @@ export default function Products() {
                         loading="lazy"
                       />
                     )}
-                    {discountPercent > 0 && (
-                      <div className={s.discountBadge}>-{discountPercent}%</div>
+                    {discountAmount > 0 && (
+                      <div className={s.discountBadge}>
+                        {isPercentPromo && discountPercent > 0
+                          ? `-${discountPercent}%`
+                          : `Giảm ${formatVND(discountAmount)}`}
+                      </div>
                     )}
                   </div>
 
@@ -242,10 +359,23 @@ export default function Products() {
                     <div className={s.name}>{p.name}</div>
                     {hasPrice ? (
                       <div className={s.priceBox}>
-                        {discountPercent > 0 ? (
+                        {discountAmount > 0 ? (
                           <>
                             <div className={s.priceNow}>{formatVND(finalPrice)}</div>
-                            <div className={s.priceOld}>{formatVND(rawPrice)}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div className={s.priceOld}>{formatVND(rawPrice)}</div>
+                              {!isPercentPromo && (
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: '#dc2626',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  (Giảm {formatVND(discountAmount)})
+                                </span>
+                              )}
+                            </div>
                           </>
                         ) : (
                           <div className={s.price}>{formatVND(rawPrice)}</div>

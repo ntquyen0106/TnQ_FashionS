@@ -11,11 +11,14 @@ import styles from './ChatbotWidget.module.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const UNAVAILABLE_STORAGE_KEY = 'chatbot_ai_missing_products';
 
 // Helper functions for Cloudinary images
 const encodePublicId = (pid) => (pid ? pid.split('/').map(encodeURIComponent).join('/') : '');
 const img = (publicId, w = 400) =>
-  publicId && CLOUD
+  publicId && /^https?:/i.test(publicId)
+    ? publicId
+    : publicId && CLOUD
     ? `https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto,dpr_auto,w_${w}/${encodePublicId(
         publicId,
       )}`
@@ -119,6 +122,51 @@ function extractJSONProducts(text) {
   return null;
 }
 
+const normalizeProductImageId = (raw) => {
+  if (!raw) return '';
+  let id = String(raw).trim();
+  if (!id) return '';
+  if (/^https?:/i.test(id)) return id;
+  id = id.replace(/^\/+/, '');
+  id = id.replace(/\.(jpe?g|png|gif|webp)$/i, '');
+  return id;
+};
+
+const formatCurrency = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  return `${Math.round(num).toLocaleString('vi-VN')}đ`;
+};
+
+const formatRating = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  const rounded = Math.round(num * 10) / 10;
+  return (Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)).replace(/\.0$/, '');
+};
+
+const loadUnavailableCache = () => {
+  try {
+    if (typeof localStorage === 'undefined') return {};
+    const raw = localStorage.getItem(UNAVAILABLE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch (err) {
+    console.warn('[ChatbotWidget] Không đọc được cache sản phẩm thiếu', err);
+  }
+  return {};
+};
+
+const persistUnavailableCache = (payload) => {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(UNAVAILABLE_STORAGE_KEY, JSON.stringify(payload || {}));
+  } catch (err) {
+    console.warn('[ChatbotWidget] Không lưu được cache sản phẩm thiếu', err);
+  }
+};
+
 export default function ChatbotWidget() {
   const navigate = useNavigate();
   const { add, refresh } = useCart();
@@ -137,9 +185,26 @@ export default function ChatbotWidget() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0); // Track unread messages
   const [isSessionResolved, setIsSessionResolved] = useState(false); // Track if session ended
+  const [aiProductCache, setAiProductCache] = useState({});
+  const [aiUnavailableProducts, setAiUnavailableProducts] = useState(() => loadUnavailableCache());
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const sessionIdRef = useRef(sessionId); // Ref to hold current session ID
+  const aiProductFetchRef = useRef(new Set());
+  const aiProductCacheRef = useRef(aiProductCache);
+  const aiUnavailableRef = useRef(aiUnavailableProducts);
+
+  useEffect(() => {
+    aiProductCacheRef.current = aiProductCache;
+  }, [aiProductCache]);
+
+  useEffect(() => {
+    aiUnavailableRef.current = aiUnavailableProducts;
+  }, [aiUnavailableProducts]);
+
+  useEffect(() => {
+    persistUnavailableCache(aiUnavailableProducts);
+  }, [aiUnavailableProducts]);
 
   // Update ref whenever sessionId changes
   useEffect(() => {
@@ -166,6 +231,142 @@ export default function ChatbotWidget() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    const toFetch = [];
+    const seen = new Set();
+    const known = aiProductCacheRef.current || {};
+    const unavailable = aiUnavailableRef.current || {};
+
+    messages.forEach((msg) => {
+      if (!msg || msg.sender !== 'bot') return;
+      const list =
+        (msg.products && msg.products.length > 0 ? msg.products : extractJSONProducts(msg.text)) ||
+        [];
+      list.forEach((item) => {
+        const slug = item?.slug || '';
+        if (!slug || seen.has(slug)) return;
+        seen.add(slug);
+        if (known[slug]) return;
+        if (unavailable[slug]) return;
+        if (aiProductFetchRef.current.has(slug)) return;
+        aiProductFetchRef.current.add(slug);
+        toFetch.push(slug);
+      });
+    });
+
+    if (!toFetch.length) return;
+
+    (async () => {
+      for (const slug of toFetch) {
+        try {
+          const res = await productsApi.detailBySlug(slug, { _noAutoToast: true });
+          const detail = res?.data || res?.product || res;
+          if (!detail || !detail._id) {
+            setAiUnavailableProducts((prev) => {
+              if (prev[slug]) return prev;
+              return { ...prev, [slug]: true };
+            });
+            continue;
+          }
+
+          const imagePublicId =
+            detail?.images?.find?.((im) => im?.isPrimary)?.publicId ||
+            detail?.images?.[0]?.publicId ||
+            detail?.variants?.find?.((v) => v?.imagePublicId)?.imagePublicId ||
+            '';
+
+          const basePrice = Number(
+            detail.minPrice ??
+              detail.basePrice ??
+              detail?.variants?.[0]?.price ??
+              detail.price ??
+              0,
+          );
+
+          let bestPromo = null;
+          let discountAmount = 0;
+          let discountPercent = 0;
+          let finalPrice = basePrice;
+
+          if (basePrice > 0) {
+            try {
+              const promos = await promotionsApi.available(basePrice, {
+                productIds: [detail._id],
+                ...(detail.categoryId ? { categoryIds: [detail.categoryId] } : {}),
+              });
+              if (Array.isArray(promos) && promos.length > 0) {
+                let maxDiscount = 0;
+                for (const pr of promos) {
+                  let current = 0;
+                  if (pr?.type === 'percent')
+                    current = Math.round((basePrice * Number(pr.value || 0)) / 100);
+                  else if (pr?.type === 'amount') current = Number(pr.value || 0);
+                  if (current > maxDiscount) {
+                    maxDiscount = current;
+                    bestPromo = pr;
+                  }
+                }
+                if (maxDiscount > 0 && bestPromo) {
+                  discountAmount = maxDiscount;
+                  discountPercent =
+                    bestPromo.type === 'percent'
+                      ? Number(bestPromo.value || 0)
+                      : Math.round((maxDiscount / Math.max(basePrice, 1)) * 100);
+                  finalPrice = Math.max(0, basePrice - discountAmount);
+                }
+              }
+            } catch (promoErr) {
+              console.warn(
+                '[ChatbotWidget] Không thể tính khuyến mãi cho sản phẩm AI',
+                slug,
+                promoErr,
+              );
+            }
+          }
+
+          const normalizedImage = normalizeProductImageId(imagePublicId);
+          const ratingValue = Number(detail.ratingAvg ?? detail.reviewAvg ?? detail.rating ?? 0);
+
+          setAiProductCache((prev) => ({
+            ...prev,
+            [slug]: {
+              slug: detail.slug || slug,
+              name: detail.name,
+              imagePublicId: normalizedImage,
+              rating: Number.isFinite(ratingValue) && ratingValue > 0 ? ratingValue : null,
+              basePrice,
+              finalPrice,
+              promotion: bestPromo
+                ? {
+                    code: bestPromo.code,
+                    discountPercent,
+                    discountAmount,
+                    finalPrice,
+                    originalPrice: basePrice,
+                  }
+                : null,
+            },
+          }));
+          setAiUnavailableProducts((prev) => {
+            if (!prev[slug]) return prev;
+            const next = { ...prev };
+            delete next[slug];
+            return next;
+          });
+        } catch (err) {
+          console.warn('[ChatbotWidget] Không thể hydrate sản phẩm AI', slug, err);
+          setAiUnavailableProducts((prev) => {
+            if (prev[slug]) return prev;
+            return { ...prev, [slug]: true };
+          });
+        } finally {
+          aiProductFetchRef.current.delete(slug);
+        }
+      }
+    })();
+  }, [messages]);
+
   // When the chat modal is opened, ensure we jump immediately to the latest message.
   // This covers the case where messages were already loaded but the widget was closed,
   // so reopening should show the newest message instead of remaining scrolled to top.
@@ -180,17 +381,11 @@ export default function ChatbotWidget() {
 
   // Initialize socket connection
   useEffect(() => {
-    console.log('[ChatbotWidget] Initializing socket for session:', sessionId);
-
     const newSocket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
     });
 
     newSocket.on('connect', () => {
-      console.log('[ChatbotWidget] ✅ Connected to WebSocket');
-      console.log('[ChatbotWidget] Socket ID:', newSocket.id);
-      // Join chat room
-      console.log('[ChatbotWidget] Joining room: chat:' + sessionId);
       newSocket.emit('join_chat', sessionId);
     });
 
@@ -201,12 +396,8 @@ export default function ChatbotWidget() {
     // Listen for messages from staff
     newSocket.on('new_message', (message) => {
       const currentSessionId = sessionIdRef.current; // Read from ref
-      console.log('[ChatbotWidget] 💬 Received new_message event:', message);
-      console.log('[ChatbotWidget] Current sessionId (from ref):', currentSessionId);
-      console.log('[ChatbotWidget] Message sessionId:', message.sessionId);
 
       if (message.sessionId === currentSessionId) {
-        console.log('[ChatbotWidget] ✅ SessionId matches, adding message');
         // Map sender: server 'user' -> 'user'; 'bot' & 'staff' -> 'bot' for rendering style
         const formattedMsg = {
           id: message._id,
@@ -238,7 +429,6 @@ export default function ChatbotWidget() {
               ...formattedMsg,
               pending: false,
             };
-            console.log('[ChatbotWidget] 🔄 Replaced optimistic message with server payload');
             return next;
           }
 
@@ -253,11 +443,9 @@ export default function ChatbotWidget() {
                     2000),
             )
           ) {
-            console.log('[ChatbotWidget] ⚠️ Duplicate message, skipping');
             return prev;
           }
 
-          console.log('[ChatbotWidget] ✅ Adding message to state');
           return [...prev, formattedMsg];
         });
         // Scroll bottom after append - instant scroll to show newest message
@@ -278,7 +466,7 @@ export default function ChatbotWidget() {
             if (slug) {
               (async () => {
                 try {
-                  const prodRes = await productsApi.detailBySlug(slug);
+                  const prodRes = await productsApi.detailBySlug(slug, { _noAutoToast: true });
                   const product = prodRes?.data || prodRes?.product || prodRes;
                   if (product && product._id) {
                     const base = Number(
@@ -342,14 +530,11 @@ export default function ChatbotWidget() {
             }
           }
         } catch {}
-      } else {
-        console.log('[ChatbotWidget] ❌ SessionId mismatch, ignoring');
       }
     });
 
     // Listen for AI toggle status
     newSocket.on('ai_toggled', (data) => {
-      console.log('[ChatbotWidget] 🤖 AI toggled:', data);
       if (data.sessionId === sessionId) {
         setChatMode(data.aiEnabled ? 'ai' : 'staff');
         if (data.aiEnabled) {
@@ -360,7 +545,6 @@ export default function ChatbotWidget() {
 
     // Listen for session updates (staff accepted)
     newSocket.on('session_update', (data) => {
-      console.log('[ChatbotWidget] 📥 Session update:', data);
       if (data.sessionId === sessionId) {
         // Switch to staff mode immediately when staff joins
         if (data.status === 'with_staff') {
@@ -388,7 +572,6 @@ export default function ChatbotWidget() {
 
     // Listen for session resolved (staff ended chat)
     newSocket.on('session_resolved', (data) => {
-      console.log('[ChatbotWidget] ✅ Session resolved:', data);
       if (data.sessionId === sessionId) {
         // Add system message
         setMessages((prev) => [
@@ -415,7 +598,6 @@ export default function ChatbotWidget() {
     setSocket(newSocket);
 
     return () => {
-      console.log('[ChatbotWidget] Disconnecting socket');
       newSocket.emit('leave_chat', sessionId);
       newSocket.disconnect();
     };
@@ -542,10 +724,11 @@ export default function ChatbotWidget() {
     if (!inputText.trim()) return;
 
     const tempId = `temp_${Date.now()}`;
+    const messageText = inputText.trim();
     const userMessage = {
       id: tempId,
       sender: 'user',
-      text: inputText.trim(),
+      text: messageText,
       timestamp: new Date(),
       pending: true,
       origin: 'user',
@@ -555,12 +738,16 @@ export default function ChatbotWidget() {
     setInputText('');
     setIsTyping(true);
 
+    let apiSuccess = false;
+
     try {
       const res = await chatbotApi.sendMessage({
         sessionId,
-        text: userMessage.text,
+        text: messageText,
         customerInfo: user ? { name: user.name || user.username } : {},
       });
+
+      apiSuccess = res.success;
 
       if (res.success && res.data?.userMessage?._id) {
         setMessages((prev) =>
@@ -598,21 +785,51 @@ export default function ChatbotWidget() {
           setActiveStaffName(res.data.botMessage.staffName);
           setChatMode('staff');
         }
-        setMessages((prev) => [...prev, botMessage]);
+        setMessages((prev) => {
+          const exists = prev.some((m) => {
+            if (m.id && botMessage.id) return String(m.id) === String(botMessage.id);
+            if (m.origin === botMessage.origin && m.text === botMessage.text) {
+              const mt = new Date(m.timestamp).getTime();
+              const bt = botMessage.timestamp.getTime();
+              return Math.abs(mt - bt) < 2000;
+            }
+            return false;
+          });
+          if (exists) return prev;
+          return [...prev, botMessage];
+        });
       }
       // If botMessage không trả về (AI disabled chờ staff) thì realtime auto-message đã được emit ở requestStaff
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      const errorMessage = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: 'Xin lỗi, em đang gặp sự cố. Vui lòng thử lại hoặc liên hệ hotline 1900-xxxx! 🙏',
-        timestamp: new Date(),
-        origin: 'system',
-        pending: false,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+
+      // Wait a bit to see if WebSocket delivers the message
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Check if message was delivered via WebSocket by checking against current state
+      let messageDelivered = false;
+      setMessages((prev) => {
+        messageDelivered = prev.some(
+          (m) =>
+            (m.id !== tempId && m.text === messageText && m.origin === 'user' && !m.pending) ||
+            (m.id === tempId && !m.pending),
+        );
+        return prev;
+      });
+
+      if (!messageDelivered) {
+        // Only show error if message truly failed
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        const errorMessage = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: 'Xin lỗi, em đang gặp sự cố. Vui lòng thử lại hoặc liên hệ hotline 1900-xxxx! 🙏',
+          timestamp: new Date(),
+          origin: 'system',
+          pending: false,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
       setIsTyping(false);
     }
@@ -662,7 +879,6 @@ export default function ChatbotWidget() {
   };
 
   const handleRequestStaff = async () => {
-    console.log('[ChatbotWidget] Requesting staff for session:', sessionId);
     setChatMode('staff');
     setShowSidebar(false);
     setActiveStaffName('');
@@ -685,8 +901,7 @@ export default function ChatbotWidget() {
     try {
       // Request staff - server will create session if needed and save customer name
       const customerInfo = user ? { name: user.name || user.username } : {};
-      const result = await chatbotApi.requestStaff(targetSessionId, customerInfo);
-      console.log('[ChatbotWidget] Staff request success:', result);
+      await chatbotApi.requestStaff(targetSessionId, customerInfo);
 
       // No client-side socket.emit here — the API call already notifies staff via server-side emit.
 
@@ -733,6 +948,10 @@ export default function ChatbotWidget() {
   };
 
   const handleAddToCart = async (product) => {
+    if (!product?.slug) {
+      console.warn('[ChatbotWidget] Thiếu slug sản phẩm khi thêm vào giỏ', product);
+      return;
+    }
     try {
       // Fetch product details to get variants
       const detail = await productsApi.detailBySlug(product.slug);
@@ -810,6 +1029,10 @@ export default function ChatbotWidget() {
   };
 
   const handleViewProduct = (product) => {
+    if (!product?.slug) {
+      console.warn('[ChatbotWidget] Thiếu slug sản phẩm khi xem chi tiết', product);
+      return;
+    }
     navigate(`/product/${product.slug}`);
   };
 
@@ -1050,234 +1273,324 @@ export default function ChatbotWidget() {
               </div>
             ) : (
               <>
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`${styles.message} ${
-                      msg.sender === 'user' ? styles.userMessage : styles.botMessage
-                    }`}
-                  >
-                    {msg.sender === 'bot' && (
-                      <div className={styles.msgAvatar}>
-                        {msg.origin === 'staff' ? '👤' : chatMode === 'ai' ? '🤖' : '👤'}
-                      </div>
-                    )}
-                    <div className={styles.msgContent}>
-                      {/* Show staff name if message is from staff */}
-                      {msg.origin === 'staff' && msg.staffName && (
-                        <div className={styles.staffLabel}>👤 {msg.staffName}</div>
-                      )}
+                {messages.map((msg) => {
+                  const productListRaw =
+                    (msg.products && msg.products.length > 0
+                      ? msg.products
+                      : extractJSONProducts(msg.text)) || [];
+                  const fallbackImageRaw =
+                    msg.productData?.images?.[0]?.publicId || msg.productData?.images?.[0] || '';
+                  const fallbackImage = normalizeProductImageId(fallbackImageRaw);
+                  const deduped = new Set();
+                  const productList = [];
+                  productListRaw.forEach((item) => {
+                    const slug = typeof item?.slug === 'string' ? item.slug.trim() : '';
+                    if (!slug || deduped.has(slug)) return;
+                    deduped.add(slug);
+                    const cacheEntry = aiProductCache[slug];
+                    if (!cacheEntry) return;
+                    const normalized = normalizeProductImageId(
+                      cacheEntry?.imagePublicId || item?.image || fallbackImage,
+                    );
+                    productList.push({
+                      ...item,
+                      slug: cacheEntry.slug || slug,
+                      name: cacheEntry.name || item.name,
+                      image: normalized,
+                      detail: cacheEntry,
+                    });
+                  });
 
-                      {/* Display attachment if exists */}
-                      {msg.attachment && msg.attachment.url && (
-                        <div className={styles.attachmentWrapper}>
-                          {msg.attachment.type === 'image' && (
-                            <img
-                              src={msg.attachment.url}
-                              alt={msg.text}
-                              className={styles.attachmentImage}
-                              style={{
-                                maxWidth: '300px',
-                                borderRadius: '8px',
-                                marginBottom: '8px',
-                              }}
-                            />
-                          )}
-                          {msg.attachment.type === 'video' && (
-                            <video
-                              src={msg.attachment.url}
-                              controls
-                              className={styles.attachmentVideo}
-                              style={{
-                                maxWidth: '300px',
-                                borderRadius: '8px',
-                                marginBottom: '8px',
-                              }}
-                            />
-                          )}
+                  const missingProductSlugs = (() => {
+                    const missing = new Set();
+                    productListRaw.forEach((item) => {
+                      const slug = typeof item?.slug === 'string' ? item.slug.trim() : '';
+                      if (!slug) {
+                        missing.add(`(thiếu slug) ${item?.name || 'Sản phẩm'}`);
+                        return;
+                      }
+                      if (aiProductCache[slug]) return;
+                      if (aiUnavailableProducts[slug]) missing.add(slug);
+                    });
+                    return missing;
+                  })();
+
+                  const hasProducts = productList.length > 0;
+                  const filteredCount = missingProductSlugs.size;
+                  const cleanedText = (() => {
+                    const raw = (msg.text || '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+                    const sanitized = raw
+                      .split('\n')
+                      .map((line) => line.trim())
+                      .filter((line) => line && !/^(?:ảnh|video)\s*:/i.test(line))
+                      .join('\n')
+                      .trim();
+                    if (!sanitized) return '';
+                    if (!hasProducts) {
+                      if (productListRaw.length === 0) return sanitized;
+                      const braceIdx = sanitized.indexOf('{');
+                      const bracketIdx = sanitized.indexOf('[');
+                      let cutIdx = sanitized.length;
+                      if (braceIdx >= 0) cutIdx = Math.min(cutIdx, braceIdx);
+                      if (bracketIdx >= 0) cutIdx = Math.min(cutIdx, bracketIdx);
+                      const lead = sanitized.slice(0, cutIdx).trim();
+                      return lead || sanitized.trim();
+                    }
+                    const braceIdx = sanitized.indexOf('{');
+                    const bracketIdx = sanitized.indexOf('[');
+                    let cutIdx = sanitized.length;
+                    if (braceIdx >= 0) cutIdx = Math.min(cutIdx, braceIdx);
+                    if (bracketIdx >= 0) cutIdx = Math.min(cutIdx, bracketIdx);
+                    const lead = sanitized.slice(0, cutIdx).trim();
+                    return (
+                      lead ||
+                      'Dạ, em xin gửi Anh/Chị một vài lựa chọn phù hợp, Anh/Chị tham khảo nhé:'
+                    );
+                  })();
+                  const productWarningMessage = (() => {
+                    if (filteredCount === 0) return '';
+                    if (!hasProducts) {
+                      return 'Em xin lỗi, hiện shop chưa có các sản phẩm như trên hệ thống nên chưa thể gửi chi tiết ạ.';
+                    }
+                    return 'Em đã bỏ qua một vài sản phẩm vì hiện không có trong kho, mong Anh/Chị thông cảm.';
+                  })();
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`${styles.message} ${
+                        msg.sender === 'user' ? styles.userMessage : styles.botMessage
+                      }`}
+                    >
+                      {msg.sender === 'bot' && (
+                        <div className={styles.msgAvatar}>
+                          {msg.origin === 'staff' ? '👤' : chatMode === 'ai' ? '🤖' : '👤'}
                         </div>
                       )}
+                      <div className={styles.msgContent}>
+                        {/* Show staff name if message is from staff */}
+                        {msg.origin === 'staff' && msg.staffName && (
+                          <div className={styles.staffLabel}>👤 {msg.staffName}</div>
+                        )}
 
-                      {/* Only show text if no products were extracted, or show cleaned text */}
-                      {(!msg.products || msg.products.length === 0) &&
-                        !msg.productData &&
-                        (() => {
-                          // Hide "Ảnh: filename" or "Video: filename" when attachment exists
-                          if (msg.attachment && msg.text) {
-                            const cleanText = msg.text
-                              .replace(/^(Ảnh|Video):\s*.+$/i, '')
-                              .replace(/[\u200B-\u200D\uFEFF]/g, '')
-                              .trim();
-                            return cleanText ? <p>{cleanText}</p> : null;
-                          }
-                          const normalized = (msg.text || '')
-                            .replace(/[\u200B-\u200D\uFEFF]/g, '')
-                            .trim();
-                          return normalized ? <p>{normalized}</p> : null;
-                        })()}
-                      {msg.products && msg.products.length > 0 && (
-                        <p>
-                          {(() => {
-                            let cleaned = msg.text;
-                            // Remove fenced code blocks
-                            cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
-                            // Remove JSON objects (greedy match from first { to last })
-                            const firstBrace = cleaned.indexOf('{');
-                            const lastBrace = cleaned.lastIndexOf('}');
-                            if (firstBrace >= 0 && lastBrace > firstBrace) {
-                              cleaned = cleaned.slice(0, firstBrace) + cleaned.slice(lastBrace + 1);
-                            }
-                            // Remove JSON arrays
-                            const firstBracket = cleaned.indexOf('[');
-                            const lastBracket = cleaned.lastIndexOf(']');
-                            if (firstBracket >= 0 && lastBracket > firstBracket) {
-                              cleaned =
-                                cleaned.slice(0, firstBracket) + cleaned.slice(lastBracket + 1);
-                            }
-                            // Clean up residual punctuation
-                            cleaned = cleaned.replace(/[,\s]*$/g, '').trim();
-                            return (
-                              cleaned ||
-                              'Dưới đây là danh sách một số sản phẩm mà Anh/Chị có thể tham khảo:'
-                            );
-                          })()}
-                        </p>
-                      )}
-
-                      {/* Staff Product Card (single) */}
-                      {msg.productData && (
-                        <div className={styles.singleProductCard}>
-                          <div className={styles.singleProductImageWrapper}>
-                            {msg.productData.images?.[0] && (
+                        {/* Display attachment if exists */}
+                        {msg.attachment && msg.attachment.url && (
+                          <div className={styles.attachmentWrapper}>
+                            {msg.attachment.type === 'image' && (
                               <img
-                                src={
-                                  msg.productData.images[0].publicId
-                                    ? img(msg.productData.images[0].publicId, 300)
-                                    : msg.productData.images[0]
-                                }
-                                alt={msg.productData.name}
-                                className={styles.singleProductImage}
+                                src={msg.attachment.url}
+                                alt=""
+                                className={styles.attachmentImage}
                               />
                             )}
-                            {msg.productData._promotion?.discountPercent > 0 && (
-                              <div className={styles.singleProductBadge}>
-                                -{Math.round(msg.productData._promotion.discountPercent)}%
-                              </div>
+                            {msg.attachment.type === 'video' && (
+                              <video
+                                src={msg.attachment.url}
+                                controls
+                                className={styles.attachmentVideo}
+                              />
                             )}
                           </div>
-                          <div className={styles.singleProductInfo}>
-                            <h5 className={styles.singleProductName}>{msg.productData.name}</h5>
-                            {msg.productData._promotion?.finalPrice ? (
-                              <div className={styles.singleProductPriceRow}>
-                                <span className={styles.singleProductPriceNow}>
-                                  {msg.productData._promotion.finalPrice.toLocaleString('vi-VN')}đ
-                                </span>
-                                <span className={styles.singleProductPriceOld}>
-                                  {msg.productData._promotion.originalPrice.toLocaleString('vi-VN')}
-                                  đ
-                                </span>
-                              </div>
-                            ) : (
-                              <p className={styles.singleProductPrice}>
-                                {(
-                                  msg.productData.minPrice ??
-                                  msg.productData.basePrice ??
-                                  0
-                                ).toLocaleString('vi-VN')}
-                                đ
-                              </p>
-                            )}
-                            {msg.productData._promotion?.code && (
-                              <div className={styles.singleProductPromoTag}>
-                                {msg.productData._promotion.code}
-                              </div>
-                            )}
-                            <div className={styles.singleProductActions}>
-                              <button
-                                type="button"
-                                className={styles.singleProductBtn}
-                                onClick={() => navigate(`/product/${msg.productData.slug}`)}
-                              >
-                                Xem chi tiết
-                              </button>
-                              <button
-                                className={styles.singleProductAddBtn}
-                                onClick={() =>
-                                  handleAddToCart({
-                                    slug: msg.productData.slug,
-                                    name: msg.productData.name,
-                                  })
-                                }
-                              >
-                                🛒 Thêm vào giỏ
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Product Cards */}
-                      {msg.products && msg.products.length > 0 && (
-                        <div className={styles.productCards}>
-                          {msg.products.map((product, idx) => (
-                            <div
-                              key={idx}
-                              className={styles.productCard}
-                              onClick={() => handleViewProduct(product)}
-                            >
-                              {product.image && (
+                        {/* Only show text if no products were extracted, or show cleaned text */}
+                        {!hasProducts && !msg.productData && cleanedText && <p>{cleanedText}</p>}
+                        {hasProducts && <p>{cleanedText}</p>}
+
+                        {/* Staff Product Card (single) */}
+                        {msg.productData && (
+                          <div className={styles.singleProductCard}>
+                            <div className={styles.singleProductImageWrapper}>
+                              {msg.productData.images?.[0] && (
                                 <img
-                                  src={img(product.image, 400)}
-                                  alt={product.name}
-                                  className={styles.productImage}
-                                  onError={(e) => {
-                                    e.target.src = '/no-image.png';
-                                  }}
+                                  src={
+                                    msg.productData.images[0].publicId
+                                      ? img(msg.productData.images[0].publicId, 300)
+                                      : msg.productData.images[0]
+                                  }
+                                  alt={msg.productData.name}
+                                  className={styles.singleProductImage}
                                 />
                               )}
-                              <div className={styles.productInfo}>
-                                <h5 className={styles.productName}>{product.name}</h5>
-                                {product.price && (
-                                  <p className={styles.productPrice}>{product.price}đ</p>
-                                )}
-                                {product.rating && (
-                                  <p className={styles.productRating}>⭐ {product.rating}/5</p>
-                                )}
-                              </div>
-                              <div className={styles.productActions}>
+                              {msg.productData._promotion?.discountPercent > 0 && (
+                                <div className={styles.singleProductBadge}>
+                                  -{Math.round(msg.productData._promotion.discountPercent)}%
+                                </div>
+                              )}
+                            </div>
+                            <div className={styles.singleProductInfo}>
+                              <h5 className={styles.singleProductName}>{msg.productData.name}</h5>
+                              {msg.productData._promotion?.finalPrice ? (
+                                <div className={styles.singleProductPriceRow}>
+                                  <span className={styles.singleProductPriceNow}>
+                                    {msg.productData._promotion.finalPrice.toLocaleString('vi-VN')}đ
+                                  </span>
+                                  <span className={styles.singleProductPriceOld}>
+                                    {msg.productData._promotion.originalPrice.toLocaleString(
+                                      'vi-VN',
+                                    )}
+                                    đ
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className={styles.singleProductPrice}>
+                                  {(
+                                    msg.productData.minPrice ??
+                                    msg.productData.basePrice ??
+                                    0
+                                  ).toLocaleString('vi-VN')}
+                                  đ
+                                </p>
+                              )}
+                              {msg.productData._promotion?.code && (
+                                <div className={styles.singleProductPromoTag}>
+                                  {msg.productData._promotion.code}
+                                </div>
+                              )}
+                              <div className={styles.singleProductActions}>
                                 <button
-                                  className={styles.productLink}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleViewProduct(product);
-                                  }}
+                                  type="button"
+                                  className={styles.singleProductBtn}
+                                  onClick={() => navigate(`/product/${msg.productData.slug}`)}
                                 >
                                   Xem chi tiết
                                 </button>
                                 <button
-                                  className={styles.addToCartBtn}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddToCart(product);
-                                  }}
+                                  className={styles.singleProductAddBtn}
+                                  onClick={() =>
+                                    handleAddToCart({
+                                      slug: msg.productData.slug,
+                                      name: msg.productData.name,
+                                    })
+                                  }
                                 >
                                   🛒 Thêm vào giỏ
                                 </button>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          </div>
+                        )}
 
-                      <span className={styles.msgTime}>
-                        {msg.timestamp.toLocaleTimeString('vi-VN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
+                        {/* Product Cards */}
+                        {hasProducts && (
+                          <div className={styles.productCards}>
+                            {productList.map((product, idx) => {
+                              const detail = product.detail;
+                              const hydratedFinalPrice =
+                                detail?.promotion?.finalPrice ??
+                                detail?.finalPrice ??
+                                detail?.basePrice ??
+                                null;
+                              const hydratedOriginalPrice =
+                                detail?.promotion?.originalPrice ?? null;
+                              const discountPercent = detail?.promotion?.discountPercent || 0;
+                              const promoCode = detail?.promotion?.code || '';
+                              const fallbackPriceText = product.price
+                                ? /[đ₫]/i.test(product.price)
+                                  ? product.price
+                                  : `${product.price}đ`
+                                : null;
+                              const displayPriceNow =
+                                (hydratedFinalPrice && formatCurrency(hydratedFinalPrice)) ||
+                                fallbackPriceText;
+                              const displayPriceOld =
+                                hydratedOriginalPrice && discountPercent > 0
+                                  ? formatCurrency(hydratedOriginalPrice)
+                                  : null;
+                              const fallbackRatingText = product.rating
+                                ? String(product.rating).replace(/\s*\/\s*5$/, '')
+                                : null;
+                              const ratingText =
+                                (detail?.rating && formatRating(detail.rating)) ||
+                                fallbackRatingText;
+
+                              return (
+                                <div
+                                  key={product.slug || idx}
+                                  className={`${styles.singleProductCard} ${styles.productCardGrid}`}
+                                  onClick={() => handleViewProduct(product)}
+                                >
+                                  <div className={styles.singleProductImageWrapper}>
+                                    <img
+                                      src={img(product.image || '', 400)}
+                                      alt={product.name}
+                                      className={styles.singleProductImage}
+                                      onError={(e) => {
+                                        e.target.src = '/no-image.png';
+                                      }}
+                                    />
+                                    {discountPercent > 0 && (
+                                      <div className={styles.singleProductBadge}>
+                                        -{Math.round(discountPercent)}%
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className={styles.singleProductInfo}>
+                                    <h5 className={styles.singleProductName}>{product.name}</h5>
+                                    {displayPriceNow && displayPriceOld ? (
+                                      <div className={styles.singleProductPriceRow}>
+                                        <span className={styles.singleProductPriceNow}>
+                                          {displayPriceNow}
+                                        </span>
+                                        <span className={styles.singleProductPriceOld}>
+                                          {displayPriceOld}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      displayPriceNow && (
+                                        <p className={styles.singleProductPrice}>
+                                          {displayPriceNow}
+                                        </p>
+                                      )
+                                    )}
+                                    {promoCode && (
+                                      <div className={styles.singleProductPromoTag}>
+                                        {promoCode}
+                                      </div>
+                                    )}
+                                    {ratingText && (
+                                      <p className={styles.productRating}>⭐ {ratingText}/5</p>
+                                    )}
+                                    <div className={styles.singleProductActions}>
+                                      <button
+                                        className={styles.singleProductBtn}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewProduct(product);
+                                        }}
+                                      >
+                                        Xem chi tiết
+                                      </button>
+                                      <button
+                                        className={styles.singleProductAddBtn}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAddToCart(product);
+                                        }}
+                                      >
+                                        🛒 Thêm vào giỏ
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {productWarningMessage && (
+                          <p className={styles.productWarning}>{productWarningMessage}</p>
+                        )}
+
+                        <span className={styles.msgTime}>
+                          {msg.timestamp.toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {isTyping && (
                   <div className={`${styles.message} ${styles.botMessage}`}>

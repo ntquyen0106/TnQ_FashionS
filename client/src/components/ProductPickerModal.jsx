@@ -120,33 +120,44 @@ export default function ProductPickerModal({ isOpen, onClose, onSelectProduct })
     loadProducts(selectedCategory?.path, text);
   };
 
-  const handleProductSelect = (product) => {
-    // Attach promotion info that was already calculated for display
-    const promos = promosByProduct[product._id] || [];
+  const handleProductSelect = async (product) => {
+    // Fetch fresh promotions based on actual price to ensure accuracy
     const base = Number(
-      product.minPrice ?? product.basePrice ?? product?.variants?.[0]?.price ?? 0,
+      product.minPrice ?? product.basePrice ?? product?.variants?.[0]?.price ?? product.price ?? 0,
     );
 
     let bestPromo = null;
     let bestDiscount = 0;
     let bestPercent = 0;
 
-    for (const pr of promos) {
-      if (pr?.type === 'percent') {
-        const d = Math.round((base * Number(pr.value || 0)) / 100);
-        if (d > bestDiscount) {
-          bestDiscount = d;
-          bestPercent = Number(pr.value || 0);
-          bestPromo = pr;
+    if (base > 0) {
+      try {
+        // Fetch promotions with actual price
+        const promos = await promotionsApi.available(base, {
+          productIds: [product._id],
+          ...(product.categoryId ? { categoryIds: [product.categoryId] } : {}),
+        });
+
+        for (const pr of Array.isArray(promos) ? promos : []) {
+          if (pr?.type === 'percent') {
+            const d = Math.round((base * Number(pr.value || 0)) / 100);
+            if (d > bestDiscount) {
+              bestDiscount = d;
+              bestPercent = Number(pr.value || 0);
+              bestPromo = pr;
+            }
+          } else if (pr?.type === 'amount') {
+            const d = Number(pr.value || 0);
+            const pct = base > 0 ? Math.round((d / base) * 100) : 0;
+            if (d > bestDiscount) {
+              bestDiscount = d;
+              bestPercent = pct;
+              bestPromo = pr;
+            }
+          }
         }
-      } else if (pr?.type === 'amount') {
-        const d = Number(pr.value || 0);
-        const pct = base > 0 ? Math.round((d / base) * 100) : 0;
-        if (d > bestDiscount) {
-          bestDiscount = d;
-          bestPercent = pct;
-          bestPromo = pr;
-        }
+      } catch (error) {
+        console.error('[ProductPickerModal] Error fetching promotions:', error);
       }
     }
 

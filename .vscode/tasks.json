@@ -566,6 +566,78 @@
 				"(Get-Content -Raw 'client\\TODO.md') -replace 'Step 4.*','Step 4: Build & verify ✅ (npm run build) 2024-01-13' | Set-Content 'client\\TODO.md'"
 			],
 			"group": "build"
+		},
+		{
+			"label": "dev: quick client build for promo tiles",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build client after promo tile redesign",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build client after chatbot media styling",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build client - remove media alt text",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build client - remove media filename labels",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build client after removing attachment captions",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"if (Test-Path 'client\\package.json') { Push-Location 'client'; npm run -s build; Pop-Location } else { Write-Output 'no client' }"
+			],
+			"group": "build"
 		}
 	]
 }

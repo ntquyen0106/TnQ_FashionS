@@ -22,6 +22,7 @@ import adminUserRoutes from './routes/admin-user.routes.js';
 
 import chatbotRoutes from './routes/chatbot.routes.js';
 import trainingRoutes from './routes/training.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 
 import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
@@ -95,6 +96,7 @@ export const createApp = (clientUrl) => {
   // Chatbot & AI Training
   app.use('/api/chatbot', chatbotRoutes);
   app.use('/api/training', trainingRoutes);
+  app.use('/api/ai', aiRoutes);
 
   // Swagger
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));

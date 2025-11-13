@@ -6,9 +6,22 @@ import Category from '../models/Category.js';
 import Promotion from '../models/Promotion.js';
 import axios from 'axios';
 import { getIO } from '../config/socket.js';
+import { queryProductsForAI } from '../controllers/ai-products.controller.js';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo';
+const PROMPT_LIMITS = {
+  products: 2200,
+  categories: 800,
+  policies: 2200,
+  promotions: 600,
+};
+
+const clampText = (text = '', max = 1000) => {
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n... (đã rút gọn vì giới hạn dung lượng)`;
+};
 
 /**
  * Hybrid Chatbot Service - AI + Staff Support
@@ -72,6 +85,7 @@ export const chatbotService = {
 
     // Format products
     const productList = products
+      .slice(0, 18)
       .map((p, i) => {
         const minPrice = Math.min(...p.variants.map((v) => v.price));
         const maxPrice = Math.max(...p.variants.map((v) => v.price));
@@ -99,7 +113,10 @@ export const chatbotService = {
       .join('\n\n');
 
     // Format categories
-    const categoryList = categories.map((c) => `- ${c.name}: ${c.description || ''}`).join('\n');
+    const categoryList = categories
+      .slice(0, 20)
+      .map((c) => `- ${c.name}: ${c.description || ''}`)
+      .join('\n');
 
     // Format policies by type
     const policyGroups = {};
@@ -140,10 +157,10 @@ export const chatbotService = {
       .join('\n');
 
     return {
-      products: productList,
-      categories: categoryList,
-      policies: policyText,
-      promotions: promotionList,
+      products: clampText(productList, PROMPT_LIMITS.products),
+      categories: clampText(categoryList, PROMPT_LIMITS.categories),
+      policies: clampText(policyText, PROMPT_LIMITS.policies),
+      promotions: clampText(promotionList, PROMPT_LIMITS.promotions),
     };
   },
 
@@ -264,12 +281,140 @@ export const chatbotService = {
   },
 
   /**
+   * Analyze user intent to determine if products needed
+   */
+  analyzeIntent(message) {
+    const lower = message.toLowerCase();
+
+    const productKeywordsPattern =
+      /sản phẩm|áo|quần|váy|đầm|váy|đồ|mua|size|màu|giày|dép|sandal|boot|túi|ví|nón|mũ|phụ kiện|đồng hồ|balo|áo sơ mi|áo khoác|hoodie|áo polo|áo phông/i;
+    const needsProducts = productKeywordsPattern.test(lower);
+
+    const categoryMatchers = [
+      { regex: /áo thun nam|t-shirt nam|tee nam|áo phông nam/i, category: 'áo thun nam' },
+      { regex: /áo thun nữ|áo phông nữ|tee nữ/i, category: 'áo thun nữ' },
+      { regex: /áo polo/i, category: 'áo polo' },
+      { regex: /áo khoác|jacket|hoodie/i, category: 'áo khoác' },
+      { regex: /sơ mi nam|áo sơ mi nam/i, category: 'áo sơ mi nam' },
+      { regex: /sơ mi nữ|áo sơ mi nữ/i, category: 'áo sơ mi nữ' },
+      { regex: /áo nam/i, category: 'áo nam' },
+      { regex: /áo nữ/i, category: 'áo nữ' },
+      { regex: /quần jean|quần bò/i, category: 'quần jean' },
+      { regex: /quần tây/i, category: 'quần tây' },
+      { regex: /quần short|quần đùi/i, category: 'quần short' },
+      { regex: /đầm|váy/i, category: 'đầm váy' },
+      { regex: /giày|sneaker|boot|sandals?|dép/i, category: 'giày dép' },
+      { regex: /túi|ví|balo|ba lô/i, category: 'túi ví' },
+      { regex: /đồng hồ/i, category: 'phụ kiện đồng hồ' },
+      { regex: /phụ kiện|trang sức|dây chuyền|lắc tay|nhẫn/i, category: 'phụ kiện' },
+    ];
+
+    let category = null;
+    let searchTerm = null;
+    for (const matcher of categoryMatchers) {
+      if (matcher.regex.test(lower)) {
+        category = matcher.category;
+        searchTerm = searchTerm || matcher.category;
+        break;
+      }
+    }
+
+    if (!searchTerm) {
+      const keywordMatches = lower.match(
+        /(áo|quần|váy|đầm|giày|dép|váy|đồ|đồng hồ|túi|ví|balo|hoodie|sandal|polo|sơ mi)/gi,
+      );
+      if (keywordMatches && keywordMatches.length) {
+        searchTerm = keywordMatches.slice(0, 3).join(' ');
+      }
+    }
+
+    // Extract price if mentioned
+    const priceRegex =
+      /(?:từ|trên)[^\d]*(\d+)(?:\s*k|\.000)?|(?:dưới|đến)[^\d]*(\d+)(?:\s*k|\.000)?|(\d+)\s*k|(\d+)\.000/gi;
+    let minPrice = null;
+    let maxPrice = null;
+    let match;
+    while ((match = priceRegex.exec(lower))) {
+      const [full, minGroup, maxGroup, kGroup, dotGroup] = match;
+      const raw = Number(minGroup || maxGroup || kGroup || dotGroup);
+      if (!raw) continue;
+      const price = raw < 1000 ? raw * 1000 : raw;
+      if (/từ|trên/.test(full)) {
+        minPrice = price;
+      } else if (/dưới|đến/.test(full)) {
+        maxPrice = price;
+      } else if (kGroup || dotGroup) {
+        // Plain "200k" without qualifier - treat as max price by default
+        maxPrice = price;
+      }
+    }
+
+    return { needsProducts, category, searchTerm, minPrice, maxPrice };
+  },
+
+  /**
    * Get AI response with full knowledge base
    */
   async getAIResponse(userMessage, chatHistory = []) {
     try {
+      // Analyze user intent
+      const intent = this.analyzeIntent(userMessage);
+
+      // Query real products from DB if needed
+      let realProducts = [];
+      if (intent.needsProducts) {
+        const baseFilters = {
+          category: intent.category,
+          minPrice: intent.minPrice,
+          maxPrice: intent.maxPrice,
+          search: intent.searchTerm,
+          limit: 10,
+        };
+
+        realProducts = await queryProductsForAI(baseFilters);
+
+        if (!realProducts.length && (intent.minPrice || intent.maxPrice)) {
+          realProducts = await queryProductsForAI({
+            ...baseFilters,
+            minPrice: undefined,
+            maxPrice: undefined,
+          });
+        }
+
+        if (!realProducts.length && intent.searchTerm) {
+          realProducts = await queryProductsForAI({
+            category: intent.category,
+            limit: baseFilters.limit,
+          });
+        }
+
+        if (!realProducts.length) {
+          realProducts = await queryProductsForAI({ limit: baseFilters.limit });
+        }
+      }
+
       const kb = await this.buildKnowledgeBase();
       const formatted = this.formatKnowledgeForAI(kb);
+
+      // Format real products for AI context
+      let productContext = '';
+      if (realProducts.length > 0) {
+        productContext = `\n\n**DANH SÁCH SẢN PHẨM THỰC TẾ TỪ DATABASE:**
+${realProducts
+  .map(
+    (p, i) =>
+      `${i + 1}. "${p.name}" - slug: "${p.slug}" - Giá: ${p.price.toLocaleString(
+        'vi-VN',
+      )}đ - Rating: ${p.rating}/5 - Còn hàng: ${p.inStock ? 'Có' : 'Hết'}`,
+  )
+  .join('\n')}
+
+QUAN TRỌNG: 
+- CHỈ sử dụng các sản phẩm trong danh sách trên
+- SỬ DỤNG ĐÚNG slug từ danh sách (VD: "${realProducts[0]?.slug}")
+- KHÔNG tự bịa slug như "day-dong-ho-da", "kinh-ram-nam"
+- Nếu không có sản phẩm phù hợp → nói "Em xin lỗi, hiện shop chưa có sản phẩm này"`;
+      }
 
       const systemPrompt = `Bạn là trợ lý AI của cửa hàng thời trang TnQ Fashion.
 
@@ -287,23 +432,28 @@ export const chatbotService = {
 
 **FORMAT KHI TRẢ LỜI SẢN PHẨM:**
 BẮT BUỘC có 2 phần:
-1. Câu dẫn lịch sự (VD: "Dạ, em xin gửi Anh/Chị danh sách một số áo thun nữ size S mà shop hiện có:")
+1. Câu dẫn lịch sự (VD: "Dạ, em xin gửi Anh/Chị danh sách một số áo thun nữ mà shop hiện có:")
 2. JSON object ngay sau đó
 
 **SCHEMA JSON:**
-{ "type": "product_list", "items": [ { "name": "Tên sản phẩm", "slug": "slug-san-pham", "image": "/uploads/products/hinh.jpg", "price": 179000, "rating": 4.5 } ] }
+{ "type": "product_list", "items": [ { "name": "Tên từ DB", "slug": "slug-tu-db", "image": "publicId-tu-db", "price": giá_từ_db, "rating": rating_từ_db } ] }
 
-**VÍ DỤ HOÀN CHỈNH:**
-Dạ, em xin gửi Anh/Chị danh sách một số áo thun nữ size S mà shop hiện có:
-{ "type": "product_list", "items": [ { "name": "Áo thun nữ basic trắng", "slug": "ao-thun-nu-basic-trang", "image": "/uploads/products/ao-thun-nu-basic-trang-1.jpg", "price": 179000, "rating": 4.5 } ] }
+**QUY TẮC TUYỆT ĐỐI:**
+- CHỈ dùng slug từ "DANH SÁCH SẢN PHẨM THỰC TẾ TỪ DATABASE" bên dưới
+- KHÔNG tự nghĩ ra slug mới
+- KHÔNG bịa tên sản phẩm không có trong database
+- Nếu database trống hoặc không có sản phẩm phù hợp → trả lời: "Em xin lỗi, hiện shop chưa có sản phẩm này. Anh/Chị có thể xem các sản phẩm khác ạ."
+
+**VÍ DỤ ĐÚNG:**
+(Giả sử DB có sản phẩm "ao-thun-basic-den")
+Dạ, em xin gửi Anh/Chị:
+{ "type": "product_list", "items": [ { "name": "Áo Thun Basic Đen", "slug": "ao-thun-basic-den", "image": "products/ao-thun-basic-1", "price": 179000, "rating": 4.5 } ] }
 
 Nếu câu hỏi về chính sách/thông tin chung → chỉ trả lời văn bản, KHÔNG dùng JSON.
+${productContext}
 
 **DANH MỤC SẢN PHẨM:**
 ${formatted.categories}
-
-**SẢN PHẨM HIỆN CÓ:**
-${formatted.products}
 
 **CHƯƠNG TRÌNH KHUYẾN MÃI:**
 ${formatted.promotions || 'Hiện tại chưa có khuyến mãi đặc biệt.'}
@@ -313,7 +463,7 @@ ${formatted.policies}`;
 
       const messages = [
         { role: 'system', content: systemPrompt },
-        ...chatHistory.slice(-6),
+        ...chatHistory.slice(-4),
         { role: 'user', content: userMessage },
       ];
 

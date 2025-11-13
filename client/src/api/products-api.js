@@ -8,7 +8,8 @@ export const productsApi = {
   detail: (id) => http.get(`/products/${id}`).then((r) => r.data),
 
   // Chi tiết theo slug (public product detail page)
-  detailBySlug: (slug) => http.get(`/products/slug/${slug}`).then((r) => r.data),
+  detailBySlug: (slug, config = {}) =>
+    http.get(`/products/slug/${slug}`, config).then((r) => r.data),
 
   // (Tuỳ chọn) lấy list theo categoryId
   listByCategory: (categoryId, params) =>

@@ -3,13 +3,36 @@ import { chatbotApi } from '@/api/chatbot-api';
 import { useAuth } from '@/auth/AuthProvider';
 import io from 'socket.io-client';
 import ProductPickerModal from '@/components/ProductPickerModal';
+import { productsApi } from '@/api/products-api';
 import styles from './StaffChatPage.module.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
 const normalizeTimestamp = (value) => {
   const parsed = new Date(value || Date.now());
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+};
+
+const encodePublicId = (pid) => (pid ? pid.split('/').map(encodeURIComponent).join('/') : '');
+
+const normalizeProductImageId = (raw) => {
+  if (!raw) return '';
+  let id = String(raw).trim();
+  if (!id) return '';
+  if (/^https?:/i.test(id)) return id;
+  id = id.replace(/^\/+/, '');
+  id = id.replace(/\.(jpe?g|png|gif|webp)$/i, '');
+  return id;
+};
+
+const buildCloudinaryUrl = (raw, width = 200) => {
+  const normalized = normalizeProductImageId(raw);
+  if (!normalized) return '';
+  if (/^https?:/i.test(normalized)) return normalized;
+  if (!CLOUD_NAME) return '';
+  const encoded = encodePublicId(normalized);
+  return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/w_${width},f_auto,q_auto/${encoded}`;
 };
 
 export default function StaffChatPage({ onCountsChange, initialCounts }) {
@@ -28,6 +51,9 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
   const fileInputRef = useRef(null);
   const joinedSessionIdsRef = useRef(new Set());
   const filterRef = useRef('waiting_staff');
+  // AI product hydration cache for bot suggestions
+  const [aiProductCache, setAiProductCache] = useState({});
+  const aiProductFetchRef = useRef(new Set());
   const sortSessionsByLastMessage = useCallback((list = []) => {
     return [...list].sort((a, b) => {
       const timeA = new Date(a.lastMessageAt || a.createdAt || 0).getTime();
@@ -97,6 +123,114 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
     filterRef.current = filter;
   }, [filter]);
 
+  // Hydrate AI product cards in bot messages so images come from DB
+  useEffect(() => {
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    const toFetch = [];
+    const seen = new Set();
+
+    messages.forEach((msg) => {
+      if (!msg || msg.from !== 'bot') return;
+      const list = extractJSONProducts(msg.text) || [];
+      list.forEach((item) => {
+        const slug = item?.slug?.trim?.() || '';
+        if (!slug || seen.has(slug)) return;
+        seen.add(slug);
+        if (aiProductCache[slug]) return;
+        if (aiProductFetchRef.current.has(slug)) return;
+        aiProductFetchRef.current.add(slug);
+        toFetch.push(slug);
+      });
+    });
+
+    if (!toFetch.length) return;
+
+    (async () => {
+      for (const slug of toFetch) {
+        try {
+          const res = await productsApi.detailBySlug(slug, { _noAutoToast: true });
+          const detail = res?.data || res?.product || res;
+          if (!detail || !detail._id) continue;
+          const imagePublicId =
+            detail?.images?.find?.((im) => im?.isPrimary)?.publicId ||
+            detail?.images?.[0]?.publicId ||
+            detail?.variants?.find?.((v) => v?.imagePublicId)?.imagePublicId ||
+            '';
+          setAiProductCache((prev) => ({
+            ...prev,
+            [slug]: {
+              slug: detail.slug || slug,
+              name: detail.name,
+              imagePublicId: normalizeProductImageId(imagePublicId),
+              rating: detail.ratingAvg ?? null,
+            },
+          }));
+        } catch (err) {
+          console.warn('[StaffChat] Không thể hydrate sản phẩm AI', slug, err);
+        } finally {
+          aiProductFetchRef.current.delete(slug);
+        }
+      }
+    })();
+  }, [messages]);
+
+  // Extract JSON product list from AI bot message
+  const extractJSONProducts = (text) => {
+    if (!text || typeof text !== 'string') return null;
+
+    // 1) Look for fenced code block ```json ... ```
+    const fenced = text.match(/```json([\s\S]*?)```/i) || text.match(/```([\s\S]*?)```/i);
+    const candidates = [];
+    if (fenced && fenced[1]) candidates.push(fenced[1].trim());
+
+    // 2) Look for first JSON-like array/object
+    const firstBrace = text.indexOf('{');
+    const firstBracket = text.indexOf('[');
+    const start = [firstBrace, firstBracket].filter((v) => v >= 0).sort((a, b) => a - b)[0];
+    if (start >= 0) {
+      const tail = text.slice(start);
+      const lastBrace = Math.max(tail.lastIndexOf('}'), tail.lastIndexOf(']'));
+      if (lastBrace > 0) {
+        candidates.push(tail.slice(0, lastBrace + 1));
+      }
+    }
+
+    for (const raw of candidates) {
+      try {
+        const obj = JSON.parse(raw);
+        if (Array.isArray(obj)) {
+          return obj.map((p) => ({
+            name: p.name || p.title || '',
+            slug: p.slug || p.link?.replace(/^.*\/product\//, '') || '',
+            image: p.image || p.images?.[0]?.publicId || p.images?.[0] || '',
+            price:
+              p.priceText ||
+              (typeof p.price === 'number' ? p.price.toLocaleString('vi-VN') : p.price) ||
+              '',
+            rating: p.rating || p.ratingAvg || '',
+          }));
+        }
+        if (obj && (obj.type === 'product_list' || obj.items)) {
+          const items = obj.items || [];
+          return items.map((p) => ({
+            name: p.name || p.title || '',
+            slug: p.slug || p.link?.replace(/^.*\/product\//, '') || '',
+            image: p.image || p.images?.[0]?.publicId || p.images?.[0] || '',
+            price:
+              p.priceText ||
+              (typeof p.price === 'number' ? p.price.toLocaleString('vi-VN') : p.price) ||
+              '',
+            rating: p.rating || p.ratingAvg || '',
+          }));
+        }
+      } catch (_) {
+        // ignore and continue
+      }
+    }
+
+    return null;
+  };
+
   const getMessageDisplayText = (message) => {
     const hasAttachment = Boolean(message?.attachment?.url);
     const trimmed = message?.text?.trim();
@@ -104,6 +238,19 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
     // If product card is attached, suppress text line
     if (message?.productData) {
       return '';
+    }
+
+    // Check if message contains JSON product list
+    const hasProductList = message?.from === 'bot' && extractJSONProducts(trimmed);
+    if (hasProductList) {
+      // Strip JSON from display text
+      const braceIdx = trimmed.indexOf('{');
+      const bracketIdx = trimmed.indexOf('[');
+      let cutIdx = trimmed.length;
+      if (braceIdx >= 0) cutIdx = Math.min(cutIdx, braceIdx);
+      if (bracketIdx >= 0) cutIdx = Math.min(cutIdx, bracketIdx);
+      const lead = trimmed.slice(0, cutIdx).trim();
+      return lead || '';
     }
 
     if (trimmed) {
@@ -904,6 +1051,7 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
               <div className={styles.messages}>
                 {messages.map((msg) => {
                   const displayText = getMessageDisplayText(msg);
+                  const botProductList = msg.from === 'bot' ? extractJSONProducts(msg.text) : null;
                   return (
                     <div
                       key={msg._id}
@@ -940,7 +1088,69 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
                           </div>
                         )}
 
-                        {/* Display product card if exists */}
+                        {/* Display text before product list */}
+                        {displayText && <div className={styles.messageText}>{displayText}</div>}
+
+                        {/* Display bot product list if exists */}
+                        {botProductList && botProductList.length > 0 && (
+                          <div className={styles.botProductList}>
+                            {botProductList.map((product, idx) => {
+                              const slug = (product.slug || '').trim();
+                              const cached = slug ? aiProductCache[slug] : null;
+                              // Only render an image once we've hydrated a real publicId from DB
+                              const imageUrl = cached?.imagePublicId
+                                ? buildCloudinaryUrl(cached.imagePublicId, 200)
+                                : '';
+                              return (
+                                <div key={idx} className={styles.botProductCard}>
+                                  {imageUrl ? (
+                                    <img
+                                      src={imageUrl}
+                                      alt={product.name}
+                                      className={styles.botProductImage}
+                                      onError={(e) => {
+                                        e.target.src = '/no-image.png';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      className={styles.botProductImage}
+                                      style={{
+                                        background: '#f3f4f6',
+                                        borderRadius: 8,
+                                      }}
+                                    />
+                                  )}
+                                  <div className={styles.botProductInfo}>
+                                    <h5>{product.name}</h5>
+                                    {product.price && (
+                                      <p className={styles.botProductPrice}>
+                                        {String(product.price).includes('đ')
+                                          ? product.price
+                                          : `${product.price}đ`}
+                                      </p>
+                                    )}
+                                    {product.rating && (
+                                      <p className={styles.botProductRating}>
+                                        ⭐ {product.rating}/5
+                                      </p>
+                                    )}
+                                    <a
+                                      href={`/product/${product.slug}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={styles.botProductLink}
+                                    >
+                                      Xem chi tiết
+                                    </a>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Display product card if exists (staff sent) */}
                         {msg.productData && (
                           <div className={styles.productCard}>
                             <div className={styles.productImageWrapper}>
@@ -967,7 +1177,8 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
                             </div>
                             <div className={styles.productInfo}>
                               <h4>{msg.productData.name}</h4>
-                              {msg.productData._promotion?.finalPrice ? (
+                              {msg.productData._promotion?.finalPrice !== undefined &&
+                              msg.productData._promotion?.originalPrice !== undefined ? (
                                 <div className={styles.productPriceRow}>
                                   <span className={styles.productPriceNow}>
                                     {msg.productData._promotion.finalPrice.toLocaleString('vi-VN')}đ
@@ -984,6 +1195,7 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
                                   {(
                                     msg.productData.minPrice ??
                                     msg.productData.basePrice ??
+                                    msg.productData.price ??
                                     0
                                   ).toLocaleString('vi-VN')}
                                   đ
@@ -1008,8 +1220,6 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
                           </div>
                         )}
 
-                        {/* Display text message (hide if it's just attachment filename) */}
-                        {displayText && <div className={styles.messageText}>{displayText}</div>}
                         <div className={styles.messageTime}>
                           {formatTime(msg.createdAt)}
                           {msg.staffName && ` • ${msg.staffName}`}
