@@ -15,6 +15,7 @@ import promotionRoutes from './routes/promotion.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
 import reviewRoutes from './routes/review.routes.js';
+import shiftRoutes from './routes/shift.routes.js';
 
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -92,6 +93,7 @@ export const createApp = (clientUrl) => {
   app.use('/api/promotions', promotionRoutes);
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/reports', reportsRoutes);
+  app.use('/api/shifts', shiftRoutes);
 
   // Chatbot & AI Training
   app.use('/api/chatbot', chatbotRoutes);

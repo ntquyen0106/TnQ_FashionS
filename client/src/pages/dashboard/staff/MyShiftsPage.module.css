@@ -1,0 +1,477 @@
+.wrap {
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.summaryCard {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 12px;
+}
+
+.gridTwo {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.gridThree {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.tableWrap {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 14px;
+}
+
+.table thead th {
+  text-transform: uppercase;
+  font-size: 12px;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badgeScheduled {
+  background: #eef2ff;
+  color: #4338ca;
+}
+.badgeConfirmed {
+  background: #dcfce7;
+  color: #15803d;
+}
+.badgeCompleted {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.badgeCancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.badgeSwapped {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.sectionSubtext {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.formStack {
+  display: grid;
+  gap: 12px;
+}
+
+.formStack label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.input,
+.select,
+.textarea {
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.btnPrimary {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btnPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+.empty {
+  text-align: center;
+  color: #94a3b8;
+  padding: 20px;
+  font-style: italic;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.calendarControls {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.calendarNavBtn {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.calendarNavBtn:hover {
+  background: #f8fafc;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.calendarNavBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.calendarTitle {
+  font-weight: 700;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.calendarRangeToggle {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 6px;
+}
+
+.calendarRangeBtn {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.calendarRangeBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.calendarRangeBtnActive {
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.calendarColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendarColumnHeader {
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.calendarToday {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(7, 89, 133, 0.1));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.calendarDayName {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.calendarDate {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.calendarColumnBody {
+  display: grid;
+  gap: 8px;
+  min-height: 110px;
+}
+
+.calendarShift {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.calendarShiftTime {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.calendarShiftMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.calendarShiftTemplate {
+  font-weight: 600;
+  color: #334155;
+}
+
+.calendarShiftNote {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.calendarEmpty {
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  padding: 16px 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.calendarModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1300;
+}
+
+.calendarModal {
+  position: relative;
+  width: min(100%, 960px);
+  max-height: 90vh;
+  background: #f8fafc;
+  border-radius: 24px;
+  box-shadow: 0 28px 64px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendarModalBody {
+  padding: 28px;
+  overflow-y: auto;
+}
+
+.calendarModalClose {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: rgba(226, 232, 240, 0.85);
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.calendarModalClose:hover {
+  background: rgba(148, 163, 184, 0.95);
+  transform: scale(1.05);
+}
+
+.calendarModalContent {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .calendarGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .wrap {
+    padding: 16px;
+  }
+  .tableWrap {
+    padding: 16px;
+  }
+}
+
+/* Month View Styles (khớp với JSX) */
+.calendarMonthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.calendarMonthHeaderCell {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  padding: 8px 4px;
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.calendarMonthRow {
+  display: contents; /* cho mỗi tuần là 1 hàng 7 ô */
+}
+
+.calendarMonthCell {
+  min-height: 100px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 8px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.calendarMonthCell:hover {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
+}
+
+.calendarMonthCellMuted {
+  background: #f8fafc;
+  opacity: 0.5;
+}
+
+.calendarMonthCellToday {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(124, 58, 237, 0.04));
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.12);
+}
+
+.calendarMonthCellDate {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.calendarMonthCellToday .calendarMonthCellDate {
+  color: #4f46e5;
+  font-size: 14px;
+}
+
+.calendarMonthShift {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(124, 58, 237, 0.06));
+  border-left: 3px solid #6366f1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendarMonthShiftTime {
+  font-weight: 700;
+  color: #4338ca;
+}
+
+.calendarMonthShiftStaff {
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

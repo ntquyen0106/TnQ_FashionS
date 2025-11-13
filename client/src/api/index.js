@@ -4,3 +4,4 @@ export * from './orders-api';
 export * from './users-api';
 export * from './chatbot-api';
 export * from './reviews-api';
+export * from './shifts-api';
