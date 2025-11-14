@@ -6,3 +6,4 @@ export * from './chatbot-api';
 export * from './reviews-api';
 export * from './shifts-api';
 export * from './attendance-api';
+export * from './staff-api';
