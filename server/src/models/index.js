@@ -11,3 +11,4 @@ export { default as OrderChange } from './OrderChange.js';
 export { default as ShiftTemplate } from './shifts/ShiftTemplate.js';
 export { default as StaffShift } from './shifts/StaffShift.js';
 export { default as ShiftSwapRequest } from './shifts/ShiftSwapRequest.js';
+export { default as Attendance } from './Attendance.js';

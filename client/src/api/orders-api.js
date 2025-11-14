@@ -13,6 +13,7 @@ export const ordersApi = {
   updateItemVariant: (id, index, body) =>
     http.patch(`/orders/${id}/items/${index}`, body).then((r) => r.data),
   statsMe: (params) => http.get('/orders/stats/me', { params }).then((r) => r.data),
+  markPrinted: (orderIds) => http.post('/orders/mark-printed', { orderIds }).then((r) => r.data),
   checkout: (body) => {
     const method = body?.paymentMethod === 'COD' ? 'COD' : 'BANK';
     return http.post('/order/checkout', { ...body, paymentMethod: method }).then((r) => r.data);

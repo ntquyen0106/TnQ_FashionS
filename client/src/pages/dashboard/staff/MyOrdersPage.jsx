@@ -7,12 +7,13 @@ import styles from './MyOrdersPage.module.css';
 export default function MyOrdersPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [status, setStatus] = useState(''); // <= bộ lọc trạng thái
+  const [status, setStatus] = useState('pending'); // <= bộ lọc trạng thái (mặc định: Chờ xác nhận)
   const [q, setQ] = useState(''); // <= tìm theo mã đơn
   const [saving, setSaving] = useState({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [confirm, setConfirm] = useState({ open: false, id: null });
+  const [selected, setSelected] = useState({});
 
   const STATUS_LABEL = {
     PENDING: 'Chờ xác nhận',
@@ -40,6 +41,18 @@ export default function MyOrdersPage() {
       returned: 'RETURNED',
     };
     return map[cur] || cur.toUpperCase();
+  };
+
+  // Get next status for progression
+  const getNextStatus = (currentStatus) => {
+    const cur = String(currentStatus || '').toLowerCase();
+    const transitions = {
+      confirmed: { status: 'shipping', label: 'Chuyển sang Vận chuyển' },
+      processing: { status: 'shipping', label: 'Chuyển sang Vận chuyển' },
+      shipping: { status: 'delivering', label: 'Chuyển sang Đang giao' },
+      delivering: { status: 'done', label: 'Hoàn tất đơn' },
+    };
+    return transitions[cur] || null;
   };
 
   const load = async () => {
@@ -92,32 +105,9 @@ export default function MyOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, q]); // tự load khi đổi filter/tìm kiếm
 
-  // Trạng thái kế tiếp cho nút “Chuyển → …”
-  const nextStatus = (s) => {
-    const cur = String(s || '').toLowerCase();
-    const map = {
-      pending: 'processing',
-      confirmed: 'shipping',
-      processing: 'shipping',
-      shipping: 'delivering',
-      delivering: 'completed',
-    };
-    return map[cur] || '';
-  };
-
-  const nextLabel = (to) => {
-    const key = String(to || '').toLowerCase();
-    const map = {
-      processing: 'Đã xác nhận',
-      shipping: 'Vận chuyển',
-      delivering: 'Đang giao',
-      completed: 'Hoàn tất',
-    };
-    return map[key] || to;
-  };
-
+  // Updated: allow status updates (used for cancel) but we removed progression UI
   const onUpdate = async (id, to) => {
-    if (!to) return;
+    if (!id || !to) return;
     setSaving((x) => ({ ...x, [id]: true }));
     try {
       await ordersApi.updateStatus(id, to);
@@ -126,6 +116,142 @@ export default function MyOrdersPage() {
       console.error(e);
     } finally {
       setSaving((x) => ({ ...x, [id]: false }));
+    }
+  };
+
+  const handlePrintOrders = async () => {
+    const selectedIds = Object.keys(selected || {});
+    const toPrint = selectedIds.length > 0 ? items.filter((o) => selected[o.id || o._id]) : items;
+    if (!toPrint || toPrint.length === 0) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const fmtCurrency = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+    const shopName = 'TNQ Fashion';
+    const html = `<!DOCTYPE html><html><head><title>In đơn hàng</title>
+      <meta charset='utf-8' />
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;margin:0;padding:16px;}
+        h1{font-size:18px;margin:0 0 12px;font-weight:700;text-align:center;}
+        .order{margin:0 0 28px;page-break-after:always;border:1px solid #ccc;padding:12px;border-radius:6px;}
+        .meta{margin:0 0 8px;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;}
+        .meta div{padding:2px 4px;}
+        table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
+        th,td{border:1px solid #999;padding:4px 6px;text-align:left;}
+        th{background:#f1f5f9;}
+        .totals{margin-top:8px;display:grid;justify-content:end;width:100%;}
+        .totals table{width:auto;}
+        .right{text-align:right;}
+        @media print {button{display:none;} .order{box-shadow:none;border-color:#999;} }
+      </style></head><body>
+      <h1>${shopName}</h1>
+      ${toPrint
+        .map((o) => {
+          const id = o.code || o._id || o.id;
+          const created = o.createdAt ? new Date(o.createdAt).toLocaleString('vi-VN') : '';
+          const addr = o.shippingAddress || {};
+          const addressLine = [addr.line1, addr.ward, addr.district, addr.city]
+            .filter(Boolean)
+            .join(', ');
+          const rows = (o.items || [])
+            .map(
+              (it, idx) => `<tr>
+                <td>${idx + 1}</td>
+                <td>${it.nameSnapshot || it.name || ''}</td>
+                <td>${it.variantSku || ''}</td>
+                <td class='right'>${it.qty || it.quantity || 0}</td>
+                <td class='right'>${fmtCurrency(it.price)}</td>
+                <td class='right'>${fmtCurrency(
+                  it.lineTotal || (it.price || 0) * (it.qty || it.quantity || 0),
+                )}</td>
+              </tr>`,
+            )
+            .join('');
+          const amounts = o.amounts || {};
+          return `<div class='order'>
+            <div class='meta'>
+              <div><strong>Mã đơn:</strong> ${id}</div>
+              <div><strong>Ngày tạo:</strong> ${created}</div>
+              <div><strong>Khách hàng:</strong> ${addr.fullName || o.customerName || ''}</div>
+              <div><strong>SĐT:</strong> ${addr.phone || o.customerPhone || ''}</div>
+              <div style='grid-column:1 / -1'><strong>Địa chỉ:</strong> ${addressLine}</div>
+            </div>
+            <table>
+              <thead><tr><th>#</th><th>Sản phẩm</th><th>SKU</th><th>SL</th><th>Giá</th><th>Thành tiền</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="6">Không có sản phẩm</td></tr>'}</tbody>
+            </table>
+            <div class='totals'>
+              <table>
+                <tbody>
+                  <tr><td>Subtotal</td><td class='right'>${fmtCurrency(amounts.subtotal)}</td></tr>
+                  <tr><td>Giảm giá</td><td class='right'>${fmtCurrency(amounts.discount)}</td></tr>
+                  <tr><td>Phí vận chuyển</td><td class='right'>${fmtCurrency(
+                    amounts.shippingFee,
+                  )}</td></tr>
+                  <tr><td><strong>Tổng cộng</strong></td><td class='right'><strong>${fmtCurrency(
+                    amounts.grandTotal,
+                  )}</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        })
+        .join('')}
+      </body></html>`;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    try {
+      // Trigger print dialog (blocking until user closes it)
+      win.print();
+    } finally {
+      try {
+        // Mark all printed orders as printed
+        const printedIds = toPrint.map((o) => o.id || o._id).filter(Boolean);
+        if (printedIds.length) {
+          await ordersApi.markPrinted(printedIds);
+        }
+
+        // Auto-confirm only orders that are currently pending
+        const pendingIds = toPrint
+          .filter((o) => String(o.status || '').toLowerCase() === 'pending')
+          .map((o) => o.id || o._id)
+          .filter(Boolean);
+        if (pendingIds.length) {
+          await Promise.all(pendingIds.map((id) => ordersApi.updateStatus(id, 'confirmed')));
+        }
+
+        await load();
+      } catch (e) {
+        console.error('Post-print operations failed:', e);
+      } finally {
+        setSelected({});
+      }
+    }
+  };
+
+  const toggleSelect = (id, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setSelected((prev) => {
+      const next = { ...(prev || {}) };
+      if (next[id]) delete next[id];
+      else next[id] = true;
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const cur = Object.keys(selected || {}).length;
+    if (!items || items.length === 0) return;
+    if (cur === items.length) {
+      setSelected({});
+    } else {
+      const all = {};
+      items.forEach((o) => {
+        const id = o.id || o._id;
+        if (id) all[id] = true;
+      });
+      setSelected(all);
     }
   };
 
@@ -170,7 +296,15 @@ export default function MyOrdersPage() {
               </button>
             )}
           </div>
-          <span className={styles.hint}>Tổng: {items.length}</span>
+          <span className={styles.hint}>
+            Tổng: {items.length}
+            {Object.keys(selected || {}).length > 0 && (
+              <span style={{ color: '#2563eb', fontWeight: 600 }}>
+                {' '}
+                · Đã chọn: {Object.keys(selected || {}).length}
+              </span>
+            )}
+          </span>
         </div>
 
         <div className={styles.right}>
@@ -206,6 +340,14 @@ export default function MyOrdersPage() {
 
       <div className={styles.list}>
         <div className={`${styles.row} ${styles.headerRow}`}>
+          <div className={`${styles.cell} ${styles.th}`}>
+            <input
+              type="checkbox"
+              aria-label="Chọn tất cả"
+              onChange={toggleSelectAll}
+              checked={items.length > 0 && Object.keys(selected || {}).length === items.length}
+            />
+          </div>
           <div className={`${styles.cell} ${styles.th}`}>Mã đơn</div>
           <div className={`${styles.cell} ${styles.th}`}>Khách hàng</div>
           <div className={`${styles.cell} ${styles.th}`}>Tổng</div>
@@ -213,7 +355,24 @@ export default function MyOrdersPage() {
           <div className={`${styles.cell} ${styles.th} ${styles.hideSm} ${styles.center}`}>
             Trạng thái
           </div>
-          <div className={`${styles.cell} ${styles.th}`} />
+          <div className={`${styles.cell} ${styles.th} ${styles.actions}`}>
+            <button
+              className={`btn ${styles.btnPrimary}`}
+              type="button"
+              onClick={handlePrintOrders}
+              disabled={items.length === 0}
+              title={
+                Object.keys(selected || {}).length > 0
+                  ? `In ${Object.keys(selected || {}).length} đơn đã chọn`
+                  : 'In tất cả đơn đang hiển thị'
+              }
+            >
+              📄 In đơn
+              {Object.keys(selected || {}).length > 0 && (
+                <span style={{ marginLeft: 6 }}>({Object.keys(selected || {}).length})</span>
+              )}
+            </button>
+          </div>
         </div>
 
         {loading &&
@@ -242,7 +401,7 @@ export default function MyOrdersPage() {
           items.map((o) => {
             const id = o.id || o._id;
             const itemCount = o.items?.length ?? o.lineItems?.length ?? 0;
-            const to = nextStatus(o.status);
+            // progression removed; no next status token
             const skey = statusKey(o.status);
 
             return (
@@ -263,6 +422,14 @@ export default function MyOrdersPage() {
                   }
                 }}
               >
+                <div className={`${styles.cell}`} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    aria-label={`Chọn đơn ${o.code || id}`}
+                    checked={!!selected[id]}
+                    onChange={(e) => toggleSelect(id, e)}
+                  />
+                </div>
                 <div className={styles.cell}>
                   <span className={styles.codeBadge}>{o.code || o._id}</span>
                 </div>
@@ -285,6 +452,9 @@ export default function MyOrdersPage() {
                 <div className={`${styles.cell} ${styles.hideSm} ${styles.center}`}>
                   <span className={`${styles.statusPill} ${styles[`st_${skey}`] || ''}`}>
                     {STATUS_LABEL[skey] || o.status}
+                    {!o.printedAt && skey === 'CONFIRMED' && (
+                      <span style={{ marginLeft: 6, fontSize: 10 }}>⚠️ Chưa in</span>
+                    )}
                   </span>
                 </div>
 
@@ -292,27 +462,36 @@ export default function MyOrdersPage() {
                   className={`${styles.cell} ${styles.actions}`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {to && (
-                    <button
-                      className={`btn ${styles.btnClaim}`}
-                      onClick={() => onUpdate(id, to)}
-                      disabled={!!saving[id]}
-                      title={`Chuyển → ${nextLabel(to)}`}
-                    >
-                      Chuyển → {nextLabel(to)}
-                    </button>
-                  )}
-                  {['pending', 'processing', 'confirmed', 'shipping'].includes(
-                    String(o.status || '').toLowerCase(),
-                  ) && (
-                    <button
-                      className={`btn ${styles.btnDanger}`}
-                      onClick={() => askCancel(id)}
-                      disabled={!!saving[id]}
-                    >
-                      Hủy đơn
-                    </button>
-                  )}
+                  {(() => {
+                    const currentStatus = String(o.status || '').toLowerCase();
+                    const nextTransition = getNextStatus(currentStatus);
+
+                    // Show cancel button ONLY for pending orders
+                    const canCancel = currentStatus === 'pending';
+
+                    return (
+                      <>
+                        {nextTransition && (
+                          <button
+                            className={`btn ${styles.btnSuccess}`}
+                            onClick={() => onUpdate(id, nextTransition.status)}
+                            disabled={!!saving[id]}
+                          >
+                            {saving[id] ? 'Đang xử lý...' : nextTransition.label}
+                          </button>
+                        )}
+                        {canCancel && (
+                          <button
+                            className={`btn ${styles.btnDanger}`}
+                            onClick={() => askCancel(id)}
+                            disabled={!!saving[id]}
+                          >
+                            Hủy đơn
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             );
