@@ -37,21 +37,23 @@ const Stars = ({ value }) => {
 };
 
 const ReviewItem = ({ review, expanded, onToggle }) => {
-  const userName = review.userId?.name || 'Khách hàng';
+  const userName =
+    review.customerName ||
+    review.userId?.name ||
+    review.orderId?.shippingAddress?.fullName ||
+    review.userName ||
+    'Khách hàng';
   const comment = review.comment || '';
   const shouldTruncate = comment.length > 200;
   const displayComment = !expanded && shouldTruncate ? comment.substring(0, 200) + '...' : comment;
+  const avatarSrc = review.customerAvatar || review.userId?.avatar;
 
   return (
     <div className={styles.reviewItem}>
       <div className={styles.reviewHeader}>
         <div className={styles.reviewUser}>
-          {review.userId?.avatar && (
-            <img
-              src={buildImageUrl(review.userId.avatar, 40)}
-              alt={userName}
-              className={styles.avatar}
-            />
+          {avatarSrc && (
+            <img src={buildImageUrl(avatarSrc, 40)} alt={userName} className={styles.avatar} />
           )}
           <div>
             <div className={styles.userName}>{userName}</div>

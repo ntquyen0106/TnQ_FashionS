@@ -15,6 +15,10 @@ import promotionRoutes from './routes/promotion.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
 import reviewRoutes from './routes/review.routes.js';
+import shiftRoutes from './routes/shift.routes.js';
+import { startShiftAutoCompleteJob } from './jobs/shift-auto-complete.js';
+import attendanceRoutes from './routes/attendance.routes.js';
+import { scheduleAutoConfirmJob } from './jobs/order-auto-confirm.js';
 
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -92,6 +96,8 @@ export const createApp = (clientUrl) => {
   app.use('/api/promotions', promotionRoutes);
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/reports', reportsRoutes);
+  app.use('/api/shifts', shiftRoutes);
+  app.use('/api/attendance', attendanceRoutes);
 
   // Chatbot & AI Training
   app.use('/api/chatbot', chatbotRoutes);
@@ -104,6 +110,10 @@ export const createApp = (clientUrl) => {
   // 404 + error
   app.use(notFoundHandler);
   app.use(errorHandler);
+
+  // Background jobs
+  startShiftAutoCompleteJob();
+  scheduleAutoConfirmJob();
 
   return app;
 };

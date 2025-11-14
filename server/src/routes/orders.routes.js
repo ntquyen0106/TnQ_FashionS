@@ -12,6 +12,7 @@ router.get('/checkout', (req, res) => {
 
 router.get('/', requireAuth, requireRole('staff', 'admin'), orderCtl.list);
 router.get('/stats/me', requireAuth, requireRole('staff', 'admin'), orderCtl.statsMe);
+router.post('/mark-printed', requireAuth, requireRole('staff', 'admin'), orderCtl.markPrinted);
 
 // ✅ /:id sau mọi path cụ thể
 router.get('/:id', requireAuth, requireRole('staff', 'admin'), async (req, res, next) => {

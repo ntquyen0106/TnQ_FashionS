@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import { getCartTotal } from './cart.service.js';
 import { computeShippingFee } from '../utils/shipping.js';
 import { createPayOSPayment } from './payment.service.js';
+import StaffShift from '../models/shifts/StaffShift.js';
 import { reserveOrderItems, releaseInventoryForOrder } from './inventory.service.js';
 
 // FE → Model status mapping (giữ theo FE của bạn)
@@ -119,6 +120,95 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
     ],
   });
 
+  // 8.1) Thử tự động gán đơn cho nhân viên đang trong ca (round-robin theo số đơn mở)
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Lấy các ca hôm nay chưa bị hủy hoặc hoàn thành
+    const todayShifts = await StaffShift.find({
+      date: { $gte: startOfDay, $lte: endOfDay },
+      status: { $in: ['scheduled', 'confirmed', 'swapped'] },
+    })
+      .populate({ path: 'shiftTemplate', select: 'startTime endTime' })
+      .select('staff date customStart customEnd shiftTemplate status')
+      .lean();
+
+    // Lọc theo khoảng giờ hiện tại thuộc ca
+    const toMinutes = (t) => {
+      if (!t) return -1;
+      const [h, m] = String(t).split(':').map(Number);
+      return h * 60 + (m || 0);
+    };
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const candidates = [];
+    for (const s of todayShifts) {
+      const start = s.customStart || s.shiftTemplate?.startTime || null;
+      const end = s.customEnd || s.shiftTemplate?.endTime || null;
+      if (!start || !end) continue;
+      const st = toMinutes(start);
+      const et = toMinutes(end);
+      if (st <= nowMinutes && nowMinutes <= et) {
+        candidates.push(String(s.staff));
+      }
+    }
+
+    const uniqueStaffIds = Array.from(new Set(candidates));
+
+    if (uniqueStaffIds.length > 0) {
+      // Đếm số đơn đang mở của từng nhân viên
+      const openStatuses = [
+        'PENDING',
+        'AWAITING_PAYMENT',
+        'CONFIRMED',
+        'PACKING',
+        'SHIPPING',
+        'DELIVERING',
+      ];
+      const counts = await Order.aggregate([
+        {
+          $match: {
+            assignedStaffId: { $in: uniqueStaffIds.map((id) => new mongoose.Types.ObjectId(id)) },
+            status: { $in: openStatuses },
+          },
+        },
+        { $group: { _id: '$assignedStaffId', cnt: { $sum: 1 } } },
+      ]);
+      const countMap = new Map(uniqueStaffIds.map((id) => [id, 0]));
+      for (const c of counts) countMap.set(String(c._id), c.cnt || 0);
+
+      // Chọn nhân viên có số đơn mở ít nhất
+      let bestId = uniqueStaffIds[0];
+      let bestCnt = countMap.get(bestId) ?? 0;
+      for (const id of uniqueStaffIds) {
+        const n = countMap.get(id) ?? 0;
+        if (n < bestCnt) {
+          bestId = id;
+          bestCnt = n;
+        }
+      }
+
+      // Cập nhật assign (không đổi status)
+      await Order.findByIdAndUpdate(order._id, {
+        $set: { assignedStaffId: bestId },
+        $push: {
+          history: {
+            action: 'ASSIGN',
+            fromStatus: order.status,
+            toStatus: order.status,
+            byUserId: bestId,
+            note: `Assign to ${bestId}`,
+          },
+        },
+      });
+    }
+  } catch (assignErr) {
+    console.warn('⚠️  Auto-assign order failed:', assignErr?.message || assignErr);
+  }
+
   // 9) Nếu BANK → tạo link PayOS
   let paymentData = null;
   if (pm === 'BANK') {
@@ -158,7 +248,14 @@ export const list = async ({ status, unassigned, assignee, meId, limit = 100 }) 
       .split(',')
       .map((s) => toModelStatus(s.trim()))
       .filter(Boolean);
-    if (statuses.length > 0) {
+
+    // Special case: if status is PENDING, include unprinted CONFIRMED orders
+    if (statuses.includes('PENDING')) {
+      query.$or = [
+        { status: { $in: [...statuses, ...statuses.map((s) => s.toLowerCase())] } },
+        { status: 'CONFIRMED', printedAt: null }, // unprinted confirmed orders
+      ];
+    } else if (statuses.length > 0) {
       // chấp nhận cả lowercase nếu DB cũ có dữ liệu thường
       query.status = { $in: [...statuses, ...statuses.map((s) => s.toLowerCase())] };
     }

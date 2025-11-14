@@ -90,6 +90,9 @@ const OrderSchema = new mongoose.Schema(
     // Staff assignment
     assignedStaffId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
+    // Print tracking
+    printedAt: { type: Date, default: null },
+
     trackingCode: { type: String, default: null },
     history: { type: [OrderHistorySchema], default: [] },
   },

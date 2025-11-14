@@ -8,6 +8,7 @@ import CategoriesPage from './admin/CategoriesPage';
 import UsersPage from './admin/UsersPage';
 import ReportsPage from './admin/ReportsPage';
 import ChatbotPage from './admin/ChatbotPage';
+import ShiftsPage from './admin/ShiftsPage';
 import AdminProductNew from '@/pages/dashboard/admin/AdminProductNew';
 import AdminProductEdit from '@/pages/dashboard/admin/AdminProductEdit';
 
@@ -18,6 +19,7 @@ const LINKS = [
   { to: '/dashboard/admin/categories', label: 'Danh mục' },
   { to: '/dashboard/admin/promotions', label: 'Quản lý khuyến mãi' },
   { to: '/dashboard/admin/users', label: 'Nhân sự' },
+  { to: '/dashboard/admin/shifts', label: 'Quản lý ca' },
   { to: '/dashboard/admin/reports', label: 'Thống kê' },
   { to: '/dashboard/admin/chatbot', label: 'Chatbot' },
 ];
@@ -39,6 +41,7 @@ export default function AdminDashboard() {
         <Route path="promotions" element={<PromotionsPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="shifts" element={<ShiftsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="chatbot" element={<ChatbotPage />} />
       </Route>

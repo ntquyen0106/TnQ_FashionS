@@ -298,3 +298,19 @@ export const updateItemVariant = async (req, res, next) => {
     next(e);
   }
 };
+
+// POST /api/orders/mark-printed
+// body: { orderIds: [...] }
+export const markPrinted = async (req, res, next) => {
+  try {
+    const { orderIds } = req.body || {};
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ message: 'orderIds required' });
+    }
+    const now = new Date();
+    await Order.updateMany({ _id: { $in: orderIds } }, { $set: { printedAt: now } });
+    res.json({ success: true, count: orderIds.length, printedAt: now });
+  } catch (e) {
+    next(e);
+  }
+};

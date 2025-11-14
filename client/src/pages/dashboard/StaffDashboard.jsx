@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from './layout/DashboardLayout';
 import { Routes, Route } from 'react-router-dom';
-import OrderQueuePage from './staff/OrderQueuePage';
+// import OrderQueuePage from './staff/OrderQueuePage';
 import MyOrdersPage from './staff/MyOrdersPage';
+import MyShiftsPage from './staff/MyShiftsPage';
 import PersonalStatsPage from './staff/PersonalStatsPage';
 import InventoryPage from './staff/InventoryPage';
 import StaffChatPage from './staff/StaffChatPage';
 import { chatbotApi } from '@/api/chatbot-api';
 
 const buildLinks = (chatBadge) => [
-  { to: '/dashboard', label: 'Hàng đợi đơn hàng' },
+  // Ẩn hàng đợi; điều hướng chính sang "Đơn hàng của tôi"
   { to: '/dashboard/my-orders', label: 'Đơn hàng của tôi' },
+  { to: '/dashboard/my-shifts', label: 'Ca làm của tôi' },
   { to: '/dashboard/inventory', label: 'Kho hàng' },
   { to: '/dashboard/stats', label: 'Thống kê cá nhân' },
   // Move chat to the end of the list so it appears at the bottom of the staff panel
@@ -71,13 +73,16 @@ export default function StaffDashboard() {
   return (
     <Routes>
       <Route element={<DashboardLayout links={links} />}>
-        {/* Render OrderQueuePage at /dashboard by default */}
-        <Route index element={<OrderQueuePage />} />
+        {/* Mặc định hiển thị Đơn hàng của tôi */}
+        <Route index element={<MyOrdersPage />} />
+        {/* Duy trì route cũ nếu có bookmark */}
+        <Route path="queue" element={<MyOrdersPage />} />
         <Route path="my-orders" element={<MyOrdersPage />} />
         <Route
           path="chat"
           element={<StaffChatPage onCountsChange={handleCountsChange} initialCounts={chatCounts} />}
         />
+        <Route path="my-shifts" element={<MyShiftsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="stats" element={<PersonalStatsPage />} />
       </Route>
