@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { productsApi } from '@/api/products-api';
 import { promotionsApi } from '@/api/promotions-api';
@@ -155,7 +155,7 @@ export default function Products() {
   };
 
   // Helper: compute the maximum discount amount for a product (for sorting use)
-  const getMaxDiscount = (p) => {
+  const getMaxDiscount = useCallback((p) => {
     const rawPrice =
       p.minPrice ??
       (Array.isArray(p.variants) && p.variants.length
@@ -169,7 +169,7 @@ export default function Products() {
       else if (promo.type === 'amount') max = Math.max(max, promo.value || 0);
     }
     return max;
-  };
+  }, [promosByProduct]);
 
   // Derived rows for render on khuyen-mai page
   const rowsForRender = useMemo(() => {
@@ -187,7 +187,7 @@ export default function Products() {
       }
     }
     return arr;
-  }, [rows, isPromoPage, promosByProduct, selectedPromo, sort]);
+  }, [rows, isPromoPage, promosByProduct, selectedPromo, sort, getMaxDiscount]);
 
   return (
     <div className={`container ${s.wrap}`}>
