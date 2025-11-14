@@ -18,6 +18,7 @@ import reviewRoutes from './routes/review.routes.js';
 import shiftRoutes from './routes/shift.routes.js';
 import { startShiftAutoCompleteJob } from './jobs/shift-auto-complete.js';
 import attendanceRoutes from './routes/attendance.routes.js';
+import staffRoutes from './routes/staff.routes.js';
 import { scheduleAutoConfirmJob } from './jobs/order-auto-confirm.js';
 
 import authRoutes from './routes/auth.routes.js';
@@ -98,6 +99,7 @@ export const createApp = (clientUrl) => {
   app.use('/api/reports', reportsRoutes);
   app.use('/api/shifts', shiftRoutes);
   app.use('/api/attendance', attendanceRoutes);
+  app.use('/api/staff', staffRoutes);
 
   // Chatbot & AI Training
   app.use('/api/chatbot', chatbotRoutes);

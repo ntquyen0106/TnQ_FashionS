@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardLayout from './layout/DashboardLayout';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 // import OrderQueuePage from './staff/OrderQueuePage';
 import MyOrdersPage from './staff/MyOrdersPage';
 import MyShiftsPage from './staff/MyShiftsPage';
@@ -8,6 +8,7 @@ import PersonalStatsPage from './staff/PersonalStatsPage';
 import InventoryPage from './staff/InventoryPage';
 import StaffChatPage from './staff/StaffChatPage';
 import { chatbotApi } from '@/api/chatbot-api';
+import { shiftApi } from '@/api';
 
 const buildLinks = (chatBadge) => [
   // Ẩn hàng đợi; điều hướng chính sang "Đơn hàng của tôi"
@@ -21,7 +22,23 @@ const buildLinks = (chatBadge) => [
 
 export default function StaffDashboard() {
   const [chatCounts, setChatCounts] = useState({ waiting: 0, withStaff: 0, all: 0 });
+  const [hasShifts, setHasShifts] = useState(null); // null = loading, true/false = result
   const isMountedRef = useRef(false);
+
+  // Check if staff has any shifts
+  useEffect(() => {
+    const checkShifts = async () => {
+      try {
+        const result = await shiftApi.shifts.mine({ limit: 1 });
+        const shifts = result?.shifts || result || [];
+        setHasShifts(shifts.length > 0);
+      } catch (error) {
+        console.error('[StaffDashboard] Error checking shifts:', error);
+        setHasShifts(false);
+      }
+    };
+    checkShifts();
+  }, []);
 
   const refreshChatCounts = useCallback(async () => {
     try {
@@ -70,11 +87,19 @@ export default function StaffDashboard() {
 
   const links = useMemo(() => buildLinks(activeBadge), [activeBadge]);
 
+  // Component to handle default route based on shift status
+  const DefaultRoute = () => {
+    if (hasShifts === null) {
+      return <div style={{ padding: '2rem', textAlign: 'center' }}>Đang tải...</div>;
+    }
+    return <Navigate to={hasShifts ? '/dashboard/my-orders' : '/dashboard/my-shifts'} replace />;
+  };
+
   return (
     <Routes>
       <Route element={<DashboardLayout links={links} />}>
-        {/* Mặc định hiển thị Đơn hàng của tôi */}
-        <Route index element={<MyOrdersPage />} />
+        {/* Điều hướng mặc định dựa trên việc có ca hay không */}
+        <Route index element={<DefaultRoute />} />
         {/* Duy trì route cũ nếu có bookmark */}
         <Route path="queue" element={<MyOrdersPage />} />
         <Route path="my-orders" element={<MyOrdersPage />} />
