@@ -21,10 +21,13 @@ const formatRange = (shift) => {
 
 export default function MyShiftsPage() {
   const [shifts, setShifts] = useState([]);
+  const [swapTargets, setSwapTargets] = useState([]); // other staff shifts user can target
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ fromShiftId: '', targetShiftId: '', reason: '' });
   const [weekStart, setWeekStart] = useState(() => dayjs().startOf('week'));
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
+  const [monthStart, setMonthStart] = useState(() => dayjs().startOf('month'));
   const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   const upcoming = useMemo(() => {
@@ -70,6 +73,18 @@ export default function MyShiftsPage() {
     return h * 60 + m;
   };
 
+  const isShiftInProgress = (s) => {
+    const startStr = s.customStart || s.shiftTemplate?.startTime;
+    const endStr = s.customEnd || s.shiftTemplate?.endTime;
+    if (!startStr || !endStr) return false;
+    const [sh, sm] = startStr.split(':').map(Number);
+    const [eh, em] = endStr.split(':').map(Number);
+    const startMoment = dayjs(s.date).hour(sh).minute(sm);
+    const endMoment = dayjs(s.date).hour(eh).minute(em);
+    const now = dayjs();
+    return now.isAfter(startMoment) && now.isBefore(endMoment) && now.isSame(s.date, 'day');
+  };
+
   const weekShiftsByDay = useMemo(() => {
     const startTs = weekStart.startOf('day').valueOf();
     const endTs = weekEnd.endOf('day').valueOf();
@@ -110,7 +125,37 @@ export default function MyShiftsPage() {
         from: dayjs().startOf('month').toISOString(),
         to: dayjs().add(1, 'month').endOf('month').toISOString(),
       });
-      setShifts(Array.isArray(res) ? res : res?.items || []);
+      const myList = Array.isArray(res) ? res : res?.items || [];
+      setShifts(myList);
+
+      // derive current staff id (mine shifts all belong to me)
+      const myStaffId = myList[0]?.staff?._id || myList[0]?.staff?.id;
+      // fetch all shifts in same extended range to allow choosing a target
+      const allRes = await shiftApi.shifts.list({
+        from: dayjs().startOf('month').toISOString(),
+        to: dayjs().add(1, 'month').endOf('month').toISOString(),
+      });
+      const allList = Array.isArray(allRes) ? allRes : allRes?.items || [];
+      const now = dayjs();
+      const targets = allList
+        .filter((s) => String(s.staff?._id || s.staff?.id) !== String(myStaffId))
+        .filter((s) => {
+          const st = (s.status || '').toLowerCase();
+          if (['cancelled', 'completed'].includes(st)) return false; // hide cancelled & completed
+          // hide in-progress (đang làm) shifts today
+          const startStr = s.customStart || s.shiftTemplate?.startTime;
+          const endStr = s.customEnd || s.shiftTemplate?.endTime;
+          if (!startStr || !endStr) return true;
+          const [sh, sm] = startStr.split(':').map(Number);
+          const [eh, em] = endStr.split(':').map(Number);
+          const startMoment = dayjs(s.date).hour(sh).minute(sm);
+          const endMoment = dayjs(s.date).hour(eh).minute(em);
+          const inProgress =
+            now.isAfter(startMoment) && now.isBefore(endMoment) && now.isSame(s.date, 'day');
+          return !inProgress;
+        })
+        .slice(0, 300); // cap list for performance
+      setSwapTargets(targets);
     } catch (err) {
       console.error(err);
       toast.error('Không thể tải ca làm');
@@ -154,68 +199,174 @@ export default function MyShiftsPage() {
     <div className={styles.calendarModalContent}>
       <div className={styles.calendarHeader}>
         <div className={styles.calendarControls}>
-          <button
-            type="button"
-            className={styles.calendarNavBtn}
-            onClick={() => handleWeekNavigate(-1)}
-            disabled={loading}
-          >
-            ◀ Tuần trước
-          </button>
-          <button
-            type="button"
-            className={styles.calendarNavBtn}
-            onClick={() => handleWeekNavigate(1)}
-            disabled={loading}
-          >
-            Tuần sau ▶
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className={
+                styles.calendarModeBtn + (viewMode === 'week' ? ` ${styles.activeMode}` : '')
+              }
+              onClick={() => setViewMode('week')}
+            >
+              Tuần
+            </button>
+            <button
+              type="button"
+              className={
+                styles.calendarModeBtn + (viewMode === 'month' ? ` ${styles.activeMode}` : '')
+              }
+              onClick={() => setViewMode('month')}
+            >
+              Tháng
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            {viewMode === 'week' ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.calendarNavBtn}
+                  onClick={() => handleWeekNavigate(-1)}
+                  disabled={loading}
+                >
+                  ◀ Tuần trước
+                </button>
+                <button
+                  type="button"
+                  className={styles.calendarNavBtn}
+                  onClick={() => handleWeekNavigate(1)}
+                  disabled={loading}
+                >
+                  Tuần sau ▶
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={styles.calendarNavBtn}
+                  onClick={() => setMonthStart((m) => m.subtract(1, 'month'))}
+                  disabled={loading}
+                >
+                  ◀ Tháng trước
+                </button>
+                <button
+                  type="button"
+                  className={styles.calendarNavBtn}
+                  onClick={() => setMonthStart((m) => m.add(1, 'month'))}
+                  disabled={loading}
+                >
+                  Tháng sau ▶
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        <div className={styles.calendarTitle}>{weekLabel}</div>
+
+        <div className={styles.calendarTitle}>
+          {viewMode === 'week' ? weekLabel : monthStart.format('MMMM YYYY')}
+        </div>
       </div>
-      <div className={styles.calendarGrid}>
-        {weekDays.map((day) => {
-          const list = weekShiftsByDay[day.key] || [];
-          const isToday = day.date.isSame(dayjs(), 'day');
-          return (
-            <div key={day.key} className={styles.calendarColumn}>
-              <div
-                className={`${styles.calendarColumnHeader} ${isToday ? styles.calendarToday : ''}`}
-              >
-                <div className={styles.calendarDayName}>{day.label}</div>
-                <div className={styles.calendarDate}>{day.date.format('DD/MM')}</div>
-              </div>
-              <div className={styles.calendarColumnBody}>
-                {list.length === 0 ? (
-                  <div className={styles.calendarEmpty}>Không có ca</div>
-                ) : (
-                  list.map((shift) => (
-                    <div
-                      key={shift._id}
-                      className={styles.calendarShift}
-                      style={{
-                        borderLeft: `4px solid ${shift.shiftTemplate?.color || '#6366f1'}`,
-                      }}
-                    >
-                      <div className={styles.calendarShiftTime}>{formatRange(shift)}</div>
-                      <div className={styles.calendarShiftMeta}>
-                        <div className={styles.calendarShiftTemplate}>
-                          {shift.shiftTemplate?.name || 'Ca tuỳ chỉnh'}
+      <div className={viewMode === 'week' ? styles.calendarWeekGrid : styles.calendarMonthGrid}>
+        {viewMode === 'week'
+          ? weekDays.map((day) => {
+              const list = weekShiftsByDay[day.key] || [];
+              const isToday = day.date.isSame(dayjs(), 'day');
+              return (
+                <div key={day.key} className={styles.calendarColumn}>
+                  <div
+                    className={`${styles.calendarColumnHeader} ${
+                      isToday ? styles.calendarToday : ''
+                    }`}
+                  >
+                    <div className={styles.calendarDayName}>{day.label}</div>
+                    <div className={styles.calendarDate}>{day.date.format('DD/MM')}</div>
+                  </div>
+                  <div className={styles.calendarColumnBody}>
+                    {list.length === 0 ? (
+                      <div className={styles.calendarEmpty}>Không có ca</div>
+                    ) : (
+                      list.map((shift) => (
+                        <div
+                          key={shift._id}
+                          className={styles.calendarShift}
+                          style={{
+                            borderLeft: `4px solid ${shift.shiftTemplate?.color || '#6366f1'}`,
+                          }}
+                        >
+                          <div className={styles.calendarShiftTime}>{formatRange(shift)}</div>
+                          <div className={styles.calendarShiftMeta}>
+                            <div className={styles.calendarShiftTemplate}>
+                              {shift.shiftTemplate?.name || 'Ca tuỳ chỉnh'}
+                            </div>
+                            <span className={`${styles.badge} ${STATUS_BADGE[shift.status] || ''}`}>
+                              {shift.status}
+                            </span>
+                          </div>
+                          {shift.notes ? (
+                            <div className={styles.calendarShiftNote}>{shift.notes}</div>
+                          ) : null}
                         </div>
-                        <span className={`${styles.badge} ${STATUS_BADGE[shift.status] || ''}`}>
-                          {shift.status}
-                        </span>
-                      </div>
-                      {shift.notes ? (
-                        <div className={styles.calendarShiftNote}>{shift.notes}</div>
-                      ) : null}
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          : // month view: show days of month in simple grid grouped by date
+            (() => {
+              const start = monthStart.startOf('month');
+              const end = monthStart.endOf('month');
+              // build array of days for month
+              const days = [];
+              for (let d = start.clone(); d.isBefore(end) || d.isSame(end); d = d.add(1, 'day')) {
+                days.push(d.clone());
+              }
+              return days.map((date) => {
+                const key = date.format('YYYY-MM-DD');
+                const list = shifts.filter((s) => dayjs(s.date).format('YYYY-MM-DD') === key);
+                const isToday = date.isSame(dayjs(), 'day');
+                return (
+                  <div key={key} className={styles.calendarColumn}>
+                    <div
+                      className={`${styles.calendarColumnHeader} ${
+                        isToday ? styles.calendarToday : ''
+                      }`}
+                    >
+                      <div className={styles.calendarDayName}>{date.format('ddd')}</div>
+                      <div className={styles.calendarDate}>{date.format('DD/MM')}</div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
+                    <div className={styles.calendarColumnBody}>
+                      {list.length === 0 ? (
+                        <div className={styles.calendarEmpty}>Không có ca</div>
+                      ) : (
+                        list.map((shift) => (
+                          <div
+                            key={shift._id}
+                            className={styles.calendarShift}
+                            style={{
+                              borderLeft: `4px solid ${shift.shiftTemplate?.color || '#6366f1'}`,
+                            }}
+                          >
+                            <div className={styles.calendarShiftTime}>{formatRange(shift)}</div>
+                            <div className={styles.calendarShiftMeta}>
+                              <div className={styles.calendarShiftTemplate}>
+                                {shift.shiftTemplate?.name || 'Ca tuỳ chỉnh'}
+                              </div>
+                              <span
+                                className={`${styles.badge} ${STATUS_BADGE[shift.status] || ''}`}
+                              >
+                                {shift.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
       </div>
     </div>
   );
@@ -315,19 +466,26 @@ export default function MyShiftsPage() {
               </tr>
             </thead>
             <tbody>
-              {shifts.map((shift) => (
-                <tr key={shift._id}>
-                  <td>{dayjs(shift.date).format('DD/MM/YYYY')}</td>
-                  <td>{formatRange(shift)}</td>
-                  <td>
-                    <span className={`${styles.badge} ${STATUS_BADGE[shift.status] || ''}`}>
-                      {shift.status}
-                    </span>
-                  </td>
-                  <td style={{ maxWidth: 220 }}>{shift.notes || '—'}</td>
-                  <td>{shift._id}</td>
-                </tr>
-              ))}
+              {shifts
+                .filter((shift) => {
+                  const st = (shift.status || '').toLowerCase();
+                  if (st === 'completed') return false;
+                  if (isShiftInProgress(shift)) return false;
+                  return true;
+                })
+                .map((shift) => (
+                  <tr key={shift._id}>
+                    <td>{dayjs(shift.date).format('DD/MM/YYYY')}</td>
+                    <td>{formatRange(shift)}</td>
+                    <td>
+                      <span className={`${styles.badge} ${STATUS_BADGE[shift.status] || ''}`}>
+                        {shift.status}
+                      </span>
+                    </td>
+                    <td style={{ maxWidth: 220 }}>{shift.notes || '—'}</td>
+                    <td>{shift._id}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         )}
@@ -345,22 +503,39 @@ export default function MyShiftsPage() {
               required
             >
               <option value="">Chọn...</option>
-              {shifts.map((shift) => (
-                <option key={shift._id} value={shift._id}>
-                  {dayjs(shift.date).format('DD/MM')} – {formatRange(shift)}
+              {shifts
+                .filter((shift) => {
+                  const st = (shift.status || '').toLowerCase();
+                  if (st === 'completed') return false;
+                  if (isShiftInProgress(shift)) return false;
+                  return true;
+                })
+                .map((shift) => (
+                  <option key={shift._id} value={shift._id}>
+                    {dayjs(shift.date).format('DD/MM')} – {formatRange(shift)}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Ca muốn đổi (tuỳ chọn)
+            <select
+              className={styles.select}
+              value={form.targetShiftId}
+              onChange={(e) => setForm((prev) => ({ ...prev, targetShiftId: e.target.value }))}
+            >
+              <option value="">Không chọn (chỉ huỷ / xin đổi tự do)</option>
+              {swapTargets.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {dayjs(s.date).format('DD/MM')} – {formatRange(s)} – {s.staff?.name || 'NV'}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            Ca muốn đổi (Mã ca, tuỳ chọn)
-            <input
-              className={styles.input}
-              value={form.targetShiftId}
-              onChange={(e) => setForm((prev) => ({ ...prev, targetShiftId: e.target.value }))}
-              placeholder="Nhập mã ca nếu muốn đổi trực tiếp"
-            />
-          </label>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            Nếu không chọn ca mục tiêu, yêu cầu sẽ là xin huỷ/đổi ca gốc. Chọn một ca khác để hệ
+            thống tự hoán đổi nhân viên giữa hai ca.
+          </div>
           <label>
             Lý do
             <textarea

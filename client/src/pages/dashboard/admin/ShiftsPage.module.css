@@ -95,6 +95,95 @@
   color: #c2410c;
 }
 
+/* Overlap warning modal */
+.overlapOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 20px;
+}
+.overlapModal {
+  background: #ffffff;
+  width: min(460px, 100%);
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35);
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+.overlapTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.overlapList {
+  display: grid;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.overlapItem {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+.overlapActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.btnGhost {
+  background: #fff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  box-shadow: none;
+}
+
+/* Slot detail modal (higher z-index than calendar modal) */
+.slotDetailOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  padding: 20px;
+}
+.slotDetailModal {
+  background: #ffffff;
+  width: min(520px, 100%);
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 32px 64px -12px rgba(15, 23, 42, 0.4);
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+.btnGhost:hover {
+  background: #f8fafc;
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.25);
+}
+.btnGhost:hover:not(:disabled) {
+  color: #334155;
+  opacity: 1;
+}
+.btnGhost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

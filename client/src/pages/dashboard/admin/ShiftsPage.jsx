@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import dayjs from 'dayjs';
 import styles from './ShiftsPage.module.css';
 import { shiftApi, usersApi } from '@/api';
@@ -49,6 +50,7 @@ export default function ShiftsPage() {
     shiftTemplateId: '',
     customStart: '',
     customEnd: '',
+    status: 'scheduled',
     notes: '',
   });
 
@@ -85,6 +87,26 @@ export default function ShiftsPage() {
   const [calendarEditorForm, setCalendarEditorForm] = useState(() => buildDefaultShiftForm());
   const [calendarEditorLoading, setCalendarEditorLoading] = useState(false);
   const calendarRange = shiftFilters.range || RANGE_PRESETS.week;
+  const [overlapWarning, setOverlapWarning] = useState({
+    open: false,
+    conflicts: [],
+    proposed: null,
+  });
+  const [slotDetailModal, setSlotDetailModal] = useState({ open: false, group: null });
+
+  // Ensure slot-detail modal never lingers or hides under calendar
+  useEffect(() => {
+    if (!showCalendarModal && slotDetailModal.open) {
+      setSlotDetailModal({ open: false, group: null });
+    }
+  }, [showCalendarModal]);
+
+  // Also reset any in-progress editor when calendar closes
+  useEffect(() => {
+    if (!showCalendarModal && calendarEditor.open) {
+      setCalendarEditor({ open: false, mode: 'edit', shiftId: null, heading: '' });
+    }
+  }, [showCalendarModal]);
 
   const calendarRangeStart = useMemo(() => {
     if (calendarRange === RANGE_PRESETS.month) {
@@ -220,6 +242,39 @@ export default function ShiftsPage() {
         return 0;
       });
       buckets[key] = list;
+    });
+
+    // Group shifts by template+time to show one card per slot with all staff
+    Object.keys(buckets).forEach((dayKey) => {
+      const dayShifts = buckets[dayKey];
+      const grouped = {};
+      dayShifts.forEach((shift) => {
+        const tplId = shift.shiftTemplate?._id || shift.shiftTemplate?.id || 'custom';
+        const start = shift.customStart || shift.shiftTemplate?.startTime || '';
+        const end = shift.customEnd || shift.shiftTemplate?.endTime || '';
+        const slotKey = `${tplId}-${start}-${end}`;
+        if (!grouped[slotKey]) {
+          grouped[slotKey] = {
+            slotKey,
+            shiftTemplate: shift.shiftTemplate,
+            customStart: shift.customStart,
+            customEnd: shift.customEnd,
+            date: shift.date,
+            isPlaceholder: shift.isPlaceholder,
+            assignedStaff: [],
+          };
+        }
+        if (!shift.isPlaceholder) {
+          // keep full shift object so downstream editors/modals have date, template, status, times
+          grouped[slotKey].assignedStaff.push({ ...shift });
+          grouped[slotKey].isPlaceholder = false;
+        }
+      });
+      buckets[dayKey] = Object.values(grouped).sort((a, b) => {
+        const startA = getShiftStartMinutes(a);
+        const startB = getShiftStartMinutes(b);
+        return startA - startB;
+      });
     });
 
     return buckets;
@@ -369,6 +424,70 @@ export default function ShiftsPage() {
 
   const handleCreateShift = async (e) => {
     e.preventDefault();
+    // client-side overlap detection -> show modal instead of immediate API call
+    try {
+      const staffId = shiftForm.staffId;
+      const dateStr = shiftForm.date;
+      if (!staffId || !dateStr) throw new Error('Thiếu nhân viên hoặc ngày');
+      const sameDay = shifts.filter(
+        (s) =>
+          String(s.staff?._id || s.staff?.id || s.staff) === String(staffId) &&
+          dayjs(s.date).isSame(dayjs(dateStr), 'day'),
+      );
+      // derive proposed times
+      let startStr = shiftForm.customStart;
+      let endStr = shiftForm.customEnd;
+      if (!startStr || !endStr) {
+        const tpl = templates.find((t) => String(t._id) === String(shiftForm.shiftTemplateId));
+        if (tpl) {
+          startStr = tpl.startTime;
+          endStr = tpl.endTime;
+        }
+      }
+      const toMinutes = (tm) => {
+        if (!tm) return null;
+        const [h, m] = String(tm).split(':').map(Number);
+        if (Number.isNaN(h) || Number.isNaN(m)) return null;
+        return h * 60 + m;
+      };
+      const proposedStart = toMinutes(startStr);
+      const proposedEnd = toMinutes(endStr);
+      const conflicts = [];
+      if (proposedStart != null && proposedEnd != null && proposedEnd > proposedStart) {
+        sameDay.forEach((s) => {
+          if (editingShiftId && String(s._id) === String(editingShiftId)) return; // ignore self when editing
+          const sStart = toMinutes(s.customStart || s.shiftTemplate?.startTime);
+          const sEnd = toMinutes(s.customEnd || s.shiftTemplate?.endTime);
+          if (sStart != null && sEnd != null && proposedStart < sEnd && proposedEnd > sStart) {
+            conflicts.push({
+              id: s._id,
+              staff: s.staff?.name,
+              date: dayjs(s.date).format('DD/MM/YYYY'),
+              range: `${s.customStart || s.shiftTemplate?.startTime} → ${
+                s.customEnd || s.shiftTemplate?.endTime
+              }`,
+              status: s.status,
+            });
+          }
+        });
+      }
+      if (conflicts.length) {
+        setOverlapWarning({
+          open: true,
+          conflicts,
+          proposed: {
+            date: dayjs(dateStr).format('DD/MM/YYYY'),
+            range:
+              proposedStart != null && proposedEnd != null
+                ? `${startStr} → ${endStr}`
+                : 'Không xác định',
+          },
+        });
+        return; // stop normal submit
+      }
+    } catch (err) {
+      console.warn('Client overlap check skipped:', err.message);
+    }
     try {
       if (editingShiftId) {
         const payload = {
@@ -377,6 +496,7 @@ export default function ShiftsPage() {
           shiftTemplateId: shiftForm.shiftTemplateId || undefined,
           customStart: shiftForm.customStart || undefined,
           customEnd: shiftForm.customEnd || undefined,
+          status: shiftForm.status || undefined,
           notes: shiftForm.notes || undefined,
         };
         await shiftApi.shifts.update(editingShiftId, payload);
@@ -429,6 +549,7 @@ export default function ShiftsPage() {
       shiftTemplateId: templateId ? String(templateId) : '',
       customStart: shift.customStart || '',
       customEnd: shift.customEnd || '',
+      status: shift.status || 'scheduled',
       notes: shift.notes || '',
     };
     setShiftForm(formData);
@@ -458,6 +579,7 @@ export default function ShiftsPage() {
       shiftTemplateId: templateId ? String(templateId) : '',
       customStart: shift.customStart || '',
       customEnd: shift.customEnd || '',
+      status: shift.status || 'scheduled',
       notes: shift.notes || '',
     });
   };
@@ -477,6 +599,7 @@ export default function ShiftsPage() {
       shiftTemplateId: String(template._id || template.id || ''),
       customStart: '',
       customEnd: '',
+      status: 'scheduled',
       notes: '',
     });
   };
@@ -499,6 +622,7 @@ export default function ShiftsPage() {
       shiftTemplateId: calendarEditorForm.shiftTemplateId || undefined,
       customStart: calendarEditorForm.customStart || undefined,
       customEnd: calendarEditorForm.customEnd || undefined,
+      status: calendarEditorForm.status || undefined,
       notes: calendarEditorForm.notes || undefined,
     };
     if (!payload.staffId) {
@@ -718,13 +842,14 @@ export default function ShiftsPage() {
                     {shiftList.length === 0 ? (
                       <div className={styles.calendarEmpty}>Không có ca</div>
                     ) : (
-                      shiftList.map((shift) => {
-                        const isPlaceholder = Boolean(shift.isPlaceholder);
-                        const template = shift.shiftTemplate;
+                      shiftList.map((group) => {
+                        const isPlaceholder = Boolean(group.isPlaceholder);
+                        const template = group.shiftTemplate;
                         const borderColor = template?.color || '#cbd5f5';
+                        const staffCount = group.assignedStaff.length;
                         return (
                           <div
-                            key={shift._id}
+                            key={group.slotKey}
                             className={`${styles.calendarShift} ${
                               isPlaceholder ? styles.calendarShiftPlaceholder : ''
                             }`}
@@ -733,9 +858,13 @@ export default function ShiftsPage() {
                             <div className={styles.calendarShiftTemplate}>
                               {template?.name || 'Ca tuỳ chỉnh'}
                             </div>
-                            <div className={styles.calendarShiftTime}>{formatTimeRange(shift)}</div>
+                            <div className={styles.calendarShiftTime}>{formatTimeRange(group)}</div>
                             <div className={styles.calendarShiftStaff}>
-                              {isPlaceholder ? 'Chưa có nhân viên' : shift.staff?.name || 'Chưa rõ'}
+                              {isPlaceholder
+                                ? 'Chưa có nhân viên'
+                                : staffCount === 1
+                                ? group.assignedStaff[0].staff?.name || 'Chưa rõ'
+                                : `${staffCount} nhân viên`}
                             </div>
                             <div className={styles.calendarShiftFooter}>
                               {isPlaceholder ? (
@@ -748,22 +877,19 @@ export default function ShiftsPage() {
                                   Phân ca
                                 </button>
                               ) : (
-                                <>
-                                  <span
-                                    className={`${styles.badge} ${
-                                      STATUS_BADGE[shift.status] || ''
-                                    }`}
-                                  >
-                                    {shift.status}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className={styles.calendarShiftEdit}
-                                    onClick={() => openCalendarEditorForShift(shift)}
-                                  >
-                                    Sửa
-                                  </button>
-                                </>
+                                <button
+                                  type="button"
+                                  className={styles.calendarShiftEdit}
+                                  onClick={() => {
+                                    if (staffCount === 1) {
+                                      openCalendarEditorForShift(group.assignedStaff[0]);
+                                    } else {
+                                      setSlotDetailModal({ open: true, group });
+                                    }
+                                  }}
+                                >
+                                  {staffCount === 1 ? 'Sửa' : 'Xem'}
+                                </button>
                               )}
                             </div>
                           </div>
@@ -800,13 +926,14 @@ export default function ShiftsPage() {
                             </span>
                           </div>
                           <div className={styles.calendarMonthCellBody}>
-                            {shiftList.map((shift) => {
-                              const isPlaceholder = Boolean(shift.isPlaceholder);
-                              const template = shift.shiftTemplate;
+                            {shiftList.map((group) => {
+                              const isPlaceholder = Boolean(group.isPlaceholder);
+                              const template = group.shiftTemplate;
                               const borderColor = template?.color || '#cbd5f5';
+                              const staffCount = group.assignedStaff.length;
                               return (
                                 <div
-                                  key={shift._id}
+                                  key={group.slotKey}
                                   className={`${styles.calendarMonthShift} ${
                                     isPlaceholder ? styles.calendarMonthShiftPlaceholder : ''
                                   }`}
@@ -816,10 +943,14 @@ export default function ShiftsPage() {
                                     {template?.name || 'Ca tuỳ chỉnh'}
                                   </div>
                                   <div className={styles.calendarMonthShiftTime}>
-                                    {formatTimeRange(shift)}
+                                    {formatTimeRange(group)}
                                   </div>
                                   <div className={styles.calendarMonthShiftStaff}>
-                                    {isPlaceholder ? 'Trống' : shift.staff?.name || 'Chưa rõ'}
+                                    {isPlaceholder
+                                      ? 'Trống'
+                                      : staffCount === 1
+                                      ? group.assignedStaff[0].staff?.name || 'Chưa rõ'
+                                      : `${staffCount} NV`}
                                   </div>
                                   <div className={styles.calendarMonthShiftActions}>
                                     {isPlaceholder ? (
@@ -837,9 +968,15 @@ export default function ShiftsPage() {
                                       <button
                                         type="button"
                                         className={styles.calendarMonthEditBtn}
-                                        onClick={() => openCalendarEditorForShift(shift)}
+                                        onClick={() => {
+                                          if (staffCount === 1) {
+                                            openCalendarEditorForShift(group.assignedStaff[0]);
+                                          } else {
+                                            setSlotDetailModal({ open: true, group });
+                                          }
+                                        }}
                                       >
-                                        Sửa
+                                        {staffCount === 1 ? 'Sửa' : 'Xem'}
                                       </button>
                                     )}
                                   </div>
@@ -939,6 +1076,21 @@ export default function ShiftsPage() {
                       required
                       disabled={calendarEditorLoading}
                     />
+                  </label>
+                  <label className={styles.formStackLabel}>
+                    Trạng thái
+                    <select
+                      className={styles.select}
+                      value={calendarEditorForm.status}
+                      onChange={handleCalendarEditorChange('status')}
+                      disabled={calendarEditorLoading}
+                    >
+                      {SHIFT_STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <label className={styles.formStackLabel}>
                     Mẫu ca
@@ -1053,6 +1205,22 @@ export default function ShiftsPage() {
                 ))}
               </select>
             </label>
+            {editingShiftId ? (
+              <label>
+                Trạng thái
+                <select
+                  className={styles.select}
+                  value={shiftForm.status}
+                  onChange={(e) => setShiftForm((f) => ({ ...f, status: e.target.value }))}
+                >
+                  {SHIFT_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label>
               Ngày
               <input
@@ -1281,6 +1449,101 @@ export default function ShiftsPage() {
           )}
         </div>
         {showCalendarModal ? renderCalendarModal() : null}
+        {overlapWarning.open ? (
+          <div className={styles.overlapOverlay} role="dialog" aria-modal="true">
+            <div className={styles.overlapModal}>
+              <h3 className={styles.overlapTitle}>Trùng ca làm</h3>
+              <div style={{ fontSize: 13, color: '#475569' }}>
+                Ca bạn đang phân ({overlapWarning.proposed?.date} – {overlapWarning.proposed?.range}
+                ) trùng với các ca sau:
+              </div>
+              <div className={styles.overlapList}>
+                {overlapWarning.conflicts.map((c) => (
+                  <div key={c.id} className={styles.overlapItem}>
+                    <div style={{ fontWeight: 600 }}>{c.staff}</div>
+                    <div>{c.date}</div>
+                    <div style={{ fontSize: 11 }}>{c.range}</div>
+                    <div>
+                      <span className={`${styles.badge} ${STATUS_BADGE[c.status] || ''}`}>
+                        {c.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.overlapActions}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                  onClick={() => setOverlapWarning({ open: false, conflicts: [], proposed: null })}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {slotDetailModal.open && slotDetailModal.group
+          ? createPortal(
+              <div className={styles.slotDetailOverlay} role="dialog" aria-modal="true">
+                <div className={styles.slotDetailModal}>
+                  <h3 className={styles.overlapTitle}>Chi tiết ca làm</h3>
+                  <div style={{ fontSize: 13, color: '#475569', marginBottom: 8 }}>
+                    {slotDetailModal.group.shiftTemplate?.name || 'Ca tùy chỉnh'} –{' '}
+                    {formatTimeRange(slotDetailModal.group)} –{' '}
+                    {dayjs(slotDetailModal.group.date).format('DD/MM/YYYY')}
+                  </div>
+                  <div className={styles.overlapList}>
+                    {slotDetailModal.group.assignedStaff.map((s) => (
+                      <div key={s._id} className={styles.overlapItem}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            width: '100%',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{s.staff?.name || 'Chưa rõ'}</div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              {s.staff?.email || ''}
+                            </div>
+                            <div style={{ marginTop: 4 }}>
+                              <span className={`${styles.badge} ${STATUS_BADGE[s.status] || ''}`}>
+                                {s.status}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className={`${styles.btn} ${styles.btnSecondary}`}
+                            style={{ fontSize: 12, padding: '4px 12px' }}
+                            onClick={() => {
+                              setSlotDetailModal({ open: false, group: null });
+                              openCalendarEditorForShift(s);
+                            }}
+                          >
+                            Sửa
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.overlapActions}>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnGhost}`}
+                      onClick={() => setSlotDetailModal({ open: false, group: null })}
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )
+          : null}
       </div>
     );
   };

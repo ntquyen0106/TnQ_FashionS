@@ -58,6 +58,103 @@ const ensureNoOverlap = async ({ staffId, date, start, end, excludeId }) => {
   }
 };
 
+// Overtime & hours constraints
+const MAX_DAILY_MINUTES = 12 * 60; // 12h/ngày
+const MAX_MONTHLY_MINUTES = 40 * 60; // 40h/tháng (giờ làm thêm tổng)
+const MAX_YEARLY_MINUTES = 300 * 60; // 300h/năm (giờ làm thêm tổng)
+
+const computeShiftDuration = ({ start, end }) => {
+  if (start == null || end == null) return 0;
+  const diff = end - start;
+  return diff > 0 ? diff : 0;
+};
+
+const ensureHourLimits = async ({ staffId, date, start, end, excludeId }) => {
+  const duration = computeShiftDuration({ start, end });
+  if (!duration) throw new Error('Thời lượng ca không hợp lệ');
+
+  // Day range
+  const dayStart = new Date(date);
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+  const monthStart = new Date(date);
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const monthEnd = new Date(monthStart);
+  monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+  monthEnd.setUTCDate(0); // last day of previous incremented month
+  monthEnd.setUTCHours(23, 59, 59, 999);
+
+  const yearStart = new Date(date);
+  yearStart.setUTCMonth(0, 1);
+  yearStart.setUTCHours(0, 0, 0, 0);
+  const yearEnd = new Date(date);
+  yearEnd.setUTCMonth(11, 31);
+  yearEnd.setUTCHours(23, 59, 59, 999);
+
+  const baseQuery = { staff: staffId };
+  if (excludeId) baseQuery._id = { $ne: excludeId };
+
+  const existingDay = await StaffShift.find({
+    ...baseQuery,
+    date: { $gte: dayStart, $lt: dayEnd },
+    status: { $nin: ['cancelled'] },
+  })
+    .populate('shiftTemplate', 'startTime endTime')
+    .lean();
+  let dayTotal = 0;
+  for (const s of existingDay) {
+    const { start: es, end: ee } = await resolveShiftTimes({
+      shiftTemplate: s.shiftTemplate,
+      customStart: s.customStart,
+      customEnd: s.customEnd,
+    });
+    dayTotal += computeShiftDuration({ start: es, end: ee });
+  }
+  if (dayTotal + duration > MAX_DAILY_MINUTES)
+    throw new Error('Vượt quá tổng giờ làm thêm tối đa trong ngày (12h)');
+
+  const existingMonth = await StaffShift.find({
+    ...baseQuery,
+    date: { $gte: monthStart, $lte: monthEnd },
+    status: { $nin: ['cancelled'] },
+  })
+    .populate('shiftTemplate', 'startTime endTime')
+    .lean();
+  let monthTotal = 0;
+  for (const s of existingMonth) {
+    const { start: es, end: ee } = await resolveShiftTimes({
+      shiftTemplate: s.shiftTemplate,
+      customStart: s.customStart,
+      customEnd: s.customEnd,
+    });
+    monthTotal += computeShiftDuration({ start: es, end: ee });
+  }
+  if (monthTotal + duration > MAX_MONTHLY_MINUTES)
+    throw new Error('Vượt quá tổng giờ làm thêm tối đa trong tháng (40h)');
+
+  const existingYear = await StaffShift.find({
+    ...baseQuery,
+    date: { $gte: yearStart, $lte: yearEnd },
+    status: { $nin: ['cancelled'] },
+  })
+    .populate('shiftTemplate', 'startTime endTime')
+    .lean();
+  let yearTotal = 0;
+  for (const s of existingYear) {
+    const { start: es, end: ee } = await resolveShiftTimes({
+      shiftTemplate: s.shiftTemplate,
+      customStart: s.customStart,
+      customEnd: s.customEnd,
+    });
+    yearTotal += computeShiftDuration({ start: es, end: ee });
+  }
+  if (yearTotal + duration > MAX_YEARLY_MINUTES)
+    throw new Error('Vượt quá tổng giờ làm thêm tối đa trong năm (300h)');
+};
+
 export const listTemplates = async (query = {}) => {
   const filter = {};
   if (query.active != null) {
@@ -130,6 +227,7 @@ export const createShifts = async (payload = {}, actorId) => {
     if (start == null || end == null) throw new Error('Thời gian ca làm không hợp lệ');
 
     await ensureNoOverlap({ staffId, date: item.date, start, end });
+    await ensureHourLimits({ staffId, date: item.date, start, end });
     const doc = await StaffShift.create({
       staff: staffId,
       date: item.date,
@@ -152,8 +250,14 @@ export const createShifts = async (payload = {}, actorId) => {
 export const updateShift = async (id, payload = {}, actorId) => {
   const shift = await StaffShift.findById(id);
   if (!shift) throw new Error('Không tìm thấy ca làm');
+  // allow changing assigned staff when provided
+  if (payload.staffId) {
+    const staff = await User.findById(payload.staffId).select('_id role status').lean();
+    if (!staff || staff.status !== 'active') throw new Error('Nhân viên không hợp lệ');
+  }
 
   const next = {
+    staff: payload.staffId || shift.staff,
     shiftTemplate: payload.shiftTemplateId || payload.shiftTemplate || shift.shiftTemplate,
     customStart: payload.customStart ?? shift.customStart,
     customEnd: payload.customEnd ?? shift.customEnd,
@@ -172,7 +276,14 @@ export const updateShift = async (id, payload = {}, actorId) => {
   if (start == null || end == null) throw new Error('Thời gian ca làm không hợp lệ');
 
   await ensureNoOverlap({
-    staffId: shift.staff,
+    staffId: payload.staffId || shift.staff,
+    date: payload.date || shift.date,
+    start,
+    end,
+    excludeId: id,
+  });
+  await ensureHourLimits({
+    staffId: payload.staffId || shift.staff,
     date: payload.date || shift.date,
     start,
     end,
@@ -181,7 +292,13 @@ export const updateShift = async (id, payload = {}, actorId) => {
 
   Object.assign(shift, next);
   await shift.save();
-  return shift;
+
+  // return hydrated shift for consistency with createShifts
+  const hydrated = await StaffShift.findById(shift._id)
+    .populate('staff', 'name email role')
+    .populate('shiftTemplate')
+    .lean();
+  return hydrated;
 };
 
 export const deleteShift = async (id) => {
@@ -285,9 +402,13 @@ export const resolveSwapRequest = async (id, payload = {}, adminId) => {
     }
 
     if (targetShift) {
+      // Hoán đổi nhân viên giữa hai ca, đánh dấu cả hai là swapped.
+      // Job nền sẽ tự chuyển sang completed khi hết giờ.
       const tmpStaff = targetShift.staff;
       targetShift.staff = fromShift.staff;
       fromShift.staff = tmpStaff;
+      fromShift.status = 'swapped';
+      targetShift.status = 'swapped';
       await fromShift.save({ session });
       await targetShift.save({ session });
     } else {

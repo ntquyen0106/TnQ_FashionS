@@ -166,6 +166,23 @@
   gap: 8px;
 }
 
+.calendarModeBtn {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #475569;
+}
+
+.activeMode {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
 .calendarNavBtn {
   border: 1px solid #d1d5db;
   border-radius: 999px;
@@ -232,10 +249,37 @@
   gap: 12px;
 }
 
+.calendarWeekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+}
+
+.calendarMonthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+}
+
 .calendarColumn {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* slightly denser headers for 7-column layout */
+.calendarColumnHeader {
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.calendarShift {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
 }
 
 .calendarColumnHeader {

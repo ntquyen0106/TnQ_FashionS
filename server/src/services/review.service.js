@@ -119,13 +119,26 @@ export const listReviewsByProduct = async (productId, { page = 1, limit = 10 } =
   const skip = (page - 1) * limit;
   const reviews = await Review.find({ productId })
     .populate('userId', 'name avatar')
+    .populate({ path: 'orderId', select: 'shippingAddress.fullName' })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .select('rating comment variantSku images video userId createdAt')
+    .select('rating comment variantSku images video userId orderId createdAt')
     .lean();
   const total = await Review.countDocuments({ productId });
-  return { reviews, total, page, limit };
+
+  const enriched = reviews.map((review) => {
+    const customerName =
+      review.userId?.name || review.orderId?.shippingAddress?.fullName || 'Khách hàng';
+    const customerAvatar = review.userId?.avatar || null;
+    return {
+      ...review,
+      customerName,
+      customerAvatar,
+    };
+  });
+
+  return { reviews: enriched, total, page, limit };
 };
 
 export const listUserReviews = async (userId) => {
