@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ordersApi from '@/api/orders-api';
 import { reviewsApi } from '@/api/reviews-api';
+import { useCart } from '@/contexts/CartProvider';
 import styles from './MyOrders.module.css';
 
 const fmtVND = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0);
@@ -48,6 +49,8 @@ export default function MyOrders() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('PENDING'); // Mặc định là "Chờ xác nhận"
   const [reviewedOrders, setReviewedOrders] = useState(new Set());
+  const { addMany } = useCart();
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -93,6 +96,20 @@ export default function MyOrders() {
       return byText && byStatus;
     });
   }, [orders, q, filter]);
+
+  const handleReorder = async (order, e) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    if (!order || !Array.isArray(order.items) || order.items.length === 0) return;
+    const items = order.items.map((it) => ({
+      productId: it.productId || (typeof it.productId === 'object' ? it.productId?._id : null),
+      variantSku: it.variantSku || it.sku,
+      qty: it.quantity || it.qty || 1,
+    }));
+    await addMany(items);
+    // Redirect to cart sau khi mua lại
+    navigate('/cart');
+  };
 
   return (
     <div className={styles.wrap}>
@@ -160,62 +177,81 @@ export default function MyOrders() {
               : '/no-image.png';
 
             const canReview = ['DONE', 'RETURNED'].includes(status.toUpperCase());
+            const canReorder = ['DONE', 'CANCELLED'].includes(status.toUpperCase());
             const hasReviewed = reviewedOrders.has(String(o._id));
 
             return (
-              <div key={o._id} className={styles.card}>
-                <Link to={`/orders/${o._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div className={styles.rowTop}>
-                    <div className={styles.prodHead}>
-                      <img src={img} alt={first?.nameSnapshot || 'Sản phẩm'} />
-                      <div className={styles.prodMeta}>
-                        <div className={styles.prodName}>
-                          {first?.nameSnapshot || 'Sản phẩm'}
-                          {o.items?.length > 1 && (
-                            <span className={styles.more}> +{o.items.length - 1} sản phẩm</span>
-                          )}
-                        </div>
-                        {/* Ẩn mã đơn ở danh sách theo yêu cầu */}
-                        <div
-                          className={styles.codeSmall}
-                          style={{ visibility: 'hidden', height: 0 }}
-                        >
-                          &nbsp;
-                        </div>
+              <article
+                key={o._id}
+                className={styles.card}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/orders/${o._id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/orders/${o._id}`);
+                  }
+                }}
+              >
+                <div className={styles.rowTop}>
+                  <div className={styles.prodHead}>
+                    <img src={img} alt={first?.nameSnapshot || 'Sản phẩm'} />
+                    <div className={styles.prodMeta}>
+                      <div className={styles.prodName}>
+                        {first?.nameSnapshot || 'Sản phẩm'}
+                        {o.items?.length > 1 && (
+                          <span className={styles.more}> +{o.items.length - 1} sản phẩm</span>
+                        )}
+                      </div>
+                      {/* Ẩn mã đơn ở danh sách theo yêu cầu */}
+                      <div className={styles.codeSmall} style={{ visibility: 'hidden', height: 0 }}>
+                        &nbsp;
                       </div>
                     </div>
-                    <div className={`${styles.chip} ${styles[`st_${status}`]}`}>{label}</div>
                   </div>
+                  <div className={`${styles.chip} ${styles[`st_${status}`]}`}>{label}</div>
+                </div>
 
-                  <div className={styles.rowMid}>
-                    {/* <div>
+                <div className={styles.rowMid}>
+                  {/* <div>
                       <div className={styles.k}>Ngày đặt</div>
                       <div className={styles.v}>{fmtDate(o.createdAt)}</div>
                     </div> */}
-                    <div>
-                      <div className={styles.k}>Sản phẩm</div>
-                      <div className={styles.v}>{o.items?.length || 0} mặt hàng</div>
-                    </div>
-                    <div>
-                      <div className={styles.k}>Phương thức</div>
-                      <div className={styles.v}>
-                        {PM_LABEL[o.paymentMethod] || o.paymentMethod || '—'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className={styles.k}>Tạm tính</div>
-                      <div className={styles.v}>{fmtVND(sub)}₫</div>
-                    </div>
-                    <div>
-                      <div className={styles.k}>Giảm giá</div>
-                      <div className={styles.v}>-{fmtVND(discount)}₫</div>
+                  <div>
+                    <div className={styles.k}>Sản phẩm</div>
+                    <div className={styles.v}>{o.items?.length || 0} mặt hàng</div>
+                  </div>
+                  <div>
+                    <div className={styles.k}>Phương thức</div>
+                    <div className={styles.v}>
+                      {PM_LABEL[o.paymentMethod] || o.paymentMethod || '—'}
                     </div>
                   </div>
+                  <div>
+                    <div className={styles.k}>Tạm tính</div>
+                    <div className={styles.v}>{fmtVND(sub)}₫</div>
+                  </div>
+                  <div>
+                    <div className={styles.k}>Giảm giá</div>
+                    <div className={styles.v}>-{fmtVND(discount)}₫</div>
+                  </div>
+                </div>
 
-                  <div className={styles.rowBot}>
-                    <div className={styles.total}>
-                      Tổng thanh toán: <strong>{fmtVND(total)}₫</strong>
-                    </div>
+                <div className={styles.rowBot}>
+                  <div className={styles.total}>
+                    Tổng thanh toán: <strong>{fmtVND(total)}₫</strong>
+                  </div>
+                  <div className={styles.actionBtns}>
+                    {canReorder && (
+                      <button
+                        type="button"
+                        className={styles.reorderBtn}
+                        onClick={(e) => handleReorder(o, e)}
+                      >
+                        Mua lại
+                      </button>
+                    )}
                     {canReview && (
                       <Link
                         to={`/orders/${o._id}/review`}
@@ -257,8 +293,8 @@ export default function MyOrders() {
                       </Link>
                     )}
                   </div>
-                </Link>
-              </div>
+                </div>
+              </article>
             );
           })}
         </div>
