@@ -14,6 +14,7 @@ export default function CartProvider({ children }) {
     discount: 0,
     total: 0,
     promotion: null,
+    staleInfo: { hasStale: false, items: [], thresholds: { warn: 24, urgent: 72 } },
   });
   const { user } = useAuth();
 
@@ -171,6 +172,14 @@ export default function CartProvider({ children }) {
       await refresh(); // sau đó mới GET /cart
     })();
   }, [user, refresh]);
+
+  // Refresh cart every 30 seconds to check for stale items in real-time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refresh();
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   return (
     <CartCtx.Provider

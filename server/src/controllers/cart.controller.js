@@ -154,3 +154,21 @@ export const postClearPromotion = async (req, res, next) => {
     next(e);
   }
 };
+
+export const getCartRecommendations = async (req, res, next) => {
+  try {
+    const userId = req.user?._id || null;
+    const sessionId = req.query.sessionId || req.body?.sessionId || null;
+    const limit = Number(req.query.limit) || 6;
+    const requireContext = String(req.query.requireContext).toLowerCase() === 'true';
+    const items = await cartService.getRecommendations({
+      userId,
+      sessionId,
+      limit,
+      requireContext,
+    });
+    res.json({ items });
+  } catch (e) {
+    next(e);
+  }
+};

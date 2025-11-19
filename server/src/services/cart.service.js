@@ -1,6 +1,17 @@
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
 import Promotion from '../models/Promotion.js';
+import Order from '../models/Order.js';
+
+const STALE_SOFT_HOURS = 1 / 60; // 1 phút
+const STALE_HARD_HOURS = 2 / 60; // 2 phút
+
+const pickPrimaryPublicId = (images = []) => {
+  const primary = images.find((im) => im?.isPrimary === true);
+  if (primary?.publicId) return primary.publicId;
+  const first = images[0];
+  return typeof first === 'string' ? first : first?.publicId || '';
+};
 
 export const getCart = async ({
   userId,
@@ -8,16 +19,9 @@ export const getCart = async ({
   allowFallback = false,
   mergeFallback = false,
 }) => {
-  const pickPrimaryPublicId = (images = []) => {
-    const primary = images.find((im) => im?.isPrimary === true);
-    if (primary?.publicId) return primary.publicId;
-    const first = images[0];
-    return typeof first === 'string' ? first : first?.publicId || '';
-  };
-
   const findCart = (query) =>
     Cart.findOne({ ...query, status: 'active' })
-      .populate('items.productId', 'name slug images variants')
+      .populate('items.productId', 'name slug images variants categoryId ratingAvg')
       .populate('promotion')
       .exec();
 
@@ -55,9 +59,26 @@ export const getCart = async ({
     cart = await findCart({ sessionId });
   }
 
+  const baseResponse = {
+    items: [],
+    subtotal: 0,
+    discount: 0,
+    total: 0,
+    promotion: null,
+    staleInfo: {
+      hasStale: false,
+      total: 0,
+      items: [],
+      thresholds: { warn: STALE_SOFT_HOURS, urgent: STALE_HARD_HOURS },
+    },
+  };
+
   if (!cart) {
-    return { items: [], subtotal: 0, discount: 0, total: 0, promotion: null };
+    return baseResponse;
   }
+
+  const now = Date.now();
+  const staleItems = [];
 
   const items = cart.items.map((it) => {
     const p = it.productId;
@@ -76,6 +97,23 @@ export const getCart = async ({
     const color = it.color ?? variantFromSku?.color ?? null;
     const size = it.size ?? variantFromSku?.size ?? null;
     const variantName = it.variantName || [color, size].filter(Boolean).join(' / ');
+
+    const touchedAt = it.touchedAt || it.addedAt || cart.updatedAt || cart.createdAt;
+    const touchedMs = touchedAt ? new Date(touchedAt).getTime() : null;
+    const staleHours = touchedMs ? (now - touchedMs) / (1000 * 60 * 60) : 0;
+    const staleLevel =
+      staleHours >= STALE_HARD_HOURS ? 'urgent' : staleHours >= STALE_SOFT_HOURS ? 'warn' : null;
+
+    if (staleLevel) {
+      staleItems.push({
+        itemId: it._id,
+        productId: p?._id || it.productId,
+        name,
+        variant: variantName,
+        hours: Number(staleHours.toFixed(1)),
+        level: staleLevel,
+      });
+    }
 
     const variantOptions = Array.isArray(p?.variants)
       ? p.variants.map((v) => ({
@@ -101,6 +139,9 @@ export const getCart = async ({
       color,
       size,
       variantOptions,
+      lastTouchedAt: touchedAt,
+      staleHours: Number(staleHours.toFixed(1)),
+      staleLevel,
     };
   });
 
@@ -124,6 +165,12 @@ export const getCart = async ({
     discount,
     total: Math.max(subtotal - discount, 0),
     promotion: cart.promotion || null,
+    staleInfo: {
+      hasStale: staleItems.length > 0,
+      total: staleItems.length,
+      items: staleItems,
+      thresholds: { warn: STALE_SOFT_HOURS, urgent: STALE_HARD_HOURS },
+    },
   };
 };
 
@@ -135,6 +182,7 @@ export const updateQty = async ({ userId, sessionId, cartItemId, qty }) => {
   const it = cart.items.id(cartItemId);
   if (!it) throw new Error('Item not found');
   it.qty = qty;
+  it.touchedAt = new Date();
   await cart.save();
   return await getCart({ userId, sessionId });
 };
@@ -156,6 +204,7 @@ export const updateVariant = async ({ userId, sessionId, cartItemId, variantSku 
   it.color = v.color || null;
   it.size = v.size || null;
   it.imageSnapshot = v.imagePublicId || it.imageSnapshot;
+  it.touchedAt = new Date();
   await cart.save();
 
   return await getCart({ userId, sessionId });
@@ -196,12 +245,6 @@ export const addToCart = async ({ userId, sessionId, productId, variantSku, qty 
     }
   }
 
-  const pickPrimaryPublicId = (images = []) => {
-    const primary = images.find((img) => img?.isPrimary === true);
-    if (primary?.publicId) return primary.publicId;
-    const first = images[0];
-    return typeof first === 'string' ? first : first?.publicId || '';
-  };
   const imageSnapshot = variant?.imagePublicId || pickPrimaryPublicId(product.images);
 
   const variantName = [variant?.color, variant?.size].filter(Boolean).join(' / ');
@@ -213,6 +256,7 @@ export const addToCart = async ({ userId, sessionId, productId, variantSku, qty 
 
   if (idx >= 0) {
     cart.items[idx].qty += qty;
+    cart.items[idx].touchedAt = new Date();
   } else {
     cart.items.push({
       productId,
@@ -225,6 +269,8 @@ export const addToCart = async ({ userId, sessionId, productId, variantSku, qty 
       variantName,
       color: variant?.color || null,
       size: variant?.size || null,
+      addedAt: new Date(),
+      touchedAt: new Date(),
     });
   }
 
@@ -241,7 +287,7 @@ export const getCartTotal = async ({ userId, sessionId, selectedItems }) => {
   } else if (sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' }).populate('promotion');
   }
-  
+
   if (!cart) return { items: [], subtotal: 0, discount: 0, total: 0, promotion: null };
 
   let items = cart.items;
@@ -338,7 +384,7 @@ export const applyPromotion = async ({ userId, sessionId, code, selectedItems })
 
 /**
  * Hợp nhất cart guest (sessionId) vào cart user (userId)
- *  Chú ý: Nếu getCart() đã merge với mergeFallback=true, 
+ *  Chú ý: Nếu getCart() đã merge với mergeFallback=true,
  * thì guest cart đã bị xóa rồi, không cần gọi lại hàm này
  */
 export const mergeGuestCartToUser = async ({ userId, sessionId }) => {
@@ -421,4 +467,103 @@ export const clearPromotion = async ({ userId, sessionId }) => {
   cart.promotion = null;
   await cart.save();
   return await getCart({ userId, sessionId });
+};
+
+const sanitizeProduct = (product) => ({
+  _id: product._id,
+  name: product.name,
+  slug: product.slug,
+  images: product.images,
+  variants: product.variants,
+  ratingAvg: product.ratingAvg,
+});
+
+const collectCartContext = async ({ userId, sessionId }) => {
+  const query = userId ? { userId, status: 'active' } : { sessionId, status: 'active' };
+  if (!query.userId && !query.sessionId) return null;
+  return Cart.findOne(query)
+    .populate('items.productId', 'categoryId name slug images variants ratingAvg status')
+    .exec();
+};
+
+const enrichFromOrderHistory = async ({ userId }) => {
+  if (!userId) return { categories: new Set(), products: [] };
+  const recent = await Order.findOne({ userId })
+    .sort({ createdAt: -1 })
+    .populate('items.productId', 'categoryId name slug images variants ratingAvg status')
+    .lean();
+  if (!recent) return { categories: new Set(), products: [] };
+
+  const categories = new Set();
+  const products = [];
+  recent.items.forEach((item) => {
+    if (item.productId?._id) {
+      products.push(item.productId._id.toString());
+      if (item.productId.categoryId) categories.add(item.productId.categoryId.toString());
+    }
+  });
+  return { categories, products };
+};
+
+export const getRecommendations = async ({
+  userId,
+  sessionId,
+  limit = 6,
+  requireContext = false,
+}) => {
+  const categoryIds = new Set();
+  const excludeIds = new Set();
+
+  const cart = await collectCartContext({ userId, sessionId });
+  const hasCartContext = Array.isArray(cart?.items) && cart.items.length > 0;
+  if (hasCartContext) {
+    cart.items.forEach((it) => {
+      const prod = it.productId;
+      if (!prod) return;
+      excludeIds.add(prod._id.toString());
+      if (prod.categoryId) categoryIds.add(prod.categoryId.toString());
+    });
+  }
+
+  let hasOrderContext = false;
+  if (userId) {
+    const orderContext = await enrichFromOrderHistory({ userId });
+    if (orderContext.categories.size > 0 || orderContext.products.length > 0) {
+      hasOrderContext = true;
+      orderContext.categories.forEach((id) => categoryIds.add(id));
+      orderContext.products.forEach((id) => excludeIds.add(id));
+    }
+  }
+
+  const hasContext = hasCartContext || hasOrderContext;
+  if (requireContext && !hasContext) {
+    return [];
+  }
+
+  const filters = { status: 'active' };
+  if (categoryIds.size > 0) filters.categoryId = { $in: Array.from(categoryIds) };
+
+  const query = Product.find(filters)
+    .where('_id')
+    .nin(Array.from(excludeIds))
+    .sort({ ratingAvg: -1, createdAt: -1 })
+    .limit(limit)
+    .select('name slug images variants ratingAvg');
+
+  let products = await query.lean();
+
+  if (products.length < limit) {
+    const needed = limit - products.length;
+    const fallback = await Product.find({
+      status: 'active',
+      _id: { $nin: Array.from(excludeIds) },
+    })
+      .sort({ createdAt: -1 })
+      .limit(needed)
+      .select('name slug images variants ratingAvg')
+      .lean();
+    products = products.concat(fallback);
+  }
+
+  return products.map(sanitizeProduct);
 };

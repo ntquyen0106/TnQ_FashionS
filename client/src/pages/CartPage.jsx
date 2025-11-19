@@ -4,6 +4,8 @@ import { useCart } from '@/contexts/CartProvider';
 import styles from './CartPage.module.css';
 import { toast } from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
+import ProductCard from '@/components/ProductCard';
+import { cartApi } from '@/api/cart-api';
 
 const fmtVND = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0);
 
@@ -20,6 +22,9 @@ export default function CartPage() {
   const nav = useNavigate();
   const [busyId, setBusyId] = useState(null);
   const items = Array.isArray(cart?.items) ? cart.items : [];
+  const staleInfo = cart?.staleInfo || { hasStale: false, items: [] };
+  const staleItems = Array.isArray(staleInfo.items) ? staleInfo.items : [];
+  const hasUrgentStale = staleItems.some((it) => it.level === 'urgent');
   const [confirm, setConfirm] = useState({ open: false, onConfirm: null, message: '' });
 
   const [selected, setSelected] = useState(() => new Set());
@@ -51,11 +56,74 @@ export default function CartPage() {
   // Chỉ tính tổng cho các sản phẩm đã chọn; nếu chưa chọn gì -> 0 VND
   const displayTotal = selected.size > 0 ? selectedTotal : 0;
 
+  const [recommendations, setRecommendations] = useState([]);
+  const [recLoading, setRecLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setRecLoading(true);
+    (async () => {
+      try {
+        const data = await cartApi.recommendations({ limit: 6 });
+        if (alive) setRecommendations(data);
+      } catch (e) {
+        if (alive) setRecommendations([]);
+      } finally {
+        if (alive) setRecLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [items.length]);
+
   if (!items.length)
     return (
       <div className={styles.container}>
         <div className={styles.page}>
           <h2>Giỏ hàng</h2>
+
+          {staleInfo.hasStale && (
+            <div
+              className={`${styles.staleBanner} ${
+                hasUrgentStale ? styles.staleBannerDanger : styles.staleBannerWarn
+              }`}
+            >
+              <div>
+                <div className={styles.staleLabel}>
+                  <span>{hasUrgentStale ? '⚠️ Sắp hết hàng' : '⏳ Nhắc nhẹ'}</span>
+                  <span className={styles.staleBadge}>{staleItems.length} sản phẩm</span>
+                </div>
+                <p>
+                  {hasUrgentStale
+                    ? 'Một vài sản phẩm đã nằm trong giỏ hơn 3 ngày. Đặt sớm để giữ size và ưu đãi.'
+                    : 'Bạn đã giữ sản phẩm trong giỏ hơn 24 giờ. Thanh toán ngay để không bỏ lỡ khuyến mãi.'}
+                </p>
+                <div className={styles.staleList}>
+                  {staleItems.slice(0, 3).map((it) => (
+                    <span key={it.itemId}>
+                      {it.name}
+                      {it.variant ? ` (${it.variant})` : ''} · {Math.round(it.hours)}h
+                    </span>
+                  ))}
+                  {staleItems.length > 3 && <span>+{staleItems.length - 3} sản phẩm khác</span>}
+                </div>
+              </div>
+              <div className={styles.staleActions}>
+                <button
+                  className={styles.staleCheckout}
+                  onClick={() =>
+                    nav('/checkout', { state: { selectedIds: items.map((x) => x._id) } })
+                  }
+                >
+                  Thanh toán ngay
+                </button>
+                <button className={styles.staleKeep} onClick={() => nav('/products')}>
+                  Xem thêm sản phẩm
+                </button>
+              </div>
+            </div>
+          )}
           <p>
             Chưa có sản phẩm. <Link to="/products">Tiếp tục mua sắm</Link>
           </p>
@@ -390,6 +458,26 @@ export default function CartPage() {
             Thanh toán
           </button>
         </div>
+
+        <section className={styles.recoSection}>
+          <div className={styles.recoHeader}>
+            <h3>Gợi ý dành riêng cho bạn</h3>
+            <p>Dựa trên sản phẩm bạn đã xem và đơn hàng gần đây</p>
+          </div>
+          {recLoading ? (
+            <div className={styles.recoEmpty}>Đang tìm các lựa chọn phù hợp…</div>
+          ) : recommendations.length > 0 ? (
+            <div className={styles.recoGrid}>
+              {recommendations.map((p) => (
+                <ProductCard key={p._id} product={p} />
+              ))}
+            </div>
+          ) : (
+            <div className={styles.recoEmpty}>
+              Hiện chưa có gợi ý nào. Hãy khám phá thêm sản phẩm để nhận đề xuất chính xác hơn!
+            </div>
+          )}
+        </section>
       </div>
       <ConfirmModal
         open={confirm.open}

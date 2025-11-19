@@ -7,6 +7,12 @@ const CartItemSchema = new mongoose.Schema({
   priceSnapshot: { type: Number, required: true, min: 0 },
   nameSnapshot: { type: String, required: true },
   imageSnapshot: String,
+  slugSnapshot: String,
+  variantName: String,
+  color: String,
+  size: String,
+  addedAt: { type: Date, default: Date.now },
+  touchedAt: { type: Date, default: Date.now },
 });
 
 const CartSchema = new mongoose.Schema(
