@@ -3,8 +3,8 @@ import Product from '../models/Product.js';
 import Promotion from '../models/Promotion.js';
 import Order from '../models/Order.js';
 
-const STALE_SOFT_HOURS = 1 / 60; // 1 phút
-const STALE_HARD_HOURS = 2 / 60; // 2 phút
+const STALE_SOFT_HOURS = 10 / 3600; // 5 giây
+const STALE_HARD_HOURS = 40 / 3600; // 10 giây
 
 const pickPrimaryPublicId = (images = []) => {
   const primary = images.find((im) => im?.isPrimary === true);
@@ -98,6 +98,11 @@ export const getCart = async ({
     const size = it.size ?? variantFromSku?.size ?? null;
     const variantName = it.variantName || [color, size].filter(Boolean).join(' / ');
 
+    // Kiểm tra tồn kho
+    const currentStock = variantFromSku?.stock ?? 0;
+    const isOutOfStock = currentStock <= 0;
+    const isInsufficientStock = !isOutOfStock && currentStock < it.qty;
+
     const touchedAt = it.touchedAt || it.addedAt || cart.updatedAt || cart.createdAt;
     const touchedMs = touchedAt ? new Date(touchedAt).getTime() : null;
     const staleHours = touchedMs ? (now - touchedMs) / (1000 * 60 * 60) : 0;
@@ -142,6 +147,10 @@ export const getCart = async ({
       lastTouchedAt: touchedAt,
       staleHours: Number(staleHours.toFixed(1)),
       staleLevel,
+      // Thông tin tồn kho
+      currentStock,
+      isOutOfStock,
+      isInsufficientStock,
     };
   });
 

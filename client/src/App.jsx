@@ -23,10 +23,19 @@ import OrderDetail from '@/pages/OrderDetail';
 import OrderSuccess from '@/pages/OrderSuccess';
 import ReviewOrder from '@/pages/ReviewOrder';
 import AllReviews from '@/pages/AllReviews';
+import AboutPage from '@/pages/AboutPage';
+import RecruitmentPage from '@/pages/RecruitmentPage';
+import ReturnPolicyPage from '@/pages/ReturnPolicyPage';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
+import ShippingPolicyPage from '@/pages/ShippingPolicyPage';
+import FAQPage from '@/pages/FAQPage';
+import SizeGuidePage from '@/pages/SizeGuidePage';
+import ScrollToTop from '@/components/ScrollToTop';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* Public layout (có Navbar) */}
         <Route element={<MainLayout />}>
@@ -40,6 +49,14 @@ export default function App() {
           <Route path="/order/success" element={<OrderSuccess />} />
           <Route path="/order-success" element={<OrderSuccess />} />
           <Route path="/addresses" element={<AddressBook />} />
+          {/* Static pages */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/recruitment" element={<RecruitmentPage />} />
+          <Route path="/return-policy" element={<ReturnPolicyPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/size-guide" element={<SizeGuidePage />} />
           {/* Account & Orders need login */}
           <Route element={<ProtectedRoute />}>
             <Route path="/orders" element={<MyOrders />} />

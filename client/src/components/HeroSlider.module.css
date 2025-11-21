@@ -1,6 +1,6 @@
 :root {
-  --banner-height: clamp(300px, 48vw, 600px);
-  --radius: 16px;
+  --banner-height: clamp(340px, 42vw, 520px);
+  --radius: 20px;
 }
 
 .fullBleed {
@@ -8,66 +8,81 @@
   margin-right: calc(50% - 50vw);
 }
 
-/* Narrow variant: keep hero centered with a max-width so the moving image area appears smaller */
+/* Narrow variant: hero nằm gọn giữa, giống banner web thời trang */
 .narrow {
   margin-left: auto;
   margin-right: auto;
   width: 100%;
-  max-width: 1100px; /* adjust as needed */
-  border-radius: 12px;
+  max-width: 1200px;
+  border-radius: 20px;
   overflow: hidden;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.25);
 }
 
-/* Reduce banner height and inner text sizing for narrow layout */
 .narrow {
-  --banner-height: clamp(240px, 40vw, 420px);
+  --banner-height: clamp(320px, 40vw, 460px);
 }
 
 .narrow .overlayInner {
-  max-width: 900px;
-  padding: 0 16px;
+  max-width: 840px;
+  padding: 0 24px;
 }
 
 .narrow .title {
-  /* smaller title on narrow hero */
-  font-size: clamp(24px, 5.2vw, 48px);
+  font-size: clamp(28px, 4.8vw, 48px);
 }
 
 .narrow .kicker {
-  font-size: 12px;
-  margin-bottom: 6px;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .narrow .btnPrimary {
-  padding: 8px 12px;
-  border-radius: 10px;
+  padding: 10px 22px;
+  border-radius: 999px;
 }
 
 .narrow .nav {
-  width: 34px;
-  height: 34px;
-  font-size: 24px;
+  width: 42px;
+  height: 42px;
+  font-size: 22px;
 }
 
+/* Slider wrapper */
 .slider {
   position: relative;
-  width: 100vw;
+  width: 100%;
   height: var(--banner-height);
   overflow: hidden;
   outline: none;
+  background: #f9fafb;
+  border-radius: inherit;
 }
 
-/* Fade slides */
+/* Slide + animation */
 .slide {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 0.6s ease-in-out;
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 .slide.active {
   opacity: 1;
   pointer-events: auto;
+}
+.slide.active .img {
+  animation: zoomIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .img {
@@ -75,12 +90,13 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .fallback {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #1f2937, #0b1220);
+  background: linear-gradient(135deg, #111827 0%, #4b5563 40%, #9ca3af 100%);
 }
 
 /* Overlay text */
@@ -90,28 +106,45 @@
   display: flex;
   align-items: center;
   pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 .overlayInner {
   pointer-events: auto;
   color: #fff;
-  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 32px;
   width: 100%;
   position: relative;
-  z-index: 3; /* ensure CTA above nav arrows */
+  z-index: 3;
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
 }
-/* Absolute overlay for custom positioning */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Absolute overlay cho trường hợp slide.pos */
 .overlayAbs {
   position: absolute;
   z-index: 3;
   pointer-events: auto;
   color: #fff;
-  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  padding: 0 24px;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  padding: 0 32px;
   max-width: 1100px;
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
 }
+
+/* Vertical align helpers */
 .vTop {
   align-items: flex-start;
 }
@@ -122,9 +155,9 @@
   align-items: flex-end;
 }
 
-/* Horizontal alignment for text container */
+/* Horizontal alignment (flex mode) */
 .hLeft {
-  margin-left: clamp(48px, 6vw, 96px);
+  margin-left: clamp(40px, 6vw, 96px);
   margin-right: auto;
   text-align: left;
 }
@@ -138,7 +171,8 @@
   margin-right: clamp(16px, 4vw, 56px);
   text-align: right;
 }
-/* Text-align utilities (without margins) for absolute overlay */
+
+/* Text-align utils cho overlayAbs */
 .tLeft {
   text-align: left;
 }
@@ -148,93 +182,187 @@
 .tRight {
   text-align: right;
 }
+
 .kicker {
   display: inline-block;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.95;
+  letter-spacing: 0.14em;
+  opacity: 0.96;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.14);
+  padding: 4px 12px;
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
 }
 .title {
-  font-size: clamp(32px, 6.5vw, 64px);
-  margin: 0 0 8px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
+  font-size: clamp(34px, 6.6vw, 60px);
+  margin: 0 0 10px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 .desc {
-  margin: 0 0 16px;
-  font-size: clamp(14px, 2.2vw, 18px);
-  opacity: 0.92;
+  margin: 0 0 20px;
+  font-size: clamp(15px, 2.2vw, 19px);
+  opacity: 0.96;
   max-width: 60ch;
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .btn {
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  font-weight: 700;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  text-decoration: none;
-}
-.btnPrimary {
-  background: #111;
-  color: #fff;
-  border-color: #111;
-}
-.btnPrimary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  display: inline-block;
+  padding: 12px 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 500; /* không dùng 700 nữa */
+  font-size: 15px; /* tinh tế hơn */
+  letter-spacing: 0.02em; /* spacing rất nhẹ */
+  text-transform: none; /* không ép chữ in hoa */
+  opacity: 0.95;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(12px);
 }
 
-/* Prev/Next */
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+  width: 220px;
+  height: 220px;
+}
+
+.btnPrimary {
+  background: rgba(15, 23, 42, 0.88); /* xanh đen, hơi trong suốt */
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(18px);
+}
+
+.btnPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.98);
+}
+
 .nav {
   position: absolute;
   top: 50%;
   translate: 0 -50%;
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   border-radius: 999px;
-  border: none;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  font-size: 28px;
-  line-height: 40px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  background: radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.9), #ffffff);
+  color: #020617;
+  font-size: 22px;
+  line-height: 46px;
   text-align: center;
   cursor: pointer;
-  backdrop-filter: blur(2px);
-  z-index: 2; /* below overlayInner to avoid intercepting CTA clicks */
-}
-.prev {
-  left: 14px;
-}
-.next {
-  right: 14px;
-}
-.nav:hover {
-  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+  z-index: 4;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 700;
+  opacity: 0; /* ẩn mặc định */
+  pointer-events: none; /* không click được khi ẩn */
 }
 
-/* Dots */
+.prev {
+  left: 20px;
+}
+.next {
+  right: 20px;
+}
+
+/* Chỉ hiện rõ khi user hover/focus slider */
+.slider:hover .nav,
+.slider:focus-within .nav {
+  opacity: 1;
+  pointer-events: auto; /* cho phép click khi hiện */
+}
+
+.nav:hover {
+  background: #ffffff;
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.3);
+}
+.nav:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* Mobile: nút nhỏ lại, nằm thấp xuống, tránh che CTA */
+@media (max-width: 768px) {
+  .nav {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    line-height: 38px;
+    top: auto;
+    bottom: 72px;
+    translate: 0 0;
+    /* không set opacity ở đây */
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
+  }
+  .prev {
+    left: 14px;
+  }
+  .next {
+    right: 14px;
+  }
+}
+
+/* Dots – mảnh, gọn, giống fashion site */
 .dots {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  bottom: 18px;
   translate: -50% 0;
   display: flex;
   gap: 8px;
+  background: rgba(15, 23, 42, 0.55);
+  padding: 6px 14px;
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.45);
+  z-index: 4;
 }
+
 .dot {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(249, 250, 251, 0.7);
   border: none;
   cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dot:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: scale(1.2);
 }
 .dotActive {
-  background: #fff;
-  width: 18px;
-  border-radius: 6px;
+  background: #ffffff;
+  width: 22px;
+  border-radius: 999px;
+}
+
+/* Mobile: dots sát mép dưới hơn một chút */
+@media (max-width: 768px) {
+  .dots {
+    bottom: 12px;
+    padding: 5px 12px;
+  }
 }

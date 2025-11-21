@@ -107,6 +107,50 @@ h2 {
   border-color: #d4d4d4;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
+
+/* Sản phẩm hết hàng: dùng filter + overlay thay vì opacity trên toàn phần tử
+   để tránh làm mờ nút xóa; actions được nâng z-index và cho phép tương tác */
+.row.outOfStock {
+  position: relative;
+  /* nhẹ nhàng làm mờ/khử màu mục bị hết hàng nhưng không làm thay đổi opacity
+     trên chính phần tử để con phần tử (thùng rác) vẫn hiển thị rõ khi bật z-index) */
+  filter: grayscale(40%) contrast(0.95) brightness(0.95);
+}
+.row.outOfStock::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.03) 10px,
+    rgba(0, 0, 0, 0.03) 20px
+  );
+  pointer-events: none;
+  border-radius: 12px;
+}
+.row.outOfStock .actions {
+  /* Đưa vùng actions lên trước overlay để luôn rõ và clickable */
+  position: relative;
+  z-index: 3;
+  pointer-events: auto; /* cho phép xóa */
+}
+.row.outOfStock .actions .iconBtn {
+  opacity: 1 !important; /* icon luôn rõ */
+  z-index: 4;
+}
+
+.stockWarning {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+}
+
 .cellSelect {
   display: flex;
   align-items: center;
