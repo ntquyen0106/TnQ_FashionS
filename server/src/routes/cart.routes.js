@@ -12,6 +12,7 @@ import {
   deleteCartItem,
   deleteManyCartItems,
   postClearPromotion,
+  getCartRecommendations,
 } from '../controllers/cart.controller.js';
 import { optionalAuth, requireAuth } from '../middlewares/requireAuth.js';
 
@@ -23,6 +24,7 @@ router.get('/total', optionalAuth, getCartTotal);
 router.post('/apply-promo', optionalAuth, postApplyPromotion);
 router.post('/merge-guest', requireAuth, postMergeGuestCart);
 router.post('/clear-promo', optionalAuth, postClearPromotion);
+router.get('/recommendations', optionalAuth, getCartRecommendations);
 
 // 👇 2 route mới để đổi số lượng & biến thể
 router.patch('/item/:id/qty', optionalAuth, postUpdateQty);

@@ -3,8 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import styles from './Home.module.css';
 import HeroSlider from '../components/HeroSlider';
 import FeaturedProducts from '@/components/FeaturedProducts';
+import ProductCard from '@/components/ProductCard';
 import { getCategories } from '@/api/category';
 import { productsApi } from '@/api/products-api';
+import { cartApi } from '@/api/cart-api';
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
@@ -32,6 +34,26 @@ function Home() {
   const [eyewearPath, setEyewearPath] = useState('/products?path=phu-kien');
   const [catsLoaded, setCatsLoaded] = useState(false);
   const [tileImgs, setTileImgs] = useState({});
+  const [personalizedProducts, setPersonalizedProducts] = useState([]);
+  const [personalizedLoaded, setPersonalizedLoaded] = useState(false);
+  const [showAllPersonalized, setShowAllPersonalized] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const items = await cartApi.recommendations({ limit: 12, requireContext: true });
+        if (alive) setPersonalizedProducts(items);
+      } catch (err) {
+        if (alive) setPersonalizedProducts([]);
+      } finally {
+        if (alive) setPersonalizedLoaded(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -245,6 +267,25 @@ function Home() {
           <div className={styles.uspItem}>↩️ Đổi trả 7 ngày</div>
           <div className={styles.uspItem}>💬 Hỗ trợ 24/7</div>
         </section>
+        {personalizedLoaded && personalizedProducts.length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2>Gợi ý dành riêng cho bạn</h2>
+              {personalizedProducts.length > 4 && (
+                <Link to="/products" className={styles.linkMore}>
+                  Xem tất cả →
+                </Link>
+              )}
+            </div>
+            <div className={styles.recommendGrid}>
+              {(showAllPersonalized ? personalizedProducts : personalizedProducts.slice(0, 4)).map(
+                (p) => (
+                  <ProductCard key={p._id} product={p} />
+                ),
+              )}
+            </div>
+          </section>
+        )}
         <section className={styles.section}>
           <div className={styles.sectionHead}>
             <h2>Danh mục nổi bật</h2>

@@ -405,18 +405,34 @@ export default function OrderDetail() {
           <section className={styles.card}>
             <h3>Sản phẩm</h3>
             <div className={styles.items}>
-              {(order.items || []).map((it, idx) => (
-                <div key={idx} className={styles.item}>
-                  <img src={buildImageUrl(it.imageSnapshot)} alt={it.nameSnapshot} />
-                  <div className={styles.meta}>
-                    <div className={styles.name}>{it.nameSnapshot}</div>
-                    {it.variantSku && <div className={styles.sku}>{it.variantSku}</div>}
+              {(order.items || []).map((it, idx) => {
+                const productId =
+                  typeof it.productId === 'object' ? it.productId?._id : it.productId;
+                const slug = typeof it.productId === 'object' ? it.productId?.slug : it.slug;
+                const detailUrl = slug
+                  ? `/product/${slug}`
+                  : productId
+                  ? `/product/${productId}`
+                  : null;
+
+                return (
+                  <div
+                    key={idx}
+                    className={styles.item}
+                    onClick={() => detailUrl && nav(detailUrl)}
+                    style={{ cursor: detailUrl ? 'pointer' : 'default' }}
+                  >
+                    <img src={buildImageUrl(it.imageSnapshot)} alt={it.nameSnapshot} />
+                    <div className={styles.meta}>
+                      <div className={styles.name}>{it.nameSnapshot}</div>
+                      {it.variantSku && <div className={styles.sku}>{it.variantSku}</div>}
+                    </div>
+                    <div className={styles.unit}>{fmtVND(it.price)}₫</div>
+                    <div className={styles.qty}>x{it.qty}</div>
+                    <div className={styles.line}>{fmtVND(it.lineTotal)}₫</div>
                   </div>
-                  <div className={styles.unit}>{fmtVND(it.price)}₫</div>
-                  <div className={styles.qty}>x{it.qty}</div>
-                  <div className={styles.line}>{fmtVND(it.lineTotal)}₫</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { productsApi } from '@/api/products-api';
 import ProductCard from './ProductCard';
 
@@ -35,12 +36,12 @@ export default function FeaturedProducts({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
         <h2 style={{ margin: 0, fontSize: 22 }}>{title}</h2>
         {moreLink && (
-          <a
-            href={moreLink}
-            style={{ marginLeft: 'auto', color: '#2563eb', textDecoration: 'none' }}
+          <Link
+            to={moreLink}
+            style={{ marginLeft: 'auto', color: '#6b7280', textDecoration: 'none' }}
           >
             Xem tất cả →
-          </a>
+          </Link>
         )}
       </div>
       {loading ? (

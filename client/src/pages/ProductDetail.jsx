@@ -87,7 +87,10 @@ export default function ProductDetail() {
 
   // Lấy chi tiết sản phẩm
   useEffect(() => {
-    productsApi.detailBySlug(slug).then((data) => {
+    let alive = true;
+
+    const hydrateProduct = (data) => {
+      if (!alive || !data) return;
       setP(data);
       const coverId =
         data?.images?.find?.((im) => im?.isPrimary)?.publicId ||
@@ -104,7 +107,44 @@ export default function ProductDetail() {
         setActiveImg(pid);
         lastColorRef.current = first.color || null;
       }
-    });
+    };
+
+    (async () => {
+      try {
+        // If `slug` looks like a Mongo ObjectId, fetch by ID to avoid 404 on slug endpoint
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(String(slug || ''));
+        if (isObjectId) {
+          const data = await productsApi.detail(slug);
+          hydrateProduct(data);
+          return;
+        }
+
+        // Otherwise try slug endpoint first
+        try {
+          const data = await productsApi.detailBySlug(slug);
+          hydrateProduct(data);
+        } catch (err) {
+          // If slug endpoint returns 404, attempt fallback to id (handles cases where route contains id)
+          const status = err?.response?.status;
+          if (status === 404 || status === 400) {
+            try {
+              const fallback = await productsApi.detail(slug);
+              hydrateProduct(fallback);
+            } catch (fallbackErr) {
+              if (alive) toast.error('Không tìm thấy sản phẩm');
+            }
+          } else {
+            toast.error('Không thể tải sản phẩm, vui lòng thử lại');
+          }
+        }
+      } catch (e) {
+        if (alive) toast.error('Không thể tải sản phẩm, vui lòng thử lại');
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
   }, [slug]);
 
   // Lấy khuyến mãi áp dụng cho sản phẩm (bỏ qua điều kiện đơn tối thiểu)

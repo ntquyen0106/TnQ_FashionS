@@ -39,6 +39,17 @@ export const cartApi = {
     return data; // { items, subtotal, ... }
   },
 
+  recommendations: async ({ limit = 6, requireContext = false } = {}) => {
+    const sessionId = getSessionId();
+    const params = { sessionId, limit };
+    if (requireContext) params.requireContext = 'true';
+    const { data } = await http.get('/cart/recommendations', {
+      params,
+      _noAutoToast: true,
+    });
+    return data?.items || [];
+  },
+
   updateQty: async (itemId, qty) => {
     const sessionId = getSessionId();
     const { data } = await http.patch(`/cart/item/${itemId}/qty`, { qty, sessionId });

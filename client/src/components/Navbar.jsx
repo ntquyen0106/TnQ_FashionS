@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import s from './Navbar.module.css';
 import { getCategories } from '@/api/category'; // <-- dùng file api/category.js bạn đã tạo
 import { authApi } from '@/api/auth-api'; // <-- dùng file api/auth-api.js bạn đã tạo
@@ -130,6 +130,47 @@ export default function Navbar({
     return () => (mounted = false);
   }, []);
 
+  const normalizeText = (str = '') =>
+    String(str)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const findCategoryMatch = (keyword) => {
+    if (!keyword || !Array.isArray(tree)) return null;
+    const normalizedKeyword = normalizeText(keyword);
+    if (!normalizedKeyword) return null;
+
+    const matches = [];
+    const visit = (nodes = []) => {
+      nodes.forEach((node) => {
+        const nameNorm = normalizeText(node.name);
+        const wordMatch = nameNorm
+          ? nameNorm
+              .split(' ')
+              .filter(Boolean)
+              .every((word) => normalizedKeyword.includes(word))
+          : false;
+        if (
+          nameNorm &&
+          (normalizedKeyword.includes(nameNorm) ||
+            nameNorm.includes(normalizedKeyword) ||
+            wordMatch)
+        ) {
+          matches.push(node);
+        }
+        if (Array.isArray(node.children) && node.children.length) visit(node.children);
+      });
+    };
+    visit(tree);
+    if (!matches.length) return null;
+    matches.sort((a, b) => normalizeText(a.name).length - normalizeText(b.name).length);
+    return matches[0];
+  };
+
   // Navbar reads `user` and `loading` from AuthProvider. No direct /auth/me call here to avoid duplicate requests.
 
   // ESC để đóng modal
@@ -158,11 +199,129 @@ export default function Navbar({
     });
   }, [tree]);
 
-  // search
   const onSearch = (e) => {
     e.preventDefault();
-    const v = q.trim();
-    if (v) nav(`/products?q=${encodeURIComponent(v)}`);
+    const value = q.trim();
+    if (!value) return;
+    const matchedCategory = findCategoryMatch(value);
+    if (matchedCategory?.path) {
+      nav(P(matchedCategory.path));
+      return;
+    }
+    nav(`/products?q=${encodeURIComponent(value)}`);
+  };
+
+  const staleInfo = cart?.staleInfo;
+  const staleItems = Array.isArray(staleInfo?.items) ? staleInfo.items : [];
+  const hasStale = Boolean(staleInfo?.hasStale && staleItems.length);
+  const hasUrgent = hasStale && staleItems.some((it) => it.level === 'urgent');
+  const reminderLevel = hasStale ? (hasUrgent ? 'hard' : 'soft') : null;
+  const staleMessage = hasStale
+    ? hasUrgent
+      ? 'Sản phẩm trong giỏ sắp hết'
+      : 'Bạn còn sản phẩm chờ thanh toán'
+    : '';
+  const cartAriaLabel = hasStale ? `Giỏ hàng - ${staleItems.length} sản phẩm đang chờ` : 'Giỏ hàng';
+  const reminderClass =
+    reminderLevel === 'hard' ? s.cartNoticeHard : reminderLevel === 'soft' ? s.cartNoticeSoft : '';
+
+  const [showReminder, setShowReminder] = useState(true);
+  const dismissTimerRef = useRef(null);
+  const DISMISS_KEY = 'tnq_cart_reminder_dismissed_at';
+
+  useEffect(() => {
+    // Clear any existing timer first
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+
+    // If user is on cart page, always hide
+    if (location.pathname === '/cart') {
+      setShowReminder(false);
+      return;
+    }
+
+    // If there is no stale info, hide and remove persistent dismissal
+    if (!hasStale) {
+      setShowReminder(false);
+      try {
+        localStorage.removeItem(DISMISS_KEY);
+      } catch (e) {}
+      return;
+    }
+
+    // Check persistent dismissal timestamp (so it survives reload)
+    let dismissedAt = 0;
+    try {
+      dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+    } catch (e) {
+      dismissedAt = 0;
+    }
+
+    const now = Date.now();
+    const elapsed = dismissedAt ? now - dismissedAt : Infinity;
+    const REMAIN_MS = 30000;
+
+    if (dismissedAt && elapsed < REMAIN_MS) {
+      // still within dismissed period — hide and schedule re-show when expires
+      setShowReminder(false);
+      const remaining = REMAIN_MS - elapsed;
+      dismissTimerRef.current = setTimeout(() => {
+        if (hasStale && window.location.pathname !== '/cart') {
+          setShowReminder(true);
+          try {
+            localStorage.removeItem(DISMISS_KEY);
+          } catch (e) {}
+        }
+      }, remaining);
+    } else {
+      // not dismissed or expired — show reminder
+      setShowReminder(true);
+      try {
+        localStorage.removeItem(DISMISS_KEY);
+      } catch (e) {}
+    }
+  }, [hasStale, staleItems.length, location.pathname]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCheckout = () => {
+    setShowReminder(false);
+    try {
+      localStorage.removeItem(DISMISS_KEY);
+    } catch (e) {}
+    nav('/cart');
+  };
+
+  const handleDismiss = () => {
+    setShowReminder(false);
+    // persist dismissal timestamp so it survives reloads
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    } catch (e) {}
+
+    // Clear existing timer if any
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+    }
+
+    // Set timer to re-show after 30 seconds
+    dismissTimerRef.current = setTimeout(() => {
+      if (hasStale && window.location.pathname !== '/cart') {
+        setShowReminder(true);
+        try {
+          localStorage.removeItem(DISMISS_KEY);
+        } catch (e) {}
+      }
+    }, 30000);
   };
 
   const gotoDashboard = () => {
@@ -272,14 +431,39 @@ export default function Navbar({
             <IconUser />
           </button>
           {showCart && (
-            <Link to="/cart" className={s.icon} aria-label="Giỏ hàng">
-              <IconCart />
-              {cartQty > 0 && (
-                <span className={s.badge} aria-live="polite">
-                  {cartQty}
-                </span>
+            <div className={s.cartWrap}>
+              <Link to="/cart" className={s.icon} aria-label={cartAriaLabel}>
+                <IconCart />
+                {cartQty > 0 && (
+                  <span className={s.badge} aria-live="polite">
+                    {cartQty}
+                  </span>
+                )}
+              </Link>
+              {hasStale && showReminder && (
+                <div
+                  className={`${s.cartNotice} ${reminderClass}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span>{staleMessage}</span>
+                  <div className={s.cartNoticeActions}>
+                    <button
+                      className={`${s.cartNoticeBtn} ${s.cartNoticePrimary}`}
+                      onClick={handleCheckout}
+                    >
+                      Thanh toán
+                    </button>
+                    <button
+                      className={`${s.cartNoticeBtn} ${s.cartNoticeSecondary}`}
+                      onClick={handleDismiss}
+                    >
+                      Để sau
+                    </button>
+                  </div>
+                </div>
               )}
-            </Link>
+            </div>
           )}
         </div>
       </div>

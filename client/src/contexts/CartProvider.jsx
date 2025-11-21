@@ -14,6 +14,7 @@ export default function CartProvider({ children }) {
     discount: 0,
     total: 0,
     promotion: null,
+    staleInfo: { hasStale: false, items: [], thresholds: { warn: 24, urgent: 72 } },
   });
   const { user } = useAuth();
 
@@ -33,6 +34,35 @@ export default function CartProvider({ children }) {
       toast.success('Đã thêm vào giỏ hàng');
     } catch (e) {
       toast.error(e?.response?.data?.message || 'Không thêm được vào giỏ');
+    }
+  };
+
+  // Thêm lại nhiều sản phẩm từ một đơn hàng (mua lại)
+  // items: [{ productId, variantSku, qty }]
+  const addMany = async (items = []) => {
+    const payload = (items || [])
+      .filter((it) => it && it.productId && it.variantSku && it.qty > 0)
+      .map((it) => ({
+        productId: it.productId,
+        variantSku: it.variantSku,
+        qty: it.qty,
+      }));
+
+    if (!payload.length) {
+      toast.error('Không có sản phẩm hợp lệ để mua lại');
+      return;
+    }
+
+    try {
+      // Nếu BE chưa có API bulk, gọi tuần tự add từng item
+      for (const it of payload) {
+        // eslint-disable-next-line no-await-in-loop
+        await cartApi.add({ productId: it.productId, variantSku: it.variantSku, qty: it.qty });
+      }
+      await refresh();
+      toast.success('Đã thêm lại sản phẩm từ đơn hàng vào giỏ');
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Không thể mua lại đơn hàng');
     }
   };
 
@@ -143,6 +173,14 @@ export default function CartProvider({ children }) {
     })();
   }, [user, refresh]);
 
+  // Refresh cart every 30 seconds to check for stale items in real-time
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refresh();
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, [refresh]);
+
   return (
     <CartCtx.Provider
       value={{
@@ -157,6 +195,7 @@ export default function CartProvider({ children }) {
         remove,
         removeMany,
         clearPromotion,
+        addMany,
       }}
     >
       {children}

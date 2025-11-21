@@ -144,6 +144,19 @@
   color: #111;
   transform: translateX(4px);
 }
+.sectionToggle {
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.2s ease;
+}
+.sectionToggle:hover {
+  color: #1d4ed8;
+}
 
 .grid {
   display: grid;
@@ -158,6 +171,17 @@
 }
 @media (max-width: 600px) {
   .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recommendGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+@media (max-width: 600px) {
+  .recommendGrid {
     grid-template-columns: 1fr;
   }
 }
