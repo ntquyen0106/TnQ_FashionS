@@ -41,12 +41,12 @@ export const getOverview = async ({ from, to } = {}) => {
   const [revAgg, statusAgg, dailyAgg, topAgg] = await Promise.all([
     Order.aggregate([
       { $match: { ...matchBase, status: { $in: ['DONE', 'done'] } } },
-      { 
-        $group: { 
-          _id: null, 
+      {
+        $group: {
+          _id: null,
           revenue: { $sum: '$amounts.subtotal' }, // Dùng subtotal (giá hàng gốc) thay vì grandTotal
-          count: { $sum: 1 } 
-        } 
+          count: { $sum: 1 },
+        },
       },
     ]),
     Order.aggregate([{ $match: matchBase }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
@@ -294,26 +294,26 @@ export const getDailyOrders = async ({ from, to } = {}) => {
 /**
  * Báo cáo doanh thu tháng - TỔNG QUAN
  * GET /api/reports/monthly-revenue?year=2025&month=10
- * 
+ *
  * Dữ liệu tuân thủ Thông tư 78/2021/TT-BTC về thuế GTGT
- * 
+ *
  * CÁC TRƯỜNG QUAN TRỌNG CHO BÁO CÁO THUẾ:
  * - salesRevenue: Doanh thu bán hàng (chưa VAT, chưa trừ giảm giá)
  * - netRevenue: Doanh thu thuần (sau trừ giảm giá)
  * - outputVAT: Thuế GTGT đầu ra 8%
  * - totalRevenueWithVAT: Tổng tiền thu (bao gồm VAT)
- * 
+ *
  * CHỈ TÍNH CÁC ĐƠN HÀNG: status = 'DONE'
  * - DONE: Đơn đã hoàn thành, đã thu tiền → Tính vào doanh thu
  * - CANCELLED, RETURNED: KHÔNG tính vào doanh thu
  */
 export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   const tz = 'Asia/Ho_Chi_Minh';
-  
+
   // Tháng cần báo cáo
   const targetYear = year ? Number(year) : new Date().getFullYear();
   const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
-  
+
   // Từ ngày đầu tháng 00:00:00 đến cuối tháng 23:59:59
   const fromDate = new Date(targetYear, targetMonth - 1, 1);
   const toDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
@@ -343,7 +343,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
             },
           },
         ],
-        
+
         // ============================================
         // 2. DOANH THU TỪ ĐƠN HOÀN THÀNH (CHỈ DONE)
         // ============================================
@@ -371,7 +371,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
             },
           },
         ],
-        
+
         // ============================================
         // 3. DOANH THU THEO NGÀY (CHỈ TÍNH ĐƠN HÀNG CÓ STATUS LÀ  DONE)
         // ============================================
@@ -389,7 +389,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
           },
           { $sort: { _id: 1 } },
         ],
-        
+
         // ============================================
         // 4. THỐNG KÊ THEO PHƯƠNG THỨC THANH TOÁN (CHỈ DONE)
         // ============================================
@@ -411,7 +411,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   ]);
 
   const data = result[0];
-  
+
   // ============================================
   // XỬ LÝ THỐNG KÊ THEO TRẠNG THÁI
   // ============================================
@@ -423,7 +423,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
       totalValue: s.totalValue,
     };
   });
-  
+
   // ============================================
   // XỬ LÝ DỮ LIỆU DOANH THU (CHỈ DONE)
   // ============================================
@@ -440,16 +440,16 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   // TÍNH TOÁN THEO CHUẨN KẾ TOÁN VIỆT NAM
   // ============================================
   // LƯU Ý: Database CHƯA BAO GỒM VAT (giá chưa thuế)
-  // 
+  //
   // CÔNG THỨC Order Model:
   // - amounts.subtotal = Tổng giá trị hàng hóa (chưa thuế, chưa trừ giảm giá)
   // - amounts.discount = Giảm giá/voucher
   // - amounts.shippingFee = Phí vận chuyển
   // - amounts.grandTotal = subtotal - discount + shippingFee
-  // 
+  //
   // VÍ DỤ CỤ THỂ:
   // - Giá hàng (subtotal): 100,000đ
-  // - Giảm giá (discount): 10,000đ  
+  // - Giảm giá (discount): 10,000đ
   // - Phí ship (shippingFee): 5,000đ
   // - Tổng đơn (grandTotal) = 100,000 - 10,000 + 5,000 = 95,000đ
   //
@@ -476,25 +476,24 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   // - Doanh thu thuần = Doanh thu - Giảm giá (TRƯỚC khi tính thuế)
   // - Thuế GTGT tính trên doanh thu bán hàng (subtotal), KHÔNG tính trên doanh thu thuần
   // - Phí ship KHÔNG tính vào doanh thu (là dịch vụ riêng)
-  
+
   const VAT_RATE = 0.08; // 8% thuế GTGT cho hàng hóa, dịch vụ
-  
+
   // [1] Doanh thu bán hàng (chưa VAT) = Tổng giá trị hàng hóa
   const salesRevenue = revenue.totalSubtotal;
-  
+
   // [2] Doanh thu thuần = Doanh thu - Giảm giá
   const netRevenue = salesRevenue - revenue.totalDiscount;
-  
+
   // [3] Thuế GTGT đầu ra = Doanh thu bán hàng × 8%
   const outputVAT = Math.round(salesRevenue * VAT_RATE);
-  
+
   // [4] Tổng tiền thu (bao gồm VAT) = Doanh thu + Thuế
   const totalRevenueWithVAT = salesRevenue + outputVAT;
-  
+
   // Giá trị trung bình đơn hàng (tính theo subtotal)
-  const avgOrderValue = revenue.totalOrders > 0 
-    ? Math.round(revenue.totalSubtotal / revenue.totalOrders) 
-    : 0;
+  const avgOrderValue =
+    revenue.totalOrders > 0 ? Math.round(revenue.totalSubtotal / revenue.totalOrders) : 0;
 
   // ============================================
   // XỬ LÝ PHƯƠNG THỨC THANH TOÁN
@@ -512,10 +511,11 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   const paymentMethods = ['COD', 'BANK'].map((method) => {
     const data = paymentMap.get(method) || { revenue: 0, orders: 0 };
     const methodName = method === 'BANK' ? 'Chuyển khoản' : 'COD (Tiền mặt)';
-    const percentage = revenue.totalSubtotal > 0 
-      ? Math.round((data.revenue / revenue.totalSubtotal) * 100 * 10) / 10 
-      : 0;
-    
+    const percentage =
+      revenue.totalSubtotal > 0
+        ? Math.round((data.revenue / revenue.totalSubtotal) * 100 * 10) / 10
+        : 0;
+
     return {
       method,
       methodName,
@@ -550,7 +550,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
       toDate,
       totalDays: new Date(targetYear, targetMonth, 0).getDate(),
     },
-    
+
     // ============================================
     // BÁO CÁO THUẾ GTGT (Theo Thông tư 78/2021/TT-BTC)
     // ============================================
@@ -561,35 +561,35 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
       // = Tổng giá trị hàng hóa, dịch vụ đã bán
       // VD: Bán hàng 100,000đ (giá chưa thuế)
       salesRevenue,
-      
+
       // [2] DOANH THU THUẦN (Net Revenue)
       // = Doanh thu bán hàng - Các khoản giảm trừ
       // = Doanh thu thực tế sau giảm giá
       // VD: 100,000đ - 10,000đ (voucher) = 90,000đ
       netRevenue,
-      
+
       // [3] THUẾ GTGT ĐẦU RA (Output VAT - Số tiền phải nộp)
       // = Doanh thu bán hàng × 8%
       // VD: 100,000đ × 8% = 8,000đ → Phải nộp cho cơ quan thuế
       outputVAT,
-      
+
       // [4] TỔNG TIỀN PHẢI THU (bao gồm thuế GTGT)
       // = Doanh thu bán hàng + Thuế GTGT
       // = Số tiền khách hàng phải thanh toán
       // VD: 100,000đ + 8,000đ = 108,000đ
       totalRevenueWithVAT,
-      
+
       // [CHỉ TIÊU BỔ SUNG] - Giảm giá, chiết khấu thương mại
       // = Tổng voucher/khuyến mại đã giảm cho khách
       // VD: Khách dùng voucher giảm 10,000đ
       totalDiscount: revenue.totalDiscount,
-      
+
       // [CHỈ TIÊU BỔ SUNG] - Phí vận chuyển (Dịch vụ kèm theo)
       // = Phí ship thu từ khách hàng
       totalShipping: revenue.totalShipping,
       //    → Tháng 2 thực chất kém hơn tháng 1!
       netRevenue,
-      
+
       // ============================================
       // GHI CHÚ QUAN TRỌNG KHI NỘP THUẾ:
       // ============================================
@@ -600,28 +600,29 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
       //    - Tờ khai thuế GTGT (Mẫu 01/GTGT)
       //    - Bảng kê hóa đơn, chứng từ hàng hóa dịch vụ bán ra (Mẫu 01-1/GTGT)
       //    - Chi tiết đơn hàng (từ phần 'orders' bên dưới)
-      // 4. Lưu ý: 
+      // 4. Lưu ý:
       //    - CHỈ tính đơn DONE (đã hoàn thành, đã thu tiền)
       //    - Đơn CANCELLED, RETURNED KHÔNG tính vào doanh thu
       //    - Cần lưu giữ chứng từ thanh toán (COD/BANK) tối thiểu 10 năm
     },
-    
+
     // Thống kê đơn hàng
     orderStats: {
       totalOrders: revenue.totalOrders,
       totalItems: revenue.totalItems,
       avgOrderValue,
-      avgItemsPerOrder: revenue.totalOrders > 0 
-        ? Math.round((revenue.totalItems / revenue.totalOrders) * 10) / 10 
-        : 0,
+      avgItemsPerOrder:
+        revenue.totalOrders > 0
+          ? Math.round((revenue.totalItems / revenue.totalOrders) * 10) / 10
+          : 0,
     },
-    
+
     // Thống kê theo trạng thái (bao gồm CANCELLED, RETURNED)
     statusBreakdown,
-    
+
     // Phương thức thanh toán (luôn có COD và BANK)
     paymentMethods,
-    
+
     // Doanh thu theo ngày
     daily,
   };
@@ -630,13 +631,13 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
 /**
  * Lấy chi tiết đơn hàng để xuất báo cáo thuế
  * GET /api/reports/monthly-revenue/export?year=2025&month=10
- * 
+ *
  * MAPPING CÁC TRƯỜNG THEO ORDER MODEL:
  * - orderCode: Mã đơn hàng
  * - createdAt: Ngày tạo đơn
  * - status: Trạng thái đơn hàng (CHỈ LẤY 'DONE')
  * - paymentMethod: Enum ['COD', 'BANK']
- * 
+ *
  * SHIPPING ADDRESS (AddressSnapshotSchema):
  * - fullName: Tên người nhận
  * - phone: Số điện thoại
@@ -644,13 +645,13 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
  * - ward: Phường/xã
  * - district: Quận/huyện
  * - city: Tỉnh/thành phố
- * 
+ *
  * AMOUNTS (AmountsSchema):
  * - subtotal: Tổng giá trị hàng (chưa giảm giá, chưa phí ship)
  * - discount: Giảm giá từ voucher
  * - shippingFee: Phí vận chuyển
  * - grandTotal: Tổng thanh toán (bao gồm VAT)
- * 
+ *
  * ITEMS (OrderItemSchema):
  * - nameSnapshot: Tên sản phẩm (lưu snapshot khi đặt hàng)
  * - variantSku: SKU của variant (VD: "SIZE-M-COLOR-BLACK")
@@ -661,13 +662,13 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
 export const getMonthlyRevenueForExport = async ({ year, month } = {}) => {
   const targetYear = year ? Number(year) : new Date().getFullYear();
   const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
-  
+
   const fromDate = new Date(targetYear, targetMonth - 1, 1);
   const toDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
   // Lấy thông tin tổng quan
   const summary = await getMonthlyRevenueSummary({ year, month });
-  
+
   // Lấy chi tiết đơn hàng DONE (đã hoàn thành)
   // CHỈ LẤY CÁC TRƯỜNG CẦN THIẾT để tối ưu performance
   const orders = await Order.find({
@@ -681,10 +682,10 @@ export const getMonthlyRevenueForExport = async ({ year, month } = {}) => {
   // Format dữ liệu chi tiết theo cấu trúc báo cáo thuế
   const detailedOrders = orders.map((order) => ({
     // Thông tin đơn hàng
-    orderCode: order._id.toString(),  // _id của order là mã đơn hàng
+    orderCode: order._id.toString(), // _id của order là mã đơn hàng
     createdAt: order.createdAt,
     status: order.status,
-    
+
     // Thông tin khách hàng (từ shippingAddress snapshot)
     customerName: order.shippingAddress?.fullName || 'Khách vãng lai',
     customerPhone: order.shippingAddress?.phone || '',
@@ -696,21 +697,21 @@ export const getMonthlyRevenueForExport = async ({ year, month } = {}) => {
     ]
       .filter(Boolean)
       .join(', '),
-    
+
     // Thông tin thanh toán
-    subtotal: order.amounts.subtotal,        // Tổng giá trị hàng
-    discount: order.amounts.discount,        // Giảm giá
-    shipping: order.amounts.shippingFee,     // Phí vận chuyển
-    grandTotal: order.amounts.grandTotal,    // Tổng thanh toán (có VAT)
-    paymentMethod: order.paymentMethod,      // COD hoặc BANK
-    
+    subtotal: order.amounts.subtotal, // Tổng giá trị hàng
+    discount: order.amounts.discount, // Giảm giá
+    shipping: order.amounts.shippingFee, // Phí vận chuyển
+    grandTotal: order.amounts.grandTotal, // Tổng thanh toán (có VAT)
+    paymentMethod: order.paymentMethod, // COD hoặc BANK
+
     // Chi tiết sản phẩm
     items: order.items.map((item) => ({
-      productName: item.nameSnapshot,        // Tên sản phẩm (snapshot)
+      productName: item.nameSnapshot, // Tên sản phẩm (snapshot)
       variantName: item.variantSku || 'Không có', // SKU variant
-      qty: item.qty,                         // Số lượng
-      price: item.price,                     // Đơn giá
-      lineTotal: item.lineTotal,             // Thành tiền
+      qty: item.qty, // Số lượng
+      price: item.price, // Đơn giá
+      lineTotal: item.lineTotal, // Thành tiền
     })),
   }));
 
@@ -729,30 +730,15 @@ export const getMonthlyRevenueForExport = async ({ year, month } = {}) => {
 };
 
 /**
- * Tạo file Excel cho báo cáo thuế (chuẩn Việt Nam)
- * 
- * PHẦN I: THÔNG TIN CHUNG
- * - Kỳ báo cáo, ngày bắt đầu, ngày kết thúc
- * 
- * PHẦN II: BÁO CÁO THUẾ GTGT (Theo chuẩn kế toán VN)
- * 1. Doanh thu bán hàng (chưa VAT): Tổng giá trị hàng hóa
- * 2. Giảm giá/Voucher: Các khoản giảm trừ
- * 3. Doanh thu thuần: Doanh thu - Giảm giá
- * 4. Thuế GTGT đầu ra 8%: Doanh thu × 8%
- * 5. Tổng tiền thu (bao gồm VAT): Doanh thu + Thuế
+ * Tạo file Excel cho báo cáo doanh thu / thuế theo tháng
+ * Chuẩn hoá format theo phong cách báo cáo thuế Việt Nam.
  *
- * 
- * PHẦN III: THỐNG KÊ ĐƠN HÀNG
- * - Tổng số đơn hàng hoàn thành (CHỈ DONE)
- * - Thống kê theo trạng thái (bao gồm CANCELLED, RETURNED)
- * - Thống kê theo phương thức thanh toán (COD vs BANK)
- * - Doanh thu theo ngày
- * 
+ * PHẦN I: THÔNG TIN CHUNG
+ * PHẦN II: BÁO CÁO THUẾ
+ * PHẦN III: THỐNG KÊ TỔNG HỢP
  * PHẦN IV: CHI TIẾT ĐƠN HÀNG
- * - Danh sách tất cả đơn DONE với đầy đủ thông tin
- * 
-/**
- * Tạo file Excel báo cáo doanh thu theo tháng với định dạng chuẩn
+ * PHẦN V: CHI TIẾT SẢN PHẨM
+ *
  * @param {Object} params - { year, month }
  * @returns {Object} - { filename, workbook }
  */
@@ -760,194 +746,360 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
   // Lấy chi tiết đơn hàng (bao gồm period và summary)
   const data = await getMonthlyRevenueForExport({ year, month });
 
-  // Tạo workbook và worksheet
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Báo cáo doanh thu');
+  const ws = workbook.addWorksheet('Báo cáo doanh thu');
 
-  // Thiết lập độ rộng cột mặc định
-  worksheet.columns = [
-    { width: 40 }, { width: 20 }, { width: 15 }, { width: 25 },
-    { width: 15 }, { width: 35 }, { width: 18 }, { width: 18 },
-    { width: 18 }, { width: 18 }, { width: 20 }
+  // Một số hằng dùng lại
+  const COLOR_PRIMARY = 'FF1F4E79'; // xanh đậm kiểu báo cáo thuế
+  const COLOR_SECTION = 'FF38598A'; // header section
+  const COLOR_HEADER = 'FF4F81BD'; // header bảng
+  const COLOR_GRAY_LIGHT = 'FFF3F4F6';
+  const COLOR_GRAY_ALT = 'FFE5E7EB';
+
+  ws.properties.defaultRowHeight = 18;
+
+  // Độ rộng cột tối ưu cho từng loại dữ liệu
+  ws.columns = [
+    { width: 30 }, // A: STT (widened to match screenshot)
+    { width: 40 }, // B: Nhãn/Label (dài nhất) — tăng để tránh bị khuất
+    { width: 14 }, // C: Giá trị/Ngày
+    { width: 26 }, // D: Tên KH/Dữ liệu — tăng cho tên dài
+    { width: 14 }, // E: SĐT/Số
+    { width: 60 }, // F: Địa chỉ (rộng nhất)
+    { width: 22 }, // G: Giá trị hàng
+    { width: 18 }, // H: Giảm giá
+    { width: 18 }, // I: Phí ship
+    { width: 22 }, // J: Tổng
+    { width: 22 }, // K: PT thanh toán
   ];
 
   let currentRow = 1;
 
-  // ============================================
-  // PHẦN I: THÔNG TIN CHUNG
-  // ============================================
-  const addSectionHeader = (text) => {
-    const row = worksheet.getRow(currentRow);
-    row.getCell(1).value = text;
-    row.getCell(1).font = { bold: true, size: 12 };
-    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
-    worksheet.mergeCells(currentRow, 1, currentRow, 11);
-    currentRow++;
-  };
+  // Thiết lập wrapText mặc định cho các cột văn bản dài
+  // (ExcelJS cho phép gán alignment cho column)
+  try {
+    ws.getColumn(2).alignment = { wrapText: true, horizontal: 'left', vertical: 'middle' };
+    ws.getColumn(4).alignment = { wrapText: true, horizontal: 'left', vertical: 'middle' };
+    ws.getColumn(6).alignment = { wrapText: true, horizontal: 'left', vertical: 'middle' };
+    ws.getColumn(1).alignment = { horizontal: 'center', vertical: 'middle' };
+  } catch (e) {
+    // Nếu môi trường ExcelJS không hỗ trợ gán alignment cho column, bỏ qua
+  }
+
+  // ===== Helper nhỏ =====
+  const merge = (r, c1, c2) => ws.mergeCells(r, c1, r, c2);
 
   const addEmptyRow = () => {
     currentRow++;
   };
 
-  const addInfoRow = (label, value) => {
-    const row = worksheet.getRow(currentRow);
-    row.getCell(1).value = label;
-    row.getCell(1).font = { bold: true };
+  const addSectionHeader = (text) => {
+    const row = ws.getRow(currentRow);
+    row.height = 22;
+
+    row.getCell(1).value = text;
+    row.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
     row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(2).value = value;
-    row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
-    worksheet.mergeCells(currentRow, 2, currentRow, 4);
+    row.getCell(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLOR_SECTION },
+    };
+    row.getCell(1).border = {
+      top: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+      bottom: { style: 'thin', color: { argb: COLOR_PRIMARY } },
+    };
+
+    merge(currentRow, 1, 11);
     currentRow++;
   };
 
-  addSectionHeader('BÁO CÁO DOANH THU THÁNG ' + data.period.month + '/' + data.period.year);
-  addEmptyRow();
+  const addInfoRow = (label, value) => {
+    const row = ws.getRow(currentRow);
+    row.height = 18;
+
+    const lbl = row.getCell(1);
+    lbl.value = label;
+    lbl.font = { bold: true, size: 11 };
+    lbl.alignment = { horizontal: 'left', vertical: 'middle' };
+    lbl.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLOR_GRAY_LIGHT },
+    };
+
+    const valCell = row.getCell(2);
+    valCell.value = value;
+    valCell.font = { size: 11 };
+    valCell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+    merge(currentRow, 2, 4);
+    currentRow++;
+  };
+
+  const addMoneyRow = (label, value, highlight = false) => {
+    const row = ws.getRow(currentRow);
+    row.height = 20;
+
+    const bgLabel = highlight ? 'FFFEF3C7' : COLOR_GRAY_LIGHT;
+    const bgValue = highlight ? 'FFFEF3C7' : 'FFFFFFFF';
+
+    const c1 = row.getCell(1);
+    c1.value = label;
+    c1.font = { bold: true, size: 11 };
+    c1.alignment = { horizontal: 'left', vertical: 'middle' };
+    c1.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: bgLabel },
+    };
+
+    const c2 = row.getCell(2);
+    c2.value = value || 0;
+    c2.font = { size: 11, bold: highlight };
+    c2.alignment = { horizontal: 'right', vertical: 'middle' };
+    c2.numFmt = '#,##0';
+    c2.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: bgValue },
+    };
+
+    merge(currentRow, 2, 4);
+
+    if (highlight) {
+      c1.border = {
+        top: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+        left: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+        bottom: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+      };
+      c2.border = {
+        top: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+        right: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+        bottom: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+      };
+    }
+
+    currentRow++;
+  };
+
+  const addStatRow = (label, value, unit = '') => {
+    const row = ws.getRow(currentRow);
+    row.height = 18;
+
+    row.getCell(1).value = label;
+    row.getCell(1).font = { bold: true, size: 11 };
+    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+    row.getCell(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLOR_GRAY_LIGHT },
+    };
+
+    const vCell = row.getCell(2);
+    vCell.value = value ?? 0;
+    vCell.alignment = { horizontal: 'right', vertical: 'middle' };
+    if (typeof value === 'number' && !unit) vCell.numFmt = '#,##0';
+
+    const uCell = row.getCell(3);
+    uCell.value = unit;
+    uCell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+    merge(currentRow, 2, 3);
+    currentRow++;
+  };
+
+  // ===== TIÊU ĐỀ CHÍNH =====
+  const titleRow = ws.getRow(currentRow);
+  titleRow.height = 36;
+  const titleCell = titleRow.getCell(1);
+  titleCell.value = `BÁO CÁO DOANH THU THÁNG ${data.period.month}/${data.period.year}`;
+  titleCell.font = { bold: true, size: 16, color: { argb: COLOR_PRIMARY } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  titleCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E7FF' },
+  };
+  merge(currentRow, 1, 11);
+  currentRow += 2; // +1 dòng trống
+
+  // ===== PHẦN I: THÔNG TIN CHUNG =====
+  addSectionHeader('PHẦN I: THÔNG TIN CHUNG');
+
   addInfoRow('Tên cửa hàng:', 'TnQ Fashion Store');
   addInfoRow('Tháng:', data.period.month);
   addInfoRow('Năm:', data.period.year);
   addInfoRow('Ngày xuất báo cáo:', new Date().toLocaleDateString('vi-VN'));
   addEmptyRow();
 
-  // ============================================
-  // PHẦN II: BÁO CÁO THUẾ
-  // ============================================
-  addSectionHeader('PHẦN II: BÁO CÁO THUẾ');
+  // ===== PHẦN II: BÁO CÁO THUẾ =====
+  const tax = data.summary.taxReport;
+  addSectionHeader('PHẦN II: BÁO CÁO THUẾ (DOANH THU & THUẾ GTGT)');
+
+  addMoneyRow('Doanh thu bán hàng (chưa VAT):', tax.salesRevenue);
+  addMoneyRow('Giảm giá / Voucher (VNĐ):', tax.totalDiscount);
+  addMoneyRow('Doanh thu thuần (VNĐ):', tax.netRevenue, true);
+  addMoneyRow('Thuế GTGT đầu ra 8% (VNĐ):', tax.outputVAT, true);
+  addMoneyRow('Tổng tiền thu (bao gồm VAT):', tax.totalRevenueWithVAT, true);
   addEmptyRow();
 
-  const addTaxRow = (label, value) => {
-    const row = worksheet.getRow(currentRow);
-    row.getCell(1).value = label;
-    row.getCell(1).font = { bold: true };
-    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(2).value = value;
-    row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
-    row.getCell(2).numFmt = '#,##0';
-    worksheet.mergeCells(currentRow, 2, currentRow, 4);
-    currentRow++;
-  };
-
-  addTaxRow('Doanh thu bán hàng (chưa VAT):', data.summary.taxReport.salesRevenue);
-  addTaxRow('Giảm giá/Voucher (VNĐ):', data.summary.taxReport.totalDiscount);
-  addTaxRow('Doanh thu thuần (VNĐ):', data.summary.taxReport.netRevenue);
-  addTaxRow('Thuế GTGT đầu ra 8% (VNĐ):', data.summary.taxReport.outputVAT);
-  addTaxRow('Tổng tiền thu (bao gồm VAT):', data.summary.taxReport.totalRevenueWithVAT);
-  addEmptyRow();
-
-  // ============================================
-  // PHẦN III: THỐNG KÊ TỔNG HỢP
-  // ============================================
+  // ===== PHẦN III: THỐNG KÊ TỔNG HỢP =====
+  const s = data.summary.orderStats;
   addSectionHeader('PHẦN III: THỐNG KÊ TỔNG HỢP');
+
+  addStatRow('Tổng số đơn hàng hoàn thành:', s.totalOrders, 'đơn');
+  addStatRow('Tổng số sản phẩm đã bán:', s.totalItems, 'sản phẩm');
+  addStatRow('Giá trị trung bình/đơn hàng:', s.avgOrderValue, 'VNĐ');
+  addStatRow('Số sản phẩm trung bình/đơn:', s.avgItemsPerOrder, 'sản phẩm');
   addEmptyRow();
 
-  const addStatsRow = (label, value) => {
-    const row = worksheet.getRow(currentRow);
-    row.getCell(1).value = label;
-    row.getCell(1).font = { bold: true };
-    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(2).value = value;
-    row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
-    if (typeof value === 'number') {
-      row.getCell(2).numFmt = '#,##0';
-    }
-    worksheet.mergeCells(currentRow, 2, currentRow, 4);
-    currentRow++;
-  };
-
-  addStatsRow('Tổng số đơn hàng hoàn thành:', data.summary.orderStats.totalOrders);
-  addStatsRow('Tổng số sản phẩm đã bán:', data.summary.orderStats.totalItems);
-  addStatsRow('Giá trị trung bình/đơn hàng (VNĐ):', data.summary.orderStats.avgOrderValue);
-  addStatsRow('Số sản phẩm trung bình/đơn:', data.summary.orderStats.avgItemsPerOrder);
-  addEmptyRow();
-
-  // Thống kê theo trạng thái
+  // --- Thống kê theo trạng thái ---
   if (data.summary.statusBreakdown) {
-    addInfoRow('Thống kê theo trạng thái đơn hàng:', '');
+    const row = ws.getRow(currentRow);
+    row.height = 20;
+    const cell = row.getCell(1);
+    cell.value = 'Thống kê theo trạng thái đơn hàng:';
+    cell.font = { bold: true, size: 11, color: { argb: COLOR_PRIMARY } };
+    cell.alignment = { horizontal: 'left', vertical: 'middle' };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDBEAFE' },
+    };
+    merge(currentRow, 1, 5);
+    currentRow++;
+
+    const statusNames = {
+      DONE: 'Hoàn thành',
+      CONFIRMED: 'Đã xác nhận',
+      CANCELLED: 'Đã huỷ',
+      RETURNED: 'Hoàn trả',
+      PENDING: 'Chờ xử lý',
+      SHIPPING: 'Đang giao',
+    };
+
     Object.entries(data.summary.statusBreakdown).forEach(([status, stat]) => {
-      const statusNames = {
-        DONE: 'Hoàn thành',
-        CONFIRMED: 'Đã xác nhận',
-        CANCELLED: 'Đã hủy',
-        RETURNED: 'Hoàn trả',
-        PENDING: 'Chờ xử lý',
-        SHIPPING: 'Đang giao',
-      };
-      const statusName = statusNames[status] || status;
-      const row = worksheet.getRow(currentRow);
-      row.getCell(2).value = `${statusName}:`;
-      row.getCell(2).font = { bold: true };
-      row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
-      row.getCell(3).value = `${stat.count} đơn`;
-      row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
-      row.getCell(4).value = stat.totalValue;
-      row.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-      row.getCell(4).numFmt = '#,##0';
-      row.getCell(5).value = 'VNĐ';
-      row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' };
+      const r = ws.getRow(currentRow);
+      r.height = 18;
+      const name = statusNames[status] || status;
+
+      r.getCell(2).value = `• ${name}:`;
+      r.getCell(2).font = { bold: true, size: 10 };
+      r.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      r.getCell(3).value = `${stat.count} đơn`;
+      r.getCell(3).font = { size: 10 };
+      r.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      const moneyCell = r.getCell(4);
+      moneyCell.value = stat.totalValue || 0;
+      moneyCell.font = { size: 10 };
+      moneyCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      moneyCell.numFmt = '#,##0';
+
+      r.getCell(5).value = 'VNĐ';
+      r.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' };
+      r.getCell(5).font = { size: 10 };
+
       currentRow++;
     });
     addEmptyRow();
   }
 
-  // Thống kê theo phương thức thanh toán
-  addInfoRow('Phân loại theo phương thức thanh toán:', '');
-  (data.summary.paymentMethods || []).forEach((pm) => {
-    const paymentMethodName = pm.method === 'BANK' ? 'Chuyển khoản' : 'Tiền mặt';
-    const row = worksheet.getRow(currentRow);
-    row.getCell(2).value = `${paymentMethodName}:`;
-    row.getCell(2).font = { bold: true };
-    row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(3).value = `${pm.orders} đơn`;
-    row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
-    row.getCell(4).value = pm.revenue;
-    row.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' };
-    row.getCell(4).numFmt = '#,##0';
-    row.getCell(5).value = 'VNĐ';
-    row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' };
+  // --- Thống kê theo phương thức thanh toán ---
+  {
+    const row = ws.getRow(currentRow);
+    row.height = 20;
+    const cell = row.getCell(1);
+    cell.value = 'Phân loại theo phương thức thanh toán:';
+    cell.font = { bold: true, size: 11, color: { argb: COLOR_PRIMARY } };
+    cell.alignment = { horizontal: 'left', vertical: 'middle' };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDBEAFE' },
+    };
+    merge(currentRow, 1, 5);
     currentRow++;
-  });
-  addEmptyRow();
 
-  // ============================================
-  // PHẦN IV: CHI TIẾT ĐƠN HÀNG
-  // ============================================
+    (data.summary.paymentMethods || []).forEach((pm) => {
+      const r = ws.getRow(currentRow);
+      r.height = 18;
+
+      const methodName = pm.method === 'BANK' ? 'Chuyển khoản' : 'Tiền mặt';
+
+      r.getCell(2).value = `• ${methodName}:`;
+      r.getCell(2).font = { bold: true, size: 10 };
+      r.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      r.getCell(3).value = `${pm.orders} đơn`;
+      r.getCell(3).font = { size: 10 };
+      r.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      const moneyCell = r.getCell(4);
+      moneyCell.value = pm.revenue || 0;
+      moneyCell.font = { size: 10 };
+      moneyCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      moneyCell.numFmt = '#,##0';
+
+      r.getCell(5).value = 'VNĐ';
+      r.getCell(5).font = { size: 10 };
+      r.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      currentRow++;
+    });
+    addEmptyRow();
+  }
+
+  // ===== PHẦN IV: CHI TIẾT ĐƠN HÀNG =====
   addSectionHeader('PHẦN IV: CHI TIẾT CÁC ĐƠN HÀNG ĐÃ HOÀN THÀNH');
   addEmptyRow();
 
   if (data.orders && data.orders.length > 0) {
-    // Header row cho bảng đơn hàng
-    const headerRow = worksheet.getRow(currentRow);
+    const headerRow = ws.getRow(currentRow);
+    headerRow.height = 28;
+
     const headers = [
-      'STT', 'Mã đơn hàng', 'Ngày tạo', 'Tên khách hàng', 'Số điện thoại',
-      'Địa chỉ giao hàng', 'Tổng giá trị hàng (VNĐ)', 'Giảm giá (VNĐ)',
-      'Phí vận chuyển (VNĐ)', 'Tổng thanh toán (VNĐ)', 'Phương thức thanh toán'
+      'STT',
+      'Mã đơn hàng',
+      'Ngày tạo',
+      'Tên khách hàng',
+      'Số điện thoại',
+      'Địa chỉ giao hàng',
+      'Giá trị hàng (VNĐ)',
+      'Giảm giá (VNĐ)',
+      'Phí vận chuyển (VNĐ)',
+      'Tổng thanh toán (VNĐ)',
+      'Phương thức thanh toán',
     ];
-    
-    headers.forEach((header, index) => {
-      const cell = headerRow.getCell(index + 1);
-      cell.value = header;
-      cell.font = { bold: true };
+
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFD9D9D9' }
+        fgColor: { argb: COLOR_HEADER },
       };
       cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
+        top: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+        bottom: { style: 'medium', color: { argb: COLOR_PRIMARY } },
+        left: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        right: { style: 'thin', color: { argb: 'FF9CA3AF' } },
       };
     });
     currentRow++;
 
-    // Data rows
-    data.orders.forEach((order, index) => {
-      const paymentMethodName = order.paymentMethod === 'BANK' ? 'Chuyển khoản' : 'Tiền mặt';
-      const row = worksheet.getRow(currentRow);
-      
+    data.orders.forEach((order, idx) => {
+      const row = ws.getRow(currentRow);
+      row.height = 28;
+
+      const paymentName = order.paymentMethod === 'BANK' ? 'Chuyển khoản' : 'Tiền mặt';
       const values = [
-        index + 1,
+        idx + 1,
         order.orderCode,
         new Date(order.createdAt).toLocaleDateString('vi-VN'),
         order.customerName,
@@ -957,123 +1109,164 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
         order.discount,
         order.shipping,
         order.grandTotal,
-        paymentMethodName
+        paymentName,
       ];
 
-      values.forEach((value, colIndex) => {
-        const cell = row.getCell(colIndex + 1);
-        cell.value = value;
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
+      values.forEach((val, i) => {
+        const cell = row.getCell(i + 1);
+        cell.value = val;
+        cell.font = { size: 10 };
+
+        const isMoney = i >= 6 && i <= 9;
+        const isOdd = idx % 2 === 1;
+        const bgColor = isOdd ? 'FFF9FAFB' : 'FFFFFFFF';
+
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: bgColor },
         };
 
-        // Căn lề và định dạng số
-        if (colIndex === 0) {
-          // STT - center
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        };
+
+        if (i === 0) {
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        } else if (colIndex >= 6 && colIndex <= 9) {
-          // Các cột số tiền - right align
+        } else if (isMoney) {
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
           cell.numFmt = '#,##0';
         } else {
-          // Text columns - left align
-          cell.alignment = { horizontal: 'left', vertical: 'middle' };
+          cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
         }
       });
-      
+
       currentRow++;
     });
   } else {
-    const row = worksheet.getRow(currentRow);
-    row.getCell(1).value = 'Không có đơn hàng hoàn thành trong kỳ này';
-    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+    const row = ws.getRow(currentRow);
+    row.getCell(1).value = 'Không có đơn hàng hoàn thành trong kỳ này.';
+    row.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF6B7280' } };
+    row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    merge(currentRow, 1, 11);
     currentRow++;
   }
+
   addEmptyRow();
 
-  // ============================================
-  // PHẦN V: CHI TIẾT SẢN PHẨM
-  // ============================================
+  // ===== PHẦN V: CHI TIẾT SẢN PHẨM =====
   addSectionHeader('PHẦN V: CHI TIẾT SẢN PHẨM THEO ĐƠN HÀNG');
   addEmptyRow();
 
   if (data.orders && data.orders.length > 0) {
-    // Header row cho bảng sản phẩm
-    const productHeaderRow = worksheet.getRow(currentRow);
-    const productHeaders = ['Mã đơn', 'Tên sản phẩm', 'Phân loại', 'Số lượng', 'Đơn giá (VNĐ)', 'Thành tiền (VNĐ)'];
-    
-    productHeaders.forEach((header, index) => {
-      const cell = productHeaderRow.getCell(index + 1);
-      cell.value = header;
-      cell.font = { bold: true };
+    const hRow = ws.getRow(currentRow);
+    hRow.height = 28;
+    const productHeaders = [
+      'Mã đơn',
+      'Tên sản phẩm',
+      'Phân loại',
+      'Số lượng',
+      'Đơn giá (VNĐ)',
+      'Thành tiền (VNĐ)',
+    ];
+
+    productHeaders.forEach((h, i) => {
+      const cell = hRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFD9D9D9' }
+        fgColor: { argb: 'FF9A3412' },
       };
       cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
+        top: { style: 'medium', color: { argb: 'FF9A3412' } },
+        bottom: { style: 'medium', color: { argb: 'FF9A3412' } },
+        left: { style: 'thin', color: { argb: 'FF9CA3AF' } },
+        right: { style: 'thin', color: { argb: 'FF9CA3AF' } },
       };
     });
     currentRow++;
 
-    // Data rows
+    let itemIndex = 0;
     data.orders.forEach((order) => {
-      order.items.forEach((item) => {
-        const row = worksheet.getRow(currentRow);
-        const productValues = [
+      order.items.forEach((it) => {
+        const row = ws.getRow(currentRow);
+        row.height = 24;
+
+        const vals = [
           order.orderCode,
-          item.productName,
-          item.variantName,
-          item.qty,
-          item.price,
-          item.lineTotal
+          it.productName,
+          it.variantName,
+          it.qty,
+          it.price,
+          it.lineTotal,
         ];
 
-        productValues.forEach((value, colIndex) => {
-          const cell = row.getCell(colIndex + 1);
-          cell.value = value;
+        vals.forEach((val, i) => {
+          const cell = row.getCell(i + 1);
+          cell.value = val;
+          cell.font = { size: 10 };
+
+          const isMoney = i === 4 || i === 5;
+          const isQty = i === 3;
+          const isOdd = itemIndex % 2 === 1;
+          const bgColor = isOdd ? 'FFFEF2F2' : 'FFFFFFFF';
+
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: bgColor },
+          };
           cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            top: { style: 'thin', color: { argb: 'FFFECACA' } },
+            bottom: { style: 'thin', color: { argb: 'FFFECACA' } },
+            left: { style: 'thin', color: { argb: 'FFFECACA' } },
+            right: { style: 'thin', color: { argb: 'FFFECACA' } },
           };
 
-          // Căn lề và định dạng
-          if (colIndex === 3) {
-            // Số lượng - center
+          if (isQty) {
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          } else if (colIndex === 4 || colIndex === 5) {
-            // Đơn giá và thành tiền - right align
+            cell.font = { size: 10, bold: true };
+          } else if (isMoney) {
             cell.alignment = { horizontal: 'right', vertical: 'middle' };
             cell.numFmt = '#,##0';
+            if (i === 5) cell.font = { size: 10, bold: true };
           } else {
-            // Text - left align
-            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+            cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
           }
         });
-        
+
+        itemIndex++;
         currentRow++;
       });
     });
   } else {
-    const row = worksheet.getRow(currentRow);
-    row.getCell(1).value = 'Không có dữ liệu sản phẩm';
-    row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+    const row = ws.getRow(currentRow);
+    row.getCell(1).value = 'Không có dữ liệu sản phẩm trong kỳ.';
+    row.getCell(1).font = { italic: true, size: 10, color: { argb: 'FF6B7280' } };
+    row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    merge(currentRow, 1, 6);
     currentRow++;
   }
 
+  addEmptyRow();
+
+  // Footer
+  const footer = ws.getRow(currentRow);
+  footer.height = 22;
+  footer.getCell(1).value =
+    'TnQ Fashion Store · Việt Nam · Hotline: 0123 456 789 · Báo cáo tự động từ hệ thống bán hàng';
+  footer.getCell(1).font = { italic: true, size: 9, color: { argb: 'FF6B7280' } };
+  footer.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+  merge(currentRow, 1, 11);
+
   return {
     filename: `bao-cao-doanh-thu-thang-${data.period.month}-${data.period.year}.xlsx`,
-    workbook: workbook,
+    workbook,
   };
 };
-

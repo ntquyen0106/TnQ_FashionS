@@ -305,35 +305,50 @@ export default function AdminProductForm({ onSubmit, initial }) {
         {/* Hiển thị lỗi qua modal, không render hộp lỗi inline */}
         {/* Thông tin cơ bản */}
         <section className={styles.card}>
-          <div className={styles.cardHeader}>Thông tin cơ bản</div>
+          <div className={styles.cardHeader}>
+            <span className={styles.headerIcon}>📝</span>
+            <span>Thông tin cơ bản</span>
+          </div>
           <div className={styles.cardBody}>
             <div className={styles.grid2}>
-              <label>
-                <span className={`${styles.label} ${styles.labelStrong}`}>Tên sản phẩm</span>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>
+                  <span className={styles.labelStrong}>Tên sản phẩm</span>
+                  <span className={styles.required}>*</span>
+                </label>
                 <input
                   className={styles.input}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Nhập tên..."
+                  placeholder="VD: Áo Polo nam basic"
                   required
                 />
-              </label>
-              {/* Ẩn trường Slug để tránh rườm rà, hệ thống sẽ tự sinh theo tên */}
-              <div style={{ display: 'none' }}>
-                <label>
-                  <span className={styles.label}>Slug</span>
-                  <input
-                    className={styles.input}
-                    value={slug}
-                    onChange={(e) => setSlug(slugify(e.target.value))}
-                    placeholder="ao-khoac-du-2"
-                  />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>
+                  <span className={styles.labelStrong}>Slug</span>
+                  <span className={styles.optional}>(tùy chọn)</span>
                 </label>
+                <input
+                  className={styles.input}
+                  value={slug}
+                  onChange={(e) => setSlug(slugify(e.target.value))}
+                  placeholder="ao-polo-nam-basic"
+                />
+                <div className={styles.help}>💡 Tự động tạo từ tên sản phẩm nếu để trống</div>
               </div>
             </div>
-            <div style={{ marginTop: 12 }}>
-              <label>
-                <span className={`${styles.label} ${styles.labelStrong}`}>Danh mục</span>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>
+                <span className={styles.labelStrong}>Danh mục</span>
+                <span className={styles.required}>*</span>
+              </label>
+              {loadingCats ? (
+                <div className={styles.loadingState}>
+                  <span className={styles.spinner}></span>
+                  <span>Đang tải danh mục...</span>
+                </div>
+              ) : (
                 <select
                   className={styles.select}
                   value={categoryId}
@@ -341,99 +356,64 @@ export default function AdminProductForm({ onSubmit, initial }) {
                   required
                 >
                   <option value="">-- Chọn danh mục --</option>
-                  {loadingCats ? (
-                    <option value="">Đang tải…</option>
-                  ) : (
-                    catOptions.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {'— '.repeat(c.depth) + c.name} ({c.path})
-                      </option>
-                    ))
-                  )}
+                  {catOptions.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {'— '.repeat(c.depth) + c.name} ({c.path})
+                    </option>
+                  ))}
                 </select>
-                {/* Ẩn ghi chú không cần thiết để giao diện gọn gàng */}
-                <div style={{ display: 'none' }} className={styles.help}></div>
-              </label>
+              )}
             </div>
-            <label style={{ marginTop: 12, display: 'block' }}>
-              <span className={`${styles.label} ${styles.labelStrong}`}>Mô tả</span>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>
+                <span className={styles.labelStrong}>Mô tả sản phẩm</span>
+                <span className={styles.required}>*</span>
+              </label>
               <textarea
                 className={styles.textarea}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={5}
-                placeholder="Mô tả ngắn gọn..."
+                placeholder="Mô tả chi tiết về sản phẩm: chất liệu, đặc điểm nổi bật, hướng dẫn sử dụng..."
+                required
               />
-            </label>
+            </div>
           </div>
         </section>
 
         {/* Ảnh */}
         <section className={styles.card}>
-          <div
-            className={styles.cardHeader}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <div>Hình ảnh</div>
-            <button className={styles.btn} type="button" onClick={addImage}>
-              + Thêm ảnh
+          <div className={styles.cardHeader}>
+            <span className={styles.headerIcon}>🖼️</span>
+            <span>Hình ảnh sản phẩm</span>
+            <button className={`${styles.btn} ${styles.btnAdd}`} type="button" onClick={addImage}>
+              <span>➕</span> Thêm ảnh
             </button>
           </div>
           <div className={styles.cardBody}>
+            {uploading > 0 && (
+              <div className={styles.uploadProgress}>
+                <span className={styles.spinner}></span>
+                <span>Đang tải lên {uploading} ảnh...</span>
+              </div>
+            )}
             {!images.length ? (
-              <div style={{ color: '#777' }}>Chưa có ảnh nào.</div>
+              <div className={styles.emptyState}>
+                <span className={styles.emptyIcon}>📷</span>
+                <p>Chưa có ảnh nào</p>
+                <p className={styles.emptyHint}>Thêm ảnh để khách hàng dễ hình dung sản phẩm hơn</p>
+              </div>
             ) : (
               <div className={styles.imagesGrid}>
                 {images.map((im, idx) => (
-                  <div key={idx} className={styles.imageItem}>
-                    <div className={styles.imageActions}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          try {
-                            const preview = URL.createObjectURL(f);
-                            updateImage(idx, { _previewUrl: preview });
-                            setUploading((u) => u + 1);
-                            const r = await mediaApi.upload(f);
-                            updateImage(idx, { publicId: r.publicId });
-                          } catch (err) {
-                            alert('Upload lỗi: ' + err.message);
-                          } finally {
-                            setUploading((u) => Math.max(0, u - 1));
-                          }
-                        }}
-                      />
-                      {/* Chỉ giữ một nút tải tệp, bỏ chọn từ thư viện */}
-                      <button className={styles.btn} type="button" onClick={() => setPrimary(idx)}>
-                        {im.isPrimary ? '✓ Ảnh chính' : 'Đặt làm ảnh chính'}
-                      </button>
-                      <button
-                        className={styles.btn}
-                        type="button"
-                        onClick={() => moveImage(idx, idx - 1)}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        className={styles.btn}
-                        type="button"
-                        onClick={() => moveImage(idx, idx + 1)}
-                      >
-                        ↓
-                      </button>
-                      <button
-                        className={`${styles.btn} ${styles.btnDanger}`}
-                        type="button"
-                        onClick={() => removeImage(idx)}
-                      >
-                        Xóa
-                      </button>
-                    </div>
+                  <div
+                    key={idx}
+                    className={`${styles.imageCard} ${im.isPrimary ? styles.primaryImage : ''}`}
+                  >
+                    {im.isPrimary && <div className={styles.primaryBadge}>⭐ Ảnh chính</div>}
                     {(im._previewUrl || im.publicId) && (
-                      <div style={{ marginTop: 8 }}>
+                      <div className={styles.imagePreviewWrap}>
                         <img
                           className={styles.imgPreview}
                           src={
@@ -446,6 +426,64 @@ export default function AdminProductForm({ onSubmit, initial }) {
                         />
                       </div>
                     )}
+                    <div className={styles.imageActions}>
+                      <label className={styles.uploadBtn}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            try {
+                              const preview = URL.createObjectURL(f);
+                              updateImage(idx, { _previewUrl: preview });
+                              setUploading((u) => u + 1);
+                              const r = await mediaApi.upload(f);
+                              updateImage(idx, { publicId: r.publicId });
+                            } catch (err) {
+                              alert('Upload lỗi: ' + err.message);
+                            } finally {
+                              setUploading((u) => Math.max(0, u - 1));
+                            }
+                          }}
+                        />
+                        📁 {im.publicId ? 'Thay ảnh' : 'Chọn ảnh'}
+                      </label>
+                      <button
+                        className={`${styles.btnIcon} ${
+                          im.isPrimary ? styles.btnPrimaryActive : ''
+                        }`}
+                        type="button"
+                        onClick={() => setPrimary(idx)}
+                        title="Đặt làm ảnh chính"
+                      >
+                        ⭐
+                      </button>
+                      <button
+                        className={styles.btnIcon}
+                        type="button"
+                        onClick={() => moveImage(idx, idx - 1)}
+                        title="Di chuyển lên"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className={styles.btnIcon}
+                        type="button"
+                        onClick={() => moveImage(idx, idx + 1)}
+                        title="Di chuyển xuống"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        className={`${styles.btnIcon} ${styles.btnDelete}`}
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        title="Xóa ảnh"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -455,129 +493,119 @@ export default function AdminProductForm({ onSubmit, initial }) {
 
         {/* Variants */}
         <section className={styles.card}>
-          <div
-            className={styles.cardHeader}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <div>Biến thể</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {/* Ẩn nút tạo SKU thủ công vì hệ thống sẽ tự sinh khi lưu */}
-              <div style={{ display: 'none' }}>
-                <button className={styles.btn} type="button" onClick={bulkGenerateSku}>
-                  Tạo SKU tự động
-                </button>
-              </div>
-              <button className={styles.btn} type="button" onClick={addVariant}>
-                + Thêm biến thể
-              </button>
-            </div>
+          <div className={styles.cardHeader}>
+            <span className={styles.headerIcon}>🎨</span>
+            <span>Biến thể sản phẩm</span>
+            <button className={`${styles.btn} ${styles.btnAdd}`} type="button" onClick={addVariant}>
+              <span>➕</span> Thêm biến thể
+            </button>
           </div>
           <div className={styles.cardBody}>
             {!variants.length ? (
-              <div style={{ color: '#777' }}>Chưa có biến thể nào.</div>
+              <div className={styles.emptyState}>
+                <span className={styles.emptyIcon}>🎯</span>
+                <p>Chưa có biến thể nào</p>
+                <p className={styles.emptyHint}>
+                  Thêm các phiên bản khác nhau (màu sắc, kích thước, giá cả...)
+                </p>
+              </div>
             ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={{ display: 'none' }}>SKU</th>
-                      <th>Màu</th>
-                      <th>Size</th>
-                      <th>Giá*</th>
-                      <th>Số lượng*</th>
-                      <th>Hình ảnh</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {variants.map((v, idx) => (
-                      <tr key={idx}>
-                        <td style={{ display: 'none' }}>
-                          <div className={styles.help}>SKU sẽ tự sinh khi lưu</div>
-                        </td>
-                        <td>
+              <div className={styles.variantsContainer}>
+                <div className={styles.variantsInfo}>
+                  💡 SKU sẽ được tự động tạo khi lưu sản phẩm
+                </div>
+                {variants.map((v, idx) => (
+                  <div key={idx} className={styles.variantCard}>
+                    <div className={styles.variantHeader}>
+                      <span className={styles.variantNumber}>#{idx + 1}</span>
+                      <button
+                        className={`${styles.btnIcon} ${styles.btnDelete}`}
+                        type="button"
+                        onClick={() => removeVariant(idx)}
+                        title="Xóa biến thể"
+                      >
+                        🗑️ Xóa
+                      </button>
+                    </div>
+                    <div className={styles.variantGrid}>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>Màu sắc</label>
+                        <input
+                          className={styles.input}
+                          list="colorOptions"
+                          value={v.color || ''}
+                          onChange={(e) => updateVariant(idx, { color: e.target.value })}
+                          placeholder="VD: Nâu nhạt, Xanh navy..."
+                        />
+                      </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>Kích thước</label>
+                        <input
+                          className={styles.input}
+                          list="sizeOptions"
+                          value={v.size || ''}
+                          onChange={(e) => updateVariant(idx, { size: e.target.value })}
+                          placeholder="VD: S, M, L, XL..."
+                        />
+                      </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>
+                          Giá bán <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          className={styles.input}
+                          type="number"
+                          value={v.price ?? 0}
+                          onChange={(e) =>
+                            updateVariant(idx, { price: Number(e.target.value || 0) })
+                          }
+                          placeholder="399000"
+                          required
+                          min={0}
+                        />
+                      </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>
+                          Số lượng <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          className={styles.input}
+                          type="number"
+                          value={v.stock ?? 0}
+                          onChange={(e) =>
+                            updateVariant(idx, { stock: Number(e.target.value || 0) })
+                          }
+                          placeholder="10"
+                          required
+                          min={0}
+                        />
+                      </div>
+                      <div className={styles.fieldGroup}>
+                        <label className={styles.label}>Hình ảnh riêng</label>
+                        <label className={styles.uploadBtn}>
                           <input
-                            className={styles.input}
-                            list="colorOptions"
-                            value={v.color || ''}
-                            onChange={(e) => updateVariant(idx, { color: e.target.value })}
-                            placeholder="Nâu nhạt"
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setUploading((u) => u + 1);
+                                const r = await mediaApi.upload(f);
+                                updateVariant(idx, { imagePublicId: r.publicId });
+                              } catch (err) {
+                                alert('Upload biến thể lỗi: ' + err.message);
+                              } finally {
+                                setUploading((u) => Math.max(0, u - 1));
+                              }
+                            }}
                           />
-                        </td>
-                        <td>
-                          <input
-                            className={styles.input}
-                            list="sizeOptions"
-                            value={v.size || ''}
-                            onChange={(e) => updateVariant(idx, { size: e.target.value })}
-                            placeholder="S"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className={styles.input}
-                            type="number"
-                            value={v.price ?? 0}
-                            onChange={(e) =>
-                              updateVariant(idx, { price: Number(e.target.value || 0) })
-                            }
-                            placeholder="399000"
-                            required
-                            min={0}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className={styles.input}
-                            type="number"
-                            value={v.stock ?? 0}
-                            onChange={(e) =>
-                              updateVariant(idx, { stock: Number(e.target.value || 0) })
-                            }
-                            placeholder="10"
-                            required
-                            min={0}
-                          />
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={async (e) => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
-                                try {
-                                  setUploading((u) => u + 1);
-                                  const r = await mediaApi.upload(f);
-                                  updateVariant(idx, { imagePublicId: r.publicId });
-                                } catch (err) {
-                                  alert('Upload biến thể lỗi: ' + err.message);
-                                } finally {
-                                  setUploading((u) => Math.max(0, u - 1));
-                                }
-                              }}
-                            />
-                          </div>
-                        </td>
-                        <td>
-                          <button
-                            className={`${styles.btn} ${styles.btnDanger}`}
-                            type="button"
-                            onClick={() => removeVariant(idx)}
-                          >
-                            Xóa
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          📁 {v.imagePublicId ? 'Đã có ảnh' : 'Chọn ảnh'}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -585,40 +613,59 @@ export default function AdminProductForm({ onSubmit, initial }) {
 
         {/* Attributes */}
         <section className={styles.card}>
-          <div
-            className={styles.cardHeader}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <div>Thuộc tính</div>
-            <button className={styles.btn} type="button" onClick={addAttr}>
-              + Thêm thuộc tính
+          <div className={styles.cardHeader}>
+            <span className={styles.headerIcon}>📋</span>
+            <span>Thuộc tính bổ sung</span>
+            <button className={`${styles.btn} ${styles.btnAdd}`} type="button" onClick={addAttr}>
+              <span>➕</span> Thêm thuộc tính
             </button>
           </div>
           <div className={styles.cardBody}>
             {Object.keys(attributes).length === 0 ? (
-              <div style={{ color: '#777' }}>Chưa có thuộc tính.</div>
+              <div className={styles.emptyState}>
+                <span className={styles.emptyIcon}>🏷️</span>
+                <p>Chưa có thuộc tính nào</p>
+                <p className={styles.emptyHint}>
+                  Thêm thông tin như thương hiệu, chất liệu, xuất xứ...
+                </p>
+              </div>
             ) : (
-              <div style={{ display: 'grid', gap: 8 }}>
-                {Object.entries(attributes).map(([k, v]) => (
-                  <div key={k + Math.random()} className={styles.kvRow}>
-                    <input
-                      className={styles.input}
-                      value={k}
-                      onChange={(e) => updateAttrKey(k, e.target.value)}
-                      placeholder="brand"
-                    />
-                    <input
-                      className={styles.input}
-                      value={v}
-                      onChange={(e) => updateAttrVal(k, e.target.value)}
-                      placeholder="UrbanFit"
-                    />
+              <div className={styles.attributesList}>
+                {Object.entries(attributes).map(([k, v], idx) => (
+                  <div key={`attr-${idx}-${k}`} className={styles.attributeRow}>
+                    <div className={styles.attributeFields}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label className={styles.label} htmlFor={`attr-key-${idx}`}>
+                          Tên thuộc tính
+                        </label>
+                        <input
+                          id={`attr-key-${idx}`}
+                          className={styles.input}
+                          value={k}
+                          onChange={(e) => updateAttrKey(k, e.target.value)}
+                          placeholder="VD: Thương hiệu, Chất liệu..."
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label className={styles.label} htmlFor={`attr-val-${idx}`}>
+                          Giá trị
+                        </label>
+                        <input
+                          id={`attr-val-${idx}`}
+                          className={styles.input}
+                          value={v}
+                          onChange={(e) => updateAttrVal(k, e.target.value)}
+                          placeholder="VD: UrbanFit, Cotton 100%..."
+                        />
+                      </div>
+                    </div>
                     <button
-                      className={`${styles.btn} ${styles.btnDanger}`}
+                      className={`${styles.btnIcon} ${styles.btnDelete}`}
                       type="button"
                       onClick={() => removeAttr(k)}
+                      title="Xóa thuộc tính"
                     >
-                      Xóa
+                      🗑️
                     </button>
                   </div>
                 ))}
@@ -629,11 +676,15 @@ export default function AdminProductForm({ onSubmit, initial }) {
 
         <div className={styles.footerSpace} />
         <div className={styles.actions}>
-          <button className={styles.btn} type="button" onClick={() => window.history.back()}>
-            Hủy
+          <button
+            className={`${styles.btn} ${styles.btnBack}`}
+            type="button"
+            onClick={() => window.history.back()}
+          >
+            <span style={{ fontSize: 20 }}>↩️</span> Quay lại
           </button>
           <button className={`${styles.btn} ${styles.btnPrimary}`} type="submit">
-            {saving ? 'Đang lưu…' : 'Lưu sản phẩm'}
+            {saving ? '⏳ Đang lưu...' : '✅ Lưu sản phẩm'}
           </button>
         </div>
 

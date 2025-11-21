@@ -8,7 +8,7 @@ export default function PersonalStatsPage() {
   const [err, setErr] = useState('');
   const [from, setFrom] = useState(''); // yyyy-mm-dd
   const [to, setTo] = useState('');
-  const [activeTab, setActiveTab] = useState('overview'); // overview, shifts, orders, productivity
+  const [status, setStatus] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -175,7 +175,6 @@ export default function PersonalStatsPage() {
           {/* Alerts Section */}
           {stats.alerts && stats.alerts.length > 0 && (
             <div className={styles.alertsSection}>
-              <h3 className={styles.sectionTitle}>⚠️ Cảnh báo</h3>
               {stats.alerts.map((alert, idx) => (
                 <div key={idx} className={`${styles.alert} ${styles[`alert-${alert.severity}`]}`}>
                   {alert.severity === 'warning' && '⚠️ '}
@@ -186,39 +185,12 @@ export default function PersonalStatsPage() {
             </div>
           )}
 
-          {/* Tabs */}
-          <div className={styles.tabs}>
-            <button
-              className={activeTab === 'overview' ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab('overview')}
-            >
-              Tổng quan
-            </button>
-            <button
-              className={activeTab === 'shifts' ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab('shifts')}
-            >
-              Ca làm & Chấm công
-            </button>
-            <button
-              className={activeTab === 'orders' ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab('orders')}
-            >
-              Đơn hàng
-            </button>
-            <button
-              className={activeTab === 'productivity' ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab('productivity')}
-            >
-              Năng suất
-            </button>
-          </div>
-
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className={styles.grid}>
+          {/* Row 1: Chấm công */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>✅ Chấm công</h3>
+            <div className={styles.gridRow}>
               <div className={`${styles.card} ${styles.cardHighlight}`}>
-                <div className={styles.cardIcon}>✅</div>
+                <div className={styles.cardIcon}>📊</div>
                 <div className={styles.label}>Tỷ lệ chấm công</div>
                 <div
                   className={`${styles.value} ${getStatusColor(
@@ -231,32 +203,32 @@ export default function PersonalStatsPage() {
               </div>
               <div className={styles.card}>
                 <div className={styles.cardIcon}>📅</div>
-                <div className={styles.label}>Tổng ca được phân</div>
+                <div className={styles.label}>Ca được phân</div>
                 <div className={styles.value}>{stats.shifts?.scheduledCount || 0}</div>
               </div>
               <div className={styles.card}>
+                <div className={styles.cardIcon}>✅</div>
+                <div className={styles.label}>Ca hoàn tất</div>
+                <div className={styles.value}>{stats.shifts?.completedCount || 0}</div>
+              </div>
+              <div className={styles.card}>
                 <div className={styles.cardIcon}>⏰</div>
-                <div className={styles.label}>Thời gian làm việc</div>
+                <div className={styles.label}>Tổng giờ làm</div>
                 <div className={styles.value}>
                   {formatMinutesToHours(stats.shifts?.workedMinutes || 0)}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Row 2: Đơn hàng */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>📦 Đơn hàng</h3>
+            <div className={styles.gridRow}>
               <div className={styles.card}>
-                <div className={styles.cardIcon}>⏱️</div>
-                <div className={styles.label}>Làm thêm giờ</div>
-                <div className={styles.value}>
-                  {formatMinutesToHours(stats.shifts?.overtimeMinutes || 0)}
-                </div>
-              </div>
-              <div className={styles.card}>
-                <div className={styles.cardIcon}>📦</div>
-                <div className={styles.label}>Tổng đơn hàng</div>
+                <div className={styles.cardIcon}>📋</div>
+                <div className={styles.label}>Tổng đơn</div>
                 <div className={styles.value}>{stats.orders?.total || 0}</div>
-              </div>
-              <div className={styles.card}>
-                <div className={styles.cardIcon}>✔️</div>
-                <div className={styles.label}>Hoàn tất</div>
-                <div className={styles.value}>{stats.orders?.done || 0}</div>
               </div>
               <div className={`${styles.card} ${styles.cardHighlight}`}>
                 <div className={styles.cardIcon}>📈</div>
@@ -271,252 +243,33 @@ export default function PersonalStatsPage() {
                 </div>
               </div>
               <div className={styles.card}>
+                <div className={styles.cardIcon}>💰</div>
+                <div className={styles.label}>Giá trị đã xử lý</div>
+                <div className={styles.valueMoney}>
+                  {formatCurrency(stats.orders?.handledValueTotal || 0)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: Năng suất */}
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>⚡ Năng suất</h3>
+            <div className={styles.gridRow}>
+              <div className={`${styles.card} ${styles.cardHighlight}`}>
                 <div className={styles.cardIcon}>⚡</div>
-                <div className={styles.label}>Đơn/giờ làm</div>
+                <div className={styles.label}>Đơn/giờ</div>
                 <div className={styles.value}>{stats.productivity?.ordersPerWorkedHour || 0}</div>
               </div>
-            </div>
-          )}
-
-          {/* Shifts Tab */}
-          {activeTab === 'shifts' && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>📅 Ca làm việc & Chấm công</h3>
-              <div className={styles.grid}>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>📋</div>
-                  <div className={styles.label}>Ca được phân</div>
-                  <div className={styles.value}>{stats.shifts?.scheduledCount || 0}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>✅</div>
-                  <div className={styles.label}>Ca hoàn tất</div>
-                  <div className={styles.value}>{stats.shifts?.completedCount || 0}</div>
-                </div>
-                <div
-                  className={`${styles.card} ${
-                    (stats.shifts?.missedCount || 0) > 0 ? styles.cardDanger : ''
-                  }`}
-                >
-                  <div className={styles.cardIcon}>❌</div>
-                  <div className={styles.label}>Ca vắng</div>
-                  <div className={styles.value}>{stats.shifts?.missedCount || 0}</div>
-                </div>
-                <div className={`${styles.card} ${styles.cardHighlight}`}>
-                  <div className={styles.cardIcon}>📊</div>
-                  <div className={styles.label}>Tỷ lệ chấm công</div>
-                  <div
-                    className={`${styles.value} ${getStatusColor(
-                      stats.shifts?.attendanceRatePct || 0,
-                      'attendance',
-                    )}`}
-                  >
-                    {stats.shifts?.attendanceRatePct || 0}%
-                  </div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>🕐</div>
-                  <div className={styles.label}>Thời gian ca (dự kiến)</div>
-                  <div className={styles.value}>
-                    {formatMinutesToHours(stats.shifts?.scheduledMinutes || 0)}
-                  </div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>⏰</div>
-                  <div className={styles.label}>Thời gian thực làm</div>
-                  <div className={styles.value}>
-                    {formatMinutesToHours(stats.shifts?.workedMinutes || 0)}
-                  </div>
-                </div>
-                <div
-                  className={`${styles.card} ${
-                    (stats.shifts?.overtimeMinutes || 0) > 0 ? styles.cardWarning : ''
-                  }`}
-                >
-                  <div className={styles.cardIcon}>⏱️</div>
-                  <div className={styles.label}>Làm thêm giờ</div>
-                  <div className={styles.value}>
-                    {formatMinutesToHours(stats.shifts?.overtimeMinutes || 0)}
-                  </div>
-                </div>
-                <div
-                  className={`${styles.card} ${
-                    (stats.shifts?.lateCheckIns?.count || 0) > 0 ? styles.cardWarning : ''
-                  }`}
-                >
-                  <div className={styles.cardIcon}>🕐</div>
-                  <div className={styles.label}>Số lần đi trễ</div>
-                  <div className={styles.value}>
-                    {stats.shifts?.lateCheckIns?.count || 0}
-                    {stats.shifts?.lateCheckIns?.count > 0 && (
-                      <small className={styles.subtext}>
-                        (~{stats.shifts.lateCheckIns.avgMinutesLate}p/lần)
-                      </small>
-                    )}
-                  </div>
-                </div>
-                <div
-                  className={`${styles.card} ${
-                    (stats.shifts?.lateCheckIns?.totalMinutes || 0) > 0 ? styles.cardWarning : ''
-                  }`}
-                >
-                  <div className={styles.cardIcon}>⏲️</div>
-                  <div className={styles.label}>Tổng phút đi trễ</div>
-                  <div className={styles.value}>
-                    {stats.shifts?.lateCheckIns?.totalMinutes || 0}{' '}
-                    <small className={styles.unit}>phút</small>
-                  </div>
-                </div>
-                <div
-                  className={`${styles.card} ${
-                    (stats.shifts?.earlyCheckOuts?.count || 0) > 0 ? styles.cardWarning : ''
-                  }`}
-                >
-                  <div className={styles.cardIcon}>🏃</div>
-                  <div className={styles.label}>Số lần về sớm</div>
-                  <div className={styles.value}>
-                    {stats.shifts?.earlyCheckOuts?.count || 0}
-                    {stats.shifts?.earlyCheckOuts?.count > 0 && (
-                      <small className={styles.subtext}>
-                        (~{stats.shifts.earlyCheckOuts.avgMinutesEarly}p/lần)
-                      </small>
-                    )}
-                  </div>
+              <div className={`${styles.card} ${styles.cardHighlight}`}>
+                <div className={styles.cardIcon}>💵</div>
+                <div className={styles.label}>Doanh thu/giờ</div>
+                <div className={styles.valueMoney}>
+                  {formatCurrency(stats.productivity?.valuePerWorkedHour || 0)}
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Orders Tab */}
-          {activeTab === 'orders' && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>📦 Đơn hàng</h3>
-              <div className={styles.grid}>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>📋</div>
-                  <div className={styles.label}>Tổng đơn</div>
-                  <div className={styles.value}>{stats.orders?.total || 0}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>✅</div>
-                  <div className={styles.label}>Hoàn tất</div>
-                  <div className={styles.value}>{stats.orders?.done || 0}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>⏳</div>
-                  <div className={styles.label}>Đang chờ</div>
-                  <div className={styles.value}>{stats.orders?.pending || 0}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>❌</div>
-                  <div className={styles.label}>Đã hủy</div>
-                  <div className={styles.value}>{stats.orders?.cancelled || 0}</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>↩️</div>
-                  <div className={styles.label}>Trả/Hoàn</div>
-                  <div className={styles.value}>{stats.orders?.returned || 0}</div>
-                </div>
-                <div className={`${styles.card} ${styles.cardHighlight}`}>
-                  <div className={styles.cardIcon}>📈</div>
-                  <div className={styles.label}>Tỷ lệ hoàn thành</div>
-                  <div
-                    className={`${styles.value} ${getStatusColor(
-                      stats.orders?.completionRatePct || 0,
-                      'completion',
-                    )}`}
-                  >
-                    {stats.orders?.completionRatePct || 0}%
-                  </div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>💰</div>
-                  <div className={styles.label}>Giá trị đã xử lý</div>
-                  <div className={styles.valueMoney}>
-                    {formatCurrency(stats.orders?.handledValueTotal || 0)}
-                  </div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>💵</div>
-                  <div className={styles.label}>Giá trị TB/đơn</div>
-                  <div className={styles.valueMoney}>
-                    {formatCurrency(stats.orders?.avgOrderValue || 0)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Productivity Tab */}
-          {activeTab === 'productivity' && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>⚡ Năng suất làm việc</h3>
-              <div className={styles.grid}>
-                <div className={`${styles.card} ${styles.cardHighlight}`}>
-                  <div className={styles.cardIcon}>⚡</div>
-                  <div className={styles.label}>Đơn/giờ làm việc</div>
-                  <div className={styles.value}>{stats.productivity?.ordersPerWorkedHour || 0}</div>
-                </div>
-                <div className={`${styles.card} ${styles.cardHighlight}`}>
-                  <div className={styles.cardIcon}>💰</div>
-                  <div className={styles.label}>Doanh thu/giờ làm việc</div>
-                  <div className={styles.valueMoney}>
-                    {formatCurrency(stats.productivity?.valuePerWorkedHour || 0)}
-                  </div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardIcon}>📊</div>
-                  <div className={styles.label}>Tỷ lệ sử dụng ca</div>
-                  <div className={styles.value}>
-                    {stats.shifts?.scheduledMinutes > 0
-                      ? Math.round(
-                          ((stats.shifts?.workedMinutes || 0) / stats.shifts.scheduledMinutes) *
-                            100,
-                        )
-                      : 0}
-                    %
-                  </div>
-                </div>
-              </div>
-
-              {/* Per Day Chart */}
-              {stats.perDay && stats.perDay.length > 0 && (
-                <div className={styles.chartSection}>
-                  <h4 className={styles.chartTitle}>📈 Biểu đồ theo ngày</h4>
-                  <div className={styles.tableWrapper}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>📅 Ngày</th>
-                          <th>🕐 Giờ dự kiến</th>
-                          <th>⏰ Giờ làm thực</th>
-                          <th>⏱️ Làm thêm</th>
-                          <th>📦 Đơn hàng</th>
-                          <th>✅ Hoàn tất</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stats.perDay.map((day) => (
-                          <tr key={day.date}>
-                            <td className={styles.dateCell}>{day.date}</td>
-                            <td>{formatMinutesToHours(day.scheduledMinutes)}</td>
-                            <td>
-                              <strong>{formatMinutesToHours(day.workedMinutes)}</strong>
-                            </td>
-                            <td className={day.overtimeMinutes > 0 ? styles.overtimeCell : ''}>
-                              {formatMinutesToHours(day.overtimeMinutes)}
-                            </td>
-                            <td>{day.totalOrders}</td>
-                            <td className={styles.doneCell}>{day.doneOrders}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          </div>
         </>
       )}
     </div>

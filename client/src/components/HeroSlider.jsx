@@ -149,12 +149,34 @@ export default function HeroSlider({ slides = [], interval = 3000, narrow = fals
         );
       })}
 
-      {/* Nav buttons */}
       <button className={`${s.nav} ${s.prev}`} aria-label="Slide trước" onClick={() => go(false)}>
-        ‹
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#111"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
       </button>
+
       <button className={`${s.nav} ${s.next}`} aria-label="Slide sau" onClick={() => go(true)}>
-        ›
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#111"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="9 6 15 12 9 18" />
+        </svg>
       </button>
 
       {/* Dots */}

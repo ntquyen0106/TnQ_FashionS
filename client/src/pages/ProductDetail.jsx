@@ -46,21 +46,24 @@ export default function ProductDetail() {
     const images = product?.images || [];
     const key = norm(color);
 
-    // 1) ưu tiên ảnh trong gallery theo alt khớp màu (bỏ dấu)
+    // 1) Ưu tiên ảnh riêng của variant nếu có
+    if (variant?.imagePublicId) {
+      // Kiểm tra xem variant có ảnh riêng trong gallery không
+      const variantImageInGallery = images.find((im) => im?.publicId === variant.imagePublicId);
+      if (variantImageInGallery) return variant.imagePublicId;
+      // Nếu variant có imagePublicId nhưng không trong gallery, vẫn dùng (trường hợp ảnh riêng)
+      return variant.imagePublicId;
+    }
+
+    // 2) Tìm ảnh trong gallery theo alt khớp màu (bỏ dấu)
     const byAlt = images.find((im) => norm(im?.alt).includes(key));
     if (byAlt?.publicId) return byAlt.publicId;
 
-    // 2) thử khớp theo publicId (trường hợp alt không thiết lập đúng)
+    // 3) Tìm theo publicId chứa tên màu (trường hợp alt không thiết lập đúng)
     const byId = images.find((im) => norm(im?.publicId).includes(key));
     if (byId?.publicId) return byId.publicId;
 
-    // 3) nếu variant có imagePublicId và cũng có trong gallery -> dùng
-    if (variant?.imagePublicId) {
-      const inGallery = images.some((im) => im?.publicId === variant.imagePublicId);
-      if (inGallery) return variant.imagePublicId;
-    }
-
-    // 4) fallback: ảnh primary hoặc ảnh đầu
+    // 4) Fallback: ảnh primary hoặc ảnh đầu tiên
     return images.find((im) => im?.isPrimary)?.publicId || images[0]?.publicId || null;
   };
 
@@ -212,10 +215,13 @@ export default function ProductDetail() {
 
     setVariant(found);
 
-    // chỉ đổi ảnh khi MÀU thay đổi
+    // Đổi ảnh khi MÀU thay đổi
     if (color !== lastColorRef.current) {
       const pid = pickImageForColor(p, color, found);
-      if (pid) setActiveImg(pid);
+      console.log('🎨 Đổi màu:', color, '→ Ảnh:', pid, '| Variant:', found);
+      if (pid) {
+        setActiveImg(pid);
+      }
       lastColorRef.current = color;
     }
   }, [color, size, p]);

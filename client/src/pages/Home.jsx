@@ -121,10 +121,8 @@ function Home() {
         key: 's1',
         publicId: 'ChatGPT_Image_22_20_03_17_thg_9_2025_wheqme',
         alt: 'Phụ kiện mắt kính',
-        // kicker: 'Phụ kiện',
-        // title: 'Mắt kính',
-        // desc: 'Bộ sưu tập mắt kính – thời trang và bảo vệ.',
-        ctaText: 'Mua ngay thôi >>',
+        ctaText: 'Khám phá ngay',
+
         ctaHref: eyewearPath,
         pos: { bottom: 100, left: 40 },
         align: 'center',
@@ -135,11 +133,9 @@ function Home() {
           fontWeight: 600,
         },
 
+        // chỉ giữ khoảng cách, để style đẹp dùng CSS chung
         ctaStyle: {
-          marginTop: 12,
-          padding: '14px 20px',
-          borderRadius: 12,
-          background: '#000000ff',
+          marginTop: 20,
         },
 
         titleStyle: {
@@ -153,8 +149,7 @@ function Home() {
         key: 's2',
         publicId: 'ChatGPT_Image_22_42_34_17_thg_9_2025_ak8xie',
         alt: 'Jeans nữ',
-        // title: 'Quần jeans',
-        ctaText: 'Xem ngay thôi >>',
+        ctaText: 'Xem ngay',
         ctaHref: '/products?path=nu&q=jeans',
         pos: { bottom: 100, right: 40 },
         align: 'right',
@@ -165,31 +160,31 @@ function Home() {
           letterSpacing: '0.01em',
         },
         ctaStyle: {
-          marginTop: 8,
-          padding: '12px 18px',
-          borderRadius: 12,
-          background: '#000000ff',
+          marginTop: 16,
         },
         containerStyle: {
-          maxWidth: 720, // tùy chọn: giới hạn bề ngang khối chữ
+          maxWidth: 720,
         },
       },
       {
         key: 's3',
         publicId: 'ChatGPT_Image_22_55_26_17_thg_9_2025_xedslk',
         alt: 'Phụ kiện túi xách & mắt kính',
-        // kicker: 'Phụ kiện',
         title: 'Túi xách & Mắt kính',
-        ctaText: 'Mua ngay >>',
+        ctaText: 'Mua ngay',
         ctaHref: '/products?path=phu-kien',
         pos: { bottom: 48, right: 40 },
         align: 'center',
         kickerStyle: { color: '#000000ff', marginBottom: '40px' },
         titleStyle: { fontSize: '30px', color: '#000000ff', marginBottom: '50px' },
+        ctaStyle: {
+          marginTop: 12,
+        },
       },
     ],
     [eyewearPath],
   );
+
   const cldT = (publicId, t) =>
     CLOUD && publicId
       ? `https://res.cloudinary.com/${CLOUD}/image/upload/f_auto,q_auto,dpr_auto,${t}/${publicId}`
@@ -233,7 +228,7 @@ function Home() {
     {
       key: 'sale',
       title: 'Khuyến mãi',
-      to: '/products?sale=1',
+      to: '/products?path=khuyen-mai',
       // no path for sale tile
       img: '',
       gradient: 'var(--g-emerald)',
@@ -287,7 +282,10 @@ function Home() {
             <div className={styles.recommendGrid}>
               {(showAllPersonalized ? personalizedProducts : personalizedProducts.slice(0, 4)).map(
                 (p, idx) => (
-                  <div key={p._id} style={{ animation: `fadeInUp 0.6s ease-out ${idx * 0.1}s both` }}>
+                  <div
+                    key={p._id}
+                    style={{ animation: `fadeInUp 0.6s ease-out ${idx * 0.1}s both` }}
+                  >
                     <ProductCard product={p} />
                   </div>
                 ),
@@ -304,9 +302,9 @@ function Home() {
           </div>
           <div className={styles.grid}>
             {tiles.map((c, idx) => (
-              <Link 
-                to={c.to} 
-                key={c.key} 
+              <Link
+                to={c.to}
+                key={c.key}
                 className={styles.card}
                 style={{ animationDelay: `${0.3 + idx * 0.1}s` }}
               >
@@ -321,8 +319,8 @@ function Home() {
                   }}
                 />
                 <div className={styles.cardBody}>
-                  <h3 className={styles.cardTitle} style={c.key === 'sale' ? { color: '#2563eb' } : {}}>{c.title}</h3>
-                  <span className={styles.cardAction} style={c.key === 'sale' ? { background: '#111', color: '#fff' } : {}}>Khám phá</span>
+                  <h3 className={styles.cardTitle}>{c.title}</h3>
+                  <span className={styles.cardAction}>Khám phá</span>
                 </div>
               </Link>
             ))}
