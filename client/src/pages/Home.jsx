@@ -61,13 +61,12 @@ function Home() {
       try {
         await getCategories({ status: 'active', asTree: 1 });
 
-        // fetch a random product image for each featured tile that has a category path
-        const fetchFor = async (key, path) => {
+        // fetch a random product image for each featured tile
+        const fetchFor = async (key, path, extraQuery = {}) => {
           try {
-            const res = await productsApi.list({ path, limit: 8 });
+            const res = await productsApi.list({ path, limit: 8, ...extraQuery });
             const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
             if (!list.length) return null;
-            // pick a random product that has an image
             const candidates = list.filter((p) => p.coverPublicId || (p.images && p.images.length));
             const picked = (candidates.length ? candidates : list)[
               Math.floor(Math.random() * (candidates.length ? candidates.length : list.length))
@@ -87,14 +86,22 @@ function Home() {
         const next = {};
         const promises = [];
         for (const t of tiles) {
-          // tiles array below has path for most tiles (sale may not)
-          if (!t.path) continue;
-          promises.push(
-            (async () => {
-              const imgId = await fetchFor(t.key, t.path);
-              if (imgId) next[t.key] = imgId;
-            })(),
-          );
+          if (t.key === 'sale') {
+            // Fetch random product image from sale category
+            promises.push(
+              (async () => {
+                const imgId = await fetchFor(t.key, undefined, { sale: 1 });
+                if (imgId) next[t.key] = imgId;
+              })(),
+            );
+          } else if (t.path) {
+            promises.push(
+              (async () => {
+                const imgId = await fetchFor(t.key, t.path);
+                if (imgId) next[t.key] = imgId;
+              })(),
+            );
+          }
         }
         await Promise.all(promises);
         if (alive) setTileImgs(next);
@@ -268,7 +275,7 @@ function Home() {
           <div className={styles.uspItem}>💬 Hỗ trợ 24/7</div>
         </section>
         {personalizedLoaded && personalizedProducts.length > 0 && (
-          <section className={styles.section}>
+          <section className={styles.section} style={{ animationDelay: '0.1s' }}>
             <div className={styles.sectionHead}>
               <h2>Gợi ý dành riêng cho bạn</h2>
               {personalizedProducts.length > 4 && (
@@ -279,14 +286,16 @@ function Home() {
             </div>
             <div className={styles.recommendGrid}>
               {(showAllPersonalized ? personalizedProducts : personalizedProducts.slice(0, 4)).map(
-                (p) => (
-                  <ProductCard key={p._id} product={p} />
+                (p, idx) => (
+                  <div key={p._id} style={{ animation: `fadeInUp 0.6s ease-out ${idx * 0.1}s both` }}>
+                    <ProductCard product={p} />
+                  </div>
                 ),
               )}
             </div>
           </section>
         )}
-        <section className={styles.section}>
+        <section className={styles.section} style={{ animationDelay: '0.2s' }}>
           <div className={styles.sectionHead}>
             <h2>Danh mục nổi bật</h2>
             <Link to="/products" className={styles.linkMore}>
@@ -294,8 +303,13 @@ function Home() {
             </Link>
           </div>
           <div className={styles.grid}>
-            {tiles.map((c) => (
-              <Link to={c.to} key={c.key} className={styles.card}>
+            {tiles.map((c, idx) => (
+              <Link 
+                to={c.to} 
+                key={c.key} 
+                className={styles.card}
+                style={{ animationDelay: `${0.3 + idx * 0.1}s` }}
+              >
                 <div
                   className={styles.cardMedia}
                   style={{
@@ -307,8 +321,8 @@ function Home() {
                   }}
                 />
                 <div className={styles.cardBody}>
-                  <h3 className={styles.cardTitle}>{c.title}</h3>
-                  <span className={styles.cardAction}>Khám phá</span>
+                  <h3 className={styles.cardTitle} style={c.key === 'sale' ? { color: '#2563eb' } : {}}>{c.title}</h3>
+                  <span className={styles.cardAction} style={c.key === 'sale' ? { background: '#111', color: '#fff' } : {}}>Khám phá</span>
                 </div>
               </Link>
             ))}

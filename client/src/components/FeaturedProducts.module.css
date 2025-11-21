@@ -1,0 +1,137 @@
+
+.section {
+  display: grid;
+  gap: 24px;
+  margin-top: 64px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid #e5e7eb;
+  padding: 32px 24px;
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: -0.5px;
+  position: relative;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #111 0%, transparent 100%);
+  border-radius: 2px;
+}
+
+.linkMore {
+  margin-left: auto;
+  color: #fff;
+  background: #111;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 8px 18px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  letter-spacing: 0.01em;
+}
+
+.linkMore:hover {
+  background: #2563eb;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f3f4f6;
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 15px;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 16px;
+  border: 2px dashed #e5e7eb;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .section {
+    margin-top: 48px;
+    gap: 20px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .linkMore {
+    font-size: 14px;
+  }
+}

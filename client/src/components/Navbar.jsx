@@ -218,16 +218,41 @@ export default function Navbar({
   const reminderLevel = hasStale ? (hasUrgent ? 'hard' : 'soft') : null;
   const staleMessage = hasStale
     ? hasUrgent
-      ? 'Sản phẩm trong giỏ sắp hết'
-      : 'Bạn còn sản phẩm chờ thanh toán'
+      ? `Bạn đã quên ${staleItems.length} sản phẩm này rồi sao, hãy thanh toán ngay !` // HARD
+      : `Giỏ hàng đang có ${staleItems.length} sản phẩm chờ bạn thanh toán !` // SOFT
     : '';
+
   const cartAriaLabel = hasStale ? `Giỏ hàng - ${staleItems.length} sản phẩm đang chờ` : 'Giỏ hàng';
   const reminderClass =
     reminderLevel === 'hard' ? s.cartNoticeHard : reminderLevel === 'soft' ? s.cartNoticeSoft : '';
 
-  const [showReminder, setShowReminder] = useState(true);
-  const dismissTimerRef = useRef(null);
   const DISMISS_KEY = 'tnq_cart_reminder_dismissed_at';
+  const DISMISS_DURATION_MS = 3000; // 30 seconds
+
+  // Initialize showReminder based on localStorage
+  const [showReminder, setShowReminder] = useState(() => {
+    // Check if we're on cart page
+    if (window.location.pathname === '/cart') return false;
+
+    // Check if there's a valid dismissal timestamp
+    try {
+      const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+      if (dismissedAt) {
+        const elapsed = Date.now() - dismissedAt;
+        // If still within dismiss period, hide
+        if (elapsed < DISMISS_DURATION_MS) {
+          return false;
+        }
+        // If expired, clean up and show
+        localStorage.removeItem(DISMISS_KEY);
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+    return true;
+  });
+
+  const dismissTimerRef = useRef(null);
 
   useEffect(() => {
     // Clear any existing timer first
@@ -236,18 +261,15 @@ export default function Navbar({
       dismissTimerRef.current = null;
     }
 
-    // If user is on cart page, always hide
+    // Nếu đang ở trang giỏ hàng thì luôn ẩn
     if (location.pathname === '/cart') {
       setShowReminder(false);
       return;
     }
 
-    // If there is no stale info, hide and remove persistent dismissal
+    // Nếu hiện tại không có stale thì chỉ ẩn, KHÔNG xoá DISMISS_KEY
     if (!hasStale) {
       setShowReminder(false);
-      try {
-        localStorage.removeItem(DISMISS_KEY);
-      } catch (e) {}
       return;
     }
 
@@ -261,12 +283,11 @@ export default function Navbar({
 
     const now = Date.now();
     const elapsed = dismissedAt ? now - dismissedAt : Infinity;
-    const REMAIN_MS = 30000;
 
-    if (dismissedAt && elapsed < REMAIN_MS) {
-      // still within dismissed period — hide and schedule re-show when expires
+    if (dismissedAt && elapsed < DISMISS_DURATION_MS) {
+      // vẫn trong thời gian “để sau” → ẩn, set timer chờ hết hạn
       setShowReminder(false);
-      const remaining = REMAIN_MS - elapsed;
+      const remaining = DISMISS_DURATION_MS - elapsed;
       dismissTimerRef.current = setTimeout(() => {
         if (hasStale && window.location.pathname !== '/cart') {
           setShowReminder(true);
@@ -276,7 +297,7 @@ export default function Navbar({
         }
       }, remaining);
     } else {
-      // not dismissed or expired — show reminder
+      // hết hạn hoặc chưa từng dismiss → hiện
       setShowReminder(true);
       try {
         localStorage.removeItem(DISMISS_KEY);
@@ -321,7 +342,7 @@ export default function Navbar({
           localStorage.removeItem(DISMISS_KEY);
         } catch (e) {}
       }
-    }, 30000);
+    }, DISMISS_DURATION_MS);
   };
 
   const gotoDashboard = () => {

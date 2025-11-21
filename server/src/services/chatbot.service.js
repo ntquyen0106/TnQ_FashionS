@@ -58,12 +58,15 @@ export const chatbotService = {
    */
   async buildKnowledgeBase() {
     const [products, categories, policies, promotions] = await Promise.all([
+      // Load tất cả sản phẩm active (tăng từ 100 lên 200 để cover toàn shop)
       Product.find({ status: 'active' })
         .select('name description slug variants categoryId ratingAvg attributes images')
-        .populate('categoryId', 'name')
-        .limit(30)
+        .populate('categoryId', 'name path')
+        .sort({ ratingAvg: -1, createdAt: -1 })
+        .limit(200)
         .lean(),
-      Category.find({ status: 'active' }).select('name description').lean(),
+      // Load tất cả danh mục để AI biết cấu trúc category
+      Category.find({ status: 'active' }).select('name slug path parentId depth').lean(),
       Policy.find({ isActive: true }).select('type title content').lean(),
       Promotion.find({
         isActive: true,
@@ -83,9 +86,9 @@ export const chatbotService = {
   formatKnowledgeForAI(kb) {
     const { products, categories, policies, promotions } = kb;
 
-    // Format products
+    // Format products - increased to 80 để AI nhận biết nhiều sản phẩm hơn
     const productList = products
-      .slice(0, 18)
+      .slice(0, 80)
       .map((p, i) => {
         const minPrice = Math.min(...p.variants.map((v) => v.price));
         const maxPrice = Math.max(...p.variants.map((v) => v.price));
@@ -281,47 +284,106 @@ export const chatbotService = {
   },
 
   /**
+   * Build dynamic category matchers from database categories
+   */
+  async buildCategoryMatchers() {
+    try {
+      const categories = await Category.find({ status: 'active' })
+        .select('name slug path parentId')
+        .lean();
+
+      const matchers = [];
+
+      categories.forEach((cat) => {
+        // Tạo regex từ tên danh mục
+        const namePattern = cat.name.toLowerCase().replace(/\s+/g, '\\s*').replace(/[()]/g, '');
+
+        // Phát hiện gender từ path hoặc tên
+        let gender = null;
+        const pathLower = (cat.path || '').toLowerCase();
+        if (pathLower.includes('/nam/') || pathLower.startsWith('nam/')) {
+          gender = 'nam';
+        } else if (pathLower.includes('/nu/') || pathLower.startsWith('nu/')) {
+          gender = 'nữ';
+        } else if (/\bnam\b/.test(cat.name.toLowerCase())) {
+          gender = 'nam';
+        } else if (/\bn[ữu]\b/.test(cat.name.toLowerCase())) {
+          gender = 'nữ';
+        }
+
+        matchers.push({
+          regex: new RegExp(namePattern, 'i'),
+          category: cat.slug,
+          gender,
+          fullName: cat.name,
+        });
+
+        // Thêm alias phổ biến
+        if (cat.slug.includes('ao-thun')) {
+          matchers.push({
+            regex: /\b(t[\s-]?shirt|tee)\b/i,
+            category: cat.slug,
+            gender,
+            fullName: cat.name,
+          });
+        }
+        if (cat.slug.includes('quan-jean')) {
+          matchers.push({
+            regex: /\bquần\s*bò\b/i,
+            category: cat.slug,
+            gender,
+            fullName: cat.name,
+          });
+        }
+      });
+
+      console.log(`[Chatbot] Loaded ${matchers.length} category matchers from DB`);
+      return matchers;
+    } catch (err) {
+      console.error('[Chatbot] Error building category matchers:', err);
+      return [];
+    }
+  },
+
+  /**
    * Analyze user intent to determine if products needed
    */
-  analyzeIntent(message) {
+  async analyzeIntent(message) {
     const lower = message.toLowerCase();
 
     const productKeywordsPattern =
-      /sản phẩm|áo|quần|váy|đầm|váy|đồ|mua|size|màu|giày|dép|sandal|boot|túi|ví|nón|mũ|phụ kiện|đồng hồ|balo|áo sơ mi|áo khoác|hoodie|áo polo|áo phông/i;
+      /sản phẩm|áo|quần|váy|đầm|váy|đồ|mua|size|màu|giày|dép|sandal|boot|túi|ví|nón|mũ|phụ kiện|đồng hồ|balo|áo sơ mi|áo khoác|hoodie|áo polo|áo phông|kính|mắt|glasses|sunglasses/i;
     const needsProducts = productKeywordsPattern.test(lower);
 
-    const categoryMatchers = [
-      { regex: /áo thun nam|t-shirt nam|tee nam|áo phông nam/i, category: 'áo thun nam' },
-      { regex: /áo thun nữ|áo phông nữ|tee nữ/i, category: 'áo thun nữ' },
-      { regex: /áo polo/i, category: 'áo polo' },
-      { regex: /áo khoác|jacket|hoodie/i, category: 'áo khoác' },
-      { regex: /sơ mi nam|áo sơ mi nam/i, category: 'áo sơ mi nam' },
-      { regex: /sơ mi nữ|áo sơ mi nữ/i, category: 'áo sơ mi nữ' },
-      { regex: /áo nam/i, category: 'áo nam' },
-      { regex: /áo nữ/i, category: 'áo nữ' },
-      { regex: /quần jean|quần bò/i, category: 'quần jean' },
-      { regex: /quần tây/i, category: 'quần tây' },
-      { regex: /quần short|quần đùi/i, category: 'quần short' },
-      { regex: /đầm|váy/i, category: 'đầm váy' },
-      { regex: /giày|sneaker|boot|sandals?|dép/i, category: 'giày dép' },
-      { regex: /túi|ví|balo|ba lô/i, category: 'túi ví' },
-      { regex: /đồng hồ/i, category: 'phụ kiện đồng hồ' },
-      { regex: /phụ kiện|trang sức|dây chuyền|lắc tay|nhẫn/i, category: 'phụ kiện' },
-    ];
+    // Extract size (S, M, L, XL, XXL, etc.)
+    let size = null;
+    const sizeMatch = lower.match(/\bsize\s*([smlx]{1,3})\b|\b([smlx]{1,3})\b/i);
+    if (sizeMatch) {
+      size = (sizeMatch[1] || sizeMatch[2]).toUpperCase();
+    }
+
+    // Extract gender (nam/nữ)
+    let gender = null;
+    if (/\b(nam|men)\b/i.test(lower)) gender = 'nam';
+    else if (/\b(nữ|women|girl)\b/i.test(lower)) gender = 'nữ';
+
+    // Load category matchers dynamically from DB
+    const categoryMatchers = await this.buildCategoryMatchers();
 
     let category = null;
     let searchTerm = null;
     for (const matcher of categoryMatchers) {
       if (matcher.regex.test(lower)) {
         category = matcher.category;
-        searchTerm = searchTerm || matcher.category;
+        if (matcher.gender && !gender) gender = matcher.gender;
+        searchTerm = searchTerm || matcher.fullName;
         break;
       }
     }
 
     if (!searchTerm) {
       const keywordMatches = lower.match(
-        /(áo|quần|váy|đầm|giày|dép|váy|đồ|đồng hồ|túi|ví|balo|hoodie|sandal|polo|sơ mi)/gi,
+        /(áo|quần|váy|đầm|giày|dép|váy|đồ|đồng hồ|túi|ví|balo|hoodie|sandal|polo|sơ mi|kính|mắt)/gi,
       );
       if (keywordMatches && keywordMatches.length) {
         searchTerm = keywordMatches.slice(0, 3).join(' ');
@@ -349,7 +411,16 @@ export const chatbotService = {
       }
     }
 
-    return { needsProducts, category, searchTerm, minPrice, maxPrice };
+    console.log('[Chatbot] Intent analyzed:', {
+      needsProducts,
+      category,
+      searchTerm,
+      minPrice,
+      maxPrice,
+      size,
+      gender,
+    });
+    return { needsProducts, category, searchTerm, minPrice, maxPrice, size, gender };
   },
 
   /**
@@ -358,7 +429,7 @@ export const chatbotService = {
   async getAIResponse(userMessage, chatHistory = []) {
     try {
       // Analyze user intent
-      const intent = this.analyzeIntent(userMessage);
+      const intent = await this.analyzeIntent(userMessage);
 
       // Query real products from DB if needed
       let realProducts = [];
@@ -368,29 +439,69 @@ export const chatbotService = {
           minPrice: intent.minPrice,
           maxPrice: intent.maxPrice,
           search: intent.searchTerm,
-          limit: 10,
+          size: intent.size,
+          gender: intent.gender,
+          limit: 50, // Tăng từ 30 lên 50 để AI có nhiều sản phẩm gợi ý
         };
 
         realProducts = await queryProductsForAI(baseFilters);
 
+        // Fallback 1: Remove SIZE filter if no results
+        if (!realProducts.length && intent.size) {
+          console.log('[Chatbot] Fallback 1: Removing size filter');
+          realProducts = await queryProductsForAI({
+            ...baseFilters,
+            size: undefined,
+          });
+        }
+
+        // Fallback 2: Remove price filters if no results
         if (!realProducts.length && (intent.minPrice || intent.maxPrice)) {
+          console.log('[Chatbot] Fallback 2: Removing price filters');
           realProducts = await queryProductsForAI({
             ...baseFilters,
             minPrice: undefined,
             maxPrice: undefined,
+            size: undefined,
           });
         }
 
-        if (!realProducts.length && intent.searchTerm) {
+        // Fallback 3: Keep category + gender only
+        if (!realProducts.length && intent.category) {
+          console.log('[Chatbot] Fallback 3: Category + gender only');
           realProducts = await queryProductsForAI({
             category: intent.category,
+            gender: intent.gender,
             limit: baseFilters.limit,
           });
         }
 
+        // Fallback 4: Try searching by gender only (e.g., "áo nam")
+        if (!realProducts.length && intent.gender) {
+          console.log('[Chatbot] Fallback 4: Gender only');
+          realProducts = await queryProductsForAI({
+            gender: intent.gender,
+            search: intent.searchTerm,
+            limit: baseFilters.limit,
+          });
+        }
+
+        // Fallback 5: Try searching all products with search term only
+        if (!realProducts.length && intent.searchTerm) {
+          console.log('[Chatbot] Fallback 5: Search term only (all categories)');
+          realProducts = await queryProductsForAI({
+            search: intent.searchTerm,
+            limit: baseFilters.limit,
+          });
+        }
+
+        // Fallback 6: Get popular products from any category
         if (!realProducts.length) {
+          console.log('[Chatbot] Fallback 6: Getting popular products');
           realProducts = await queryProductsForAI({ limit: baseFilters.limit });
         }
+
+        console.log(`[Chatbot] Found ${realProducts.length} products for intent:`, intent);
       }
 
       const kb = await this.buildKnowledgeBase();
@@ -429,6 +540,7 @@ QUAN TRỌNG:
 - KHÔNG bịa đặt thông tin không có trong dữ liệu
 - Nếu khách hỏi phức tạp → "Để em kết nối Anh/Chị với nhân viên tư vấn nhé!"
 - Ưu tiên sản phẩm có rating cao và còn hàng
+- Database hiện có ${realProducts.length > 0 ? realProducts.length : '100+'} sản phẩm đang hoạt động
 
 **FORMAT KHI TRẢ LỜI SẢN PHẨM:**
 BẮT BUỘC có 2 phần:
@@ -442,6 +554,7 @@ BẮT BUỘC có 2 phần:
 - CHỈ dùng slug từ "DANH SÁCH SẢN PHẨM THỰC TẾ TỪ DATABASE" bên dưới
 - KHÔNG tự nghĩ ra slug mới
 - KHÔNG bịa tên sản phẩm không có trong database
+- LUÔN ưu tiên sản phẩm từ DANH SÁCH ĐỘNG (nếu có) hơn DANH SÁCH TỔNG QUÁT
 - Nếu database trống hoặc không có sản phẩm phù hợp → trả lời: "Em xin lỗi, hiện shop chưa có sản phẩm này. Anh/Chị có thể xem các sản phẩm khác ạ."
 
 **VÍ DỤ ĐÚNG:**
@@ -451,6 +564,9 @@ Dạ, em xin gửi Anh/Chị:
 
 Nếu câu hỏi về chính sách/thông tin chung → chỉ trả lời văn bản, KHÔNG dùng JSON.
 ${productContext}
+
+**DANH SÁCH TỔNG QUÁT (Tham khảo):**
+${formatted.products}
 
 **DANH MỤC SẢN PHẨM:**
 ${formatted.categories}

@@ -83,7 +83,7 @@ export const getProductsForAI = async (req, res) => {
  */
 export const queryProductsForAI = async (filters = {}) => {
   try {
-    const { category, limit = 20, minPrice, maxPrice, search } = filters;
+    const { category, limit = 80, minPrice, maxPrice, search, size, gender } = filters;
 
     const filter = { status: 'active' };
 
@@ -103,7 +103,21 @@ export const queryProductsForAI = async (filters = {}) => {
 
     if (search) {
       filter.name = new RegExp(search, 'i');
+    } else if (gender) {
+      // If only gender specified, search in product name
+      filter.name = new RegExp(gender, 'i');
     }
+
+    // Filter by size in variants
+    if (size) {
+      if (filter.variants && filter.variants.$elemMatch) {
+        filter.variants.$elemMatch.size = size;
+      } else {
+        filter.variants = { $elemMatch: { size } };
+      }
+    }
+
+    console.log('[AI Products] Query filter:', JSON.stringify(filter, null, 2));
 
     const products = await Product.find(filter)
       .limit(Number(limit))

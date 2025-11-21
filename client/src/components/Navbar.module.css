@@ -244,96 +244,155 @@
   border: 2px solid #fff;
 }
 
+/* ==== NÚT TRONG CART REMINDER ==== */
+.cartNoticeActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.cartNoticeBtn {
+  flex: 1;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px; /* giống nút XEM GIỎ HÀNG */
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease, transform 0.1s ease;
+}
+
+.cartNoticeBtn:active {
+  transform: translateY(0.5px) scale(0.99);
+}
+
+/* Primary: giống nút đen của layout */
+.cartNoticePrimary {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.25);
+}
+.cartNoticePrimary:hover {
+  background: #000000;
+}
+
+/* Secondary: giống nút viền xám, nền trắng */
+.cartNoticeSecondary {
+  background: #ffffff;
+  color: #111827;
+  border-color: #e5e7eb;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+}
+.cartNoticeSecondary:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* Mobile: xếp nút theo cột cho dễ bấm */
+@media (max-width: 480px) {
+  .cartNoticeActions {
+    flex-direction: column;
+  }
+}
+
 /* ====== CART REMINDER STYLE – giống popup thêm vào giỏ ====== */
 .cartNotice {
   position: absolute;
-  top: calc(100% + 14px);
-  right: 0;
+  top: calc(100% + 18px); /* tăng khoảng cách để thoáng hơn */
+  right: -6px; /* dịch nhẹ sang phải để cân icon */
 
-  background: #ffffff;
-  color: #111827;
+  background: var(--notice-bg, #ffffff);
+  color: var(--notice-color, #111827);
 
-  /* VIỀN NỔI RÕ HƠN */
-  border: 1.5px solid #d1d5db; /* đậm hơn 1px → 1.5px */
+  border: 1.5px solid var(--notice-border, #d1d5db);
 
-  padding: 16px 18px;
-  min-width: 260px;
-  border-radius: 12px;
+  padding: 18px 20px;
+  min-width: 280px;
+  border-radius: 14px;
 
-  /* SHADOW MẠNH HƠN GIỐNG POPUP */
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12), /* bóng dưới mạnh hơn */ 0 0 0 3px rgba(0, 0, 0, 0.03); /* viền khung sáng nhẹ để nổi bật */
+  box-shadow: var(
+    --notice-shadow,
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    0 0 0 2px rgba(255, 255, 255, 0.03)
+  );
 
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  font-size: 14px;
+  gap: 16px;
+  font-size: 15px;
   font-weight: 600;
   z-index: 1002;
+  animation: fadeInCart 0.25s ease-out;
 }
 
-/* Mũi tên */
+/* hiệu ứng hiện */
+@keyframes fadeInCart {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .cartNotice::before {
   content: '';
   position: absolute;
-  top: -10px;
-  right: 20px;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-bottom: 10px solid #e5e7eb;
+  top: -12px;
+  right: 24px;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 12px solid var(--notice-border, #d1d5db);
 }
 
 .cartNotice::after {
   content: '';
   position: absolute;
-  top: -8px;
-  right: 20px;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 8px solid #ffffff;
+  top: -10px;
+  right: 24px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--notice-bg, #ffffff);
 }
 
-/* Actions */
-.cartNoticeActions {
-  display: flex;
-  gap: 10px;
-}
-
-.cartNoticeBtn {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: 0.2s;
-}
-
-/* Primary giống popup (nút đen trắng) */
-.cartNoticePrimary {
-  background: #111827;
-  color: #ffffff;
-  border: 1px solid #111827;
-}
-.cartNoticePrimary:hover {
-  background: #1f2937;
-}
-
-/* Secondary giống nút "XEM GIỎ HÀNG" của popup */
-.cartNoticeSecondary {
-  background: #ffffff;
-  color: #111827;
-  border: 1px solid #d1d5db;
-}
-.cartNoticeSecondary:hover {
-  background: #f3f4f6;
-}
-
-/* Không dùng màu đỏ / vàng nữa – để đồng bộ với popup */
-.cartNoticeSoft,
-.cartNoticeHard {
-  --notice-bg: #ffffff;
+/* Nhắc nhẹ – soft (warn) */
+.cartNoticeSoft {
+  --notice-bg: #f9fafb; /* nền xám rất nhẹ */
   --notice-color: #111827;
-  --notice-border: #e5e7eb;
+  --notice-border: #bfdbfe; /* viền xanh nhạt */
+  --notice-shadow: 0 8px 22px rgba(37, 99, 235, 0.12);
+}
+
+.cartNoticeHard {
+  --notice-bg: #0f172a; /* xanh đen sang */
+  --notice-color: #f8fafc;
+  --notice-border: #0f172a;
+  --notice-shadow: 0 10px 28px rgba(15, 23, 42, 0.35);
+}
+
+/* Nút trong trạng thái hard: invert lại để nổi bật */
+.cartNoticeHard .cartNoticePrimary {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #ffffff;
+}
+.cartNoticeHard .cartNoticePrimary:hover {
+  background: #e2e8f0;
+}
+
+.cartNoticeHard .cartNoticeSecondary {
+  background: transparent;
+  color: #f1f5f9;
+  border: 1px solid #475569;
+}
+.cartNoticeHard .cartNoticeSecondary:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Responsive - Tablet */

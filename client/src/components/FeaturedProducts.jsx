@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { productsApi } from '@/api/products-api';
 import ProductCard from './ProductCard';
+import styles from './FeaturedProducts.module.css';
 
 export default function FeaturedProducts({
   title = 'Sản phẩm nổi bật',
@@ -32,34 +33,28 @@ export default function FeaturedProducts({
   }, [JSON.stringify(query), limit]);
 
   return (
-    <section style={{ display: 'grid', gap: 12, marginTop: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 22 }}>{title}</h2>
+    <section className={styles.section}>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.title}>{title}</h2>
         {moreLink && (
-          <Link
-            to={moreLink}
-            style={{ marginLeft: 'auto', color: '#6b7280', textDecoration: 'none' }}
-          >
-            Xem tất cả →
+          <Link to={moreLink} className={styles.linkMore}>
+            Khám phá
           </Link>
         )}
       </div>
       {loading ? (
-        <div style={{ color: '#6b7280' }}>Đang tải…</div>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <span>Đang tải sản phẩm...</span>
+        </div>
       ) : items.length ? (
-        <div
-          style={{
-            display: 'grid',
-            gap: 12,
-            gridTemplateColumns: 'repeat(4, 1fr)',
-          }}
-        >
+        <div className={styles.grid}>
           {items.map((p) => (
             <ProductCard product={p} key={p._id || p.slug} />
           ))}
         </div>
       ) : (
-        <div style={{ color: '#6b7280' }}>Chưa có sản phẩm.</div>
+        <div className={styles.empty}>Chưa có sản phẩm.</div>
       )}
     </section>
   );

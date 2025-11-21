@@ -22,6 +22,12 @@ export default function CartPage() {
   const nav = useNavigate();
   const [busyId, setBusyId] = useState(null);
   const items = Array.isArray(cart?.items) ? cart.items : [];
+
+  const selectableIds = useMemo(
+    () => items.filter((x) => !x.isOutOfStock && !x.isInsufficientStock).map((x) => x._id),
+    [items],
+  );
+
   const staleInfo = cart?.staleInfo || { hasStale: false, items: [] };
   const staleItems = Array.isArray(staleInfo.items) ? staleInfo.items : [];
   const hasUrgentStale = staleItems.some((it) => it.level === 'urgent');
@@ -29,9 +35,10 @@ export default function CartPage() {
 
   const [selected, setSelected] = useState(() => new Set());
   useEffect(() => {
-    const valid = new Set(items.map((x) => x._id));
+    // Chỉ giữ lại những id còn hàng
+    const valid = new Set(selectableIds);
     setSelected((prev) => new Set([...prev].filter((id) => valid.has(id))));
-  }, [items]);
+  }, [selectableIds]);
 
   const cartTotal = useMemo(
     () =>
@@ -175,18 +182,29 @@ export default function CartPage() {
     }
   };
 
-  const toggleItem = (id) => {
+  const toggleItem = (id, stockIssue) => {
     setSelected((prev) => {
       const next = new Set(prev);
+
+      // Item hết hàng → không cho vào selected
+      if (stockIssue) {
+        next.delete(id);
+        return next;
+      }
+
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
 
-  const allSelected = selected.size > 0 && selected.size === items.length;
+  const allSelected = selected.size > 0 && selected.size === selectableIds.length;
+
   const toggleAll = () => {
-    if (allSelected) setSelected(new Set());
-    else setSelected(new Set(items.map((x) => x._id)));
+    if (allSelected) {
+      setSelected(new Set()); // bỏ hết
+    } else {
+      setSelected(new Set(selectableIds)); // chỉ chọn item còn hàng
+    }
   };
 
   const deleteSelected = async () => {
@@ -247,10 +265,24 @@ export default function CartPage() {
               price: Number(raw.price ?? raw.priceSnapshot) || 0,
               quantity: Number(raw.quantity ?? raw.qty) || 1,
               variantOptions: raw.variantOptions || [],
+
+              // 👉 lấy từ backend về
+              currentStock: raw.currentStock,
+              isOutOfStock: raw.isOutOfStock,
+              isInsufficientStock: raw.isInsufficientStock,
             };
 
             const disabled = busyId === it._id;
             const checked = selected.has(it._id);
+
+            // Kiểm tra hết hàng
+            const isOutOfStock = raw.isOutOfStock === true;
+            const isInsufficientStock = raw.isInsufficientStock === true;
+            const stockIssue = isOutOfStock || isInsufficientStock;
+
+            // Debug log
+            if (isOutOfStock || isInsufficientStock) {
+            }
 
             // Build color/size lists from variant options
             const colors = Array.from(
@@ -327,9 +359,13 @@ export default function CartPage() {
             };
 
             return (
-              <div key={key} className={styles.row}>
+              <div key={key} className={`${styles.row} ${stockIssue ? styles.outOfStock : ''}`}>
                 <div className={styles.cellSelect}>
-                  <input type="checkbox" checked={checked} onChange={() => toggleItem(it._id)} />
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleItem(it._id, stockIssue)}
+                  />
                 </div>
 
                 <div className={styles.prod}>
@@ -348,6 +384,13 @@ export default function CartPage() {
                       </Link>
                     ) : (
                       <div className={styles.name}>{it.name}</div>
+                    )}
+
+                    {isOutOfStock && <div className={styles.stockWarning}>❌ Hết hàng</div>}
+                    {isInsufficientStock && (
+                      <div className={styles.stockWarning}>
+                        ⚠️ Chỉ còn {it.currentStock} sản phẩm
+                      </div>
                     )}
 
                     {(colors.length > 1 || sizes.length > 1) && (
@@ -398,11 +441,11 @@ export default function CartPage() {
                 <div className={styles.price}>{fmtVND(it.price)} VND</div>
 
                 <div className={styles.qty}>
-                  <button disabled={disabled} onClick={() => dec(it)}>
+                  <button disabled={disabled || stockIssue} onClick={() => dec(it)}>
                     −
                   </button>
                   <span>{it.quantity}</span>
-                  <button disabled={disabled} onClick={() => inc(it)}>
+                  <button disabled={disabled || stockIssue} onClick={() => inc(it)}>
                     +
                   </button>
                 </div>
