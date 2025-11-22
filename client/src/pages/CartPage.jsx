@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartProvider';
+import { useAuth } from '@/auth/AuthProvider';
 import styles from './CartPage.module.css';
 import { toast } from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -19,6 +20,7 @@ const buildImageUrl = (snap, w = 160) => {
 
 export default function CartPage() {
   const { cart, add, updateQty, updateVariant, remove, removeMany } = useCart();
+  const { user } = useAuth();
   const nav = useNavigate();
   const [busyId, setBusyId] = useState(null);
   const items = Array.isArray(cart?.items) ? cart.items : [];
@@ -496,7 +498,16 @@ export default function CartPage() {
           <button
             className={styles.checkout}
             disabled={selected.size === 0}
-            onClick={() => nav('/checkout', { state: { selectedIds: [...selected] } })}
+            onClick={() => {
+              if (!user) {
+                toast.error('Vui lòng đăng nhập để tiếp tục thanh toán');
+                nav('/login', {
+                  state: { from: { pathname: '/checkout' }, selectedIds: [...selected] },
+                });
+                return;
+              }
+              nav('/checkout', { state: { selectedIds: [...selected] } });
+            }}
           >
             Thanh toán
           </button>

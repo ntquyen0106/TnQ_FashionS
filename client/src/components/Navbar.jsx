@@ -231,8 +231,9 @@ export default function Navbar({
 
   // Initialize showReminder based on localStorage
   const [showReminder, setShowReminder] = useState(() => {
-    // Check if we're on cart page
-    if (window.location.pathname === '/cart') return false;
+    // Check if we're on cart or checkout page
+    const currentPath = window.location.pathname;
+    if (currentPath === '/cart' || currentPath === '/checkout') return false;
 
     // Check if there's a valid dismissal timestamp
     try {
@@ -261,8 +262,8 @@ export default function Navbar({
       dismissTimerRef.current = null;
     }
 
-    // Nếu đang ở trang giỏ hàng thì luôn ẩn
-    if (location.pathname === '/cart') {
+    // Nếu đang ở trang giỏ hàng hoặc checkout thì luôn ẩn
+    if (location.pathname === '/cart' || location.pathname === '/checkout') {
       setShowReminder(false);
       return;
     }
@@ -289,7 +290,8 @@ export default function Navbar({
       setShowReminder(false);
       const remaining = DISMISS_DURATION_MS - elapsed;
       dismissTimerRef.current = setTimeout(() => {
-        if (hasStale && window.location.pathname !== '/cart') {
+        const currentPath = window.location.pathname;
+        if (hasStale && currentPath !== '/cart' && currentPath !== '/checkout') {
           setShowReminder(true);
           try {
             localStorage.removeItem(DISMISS_KEY);
@@ -336,7 +338,8 @@ export default function Navbar({
 
     // Set timer to re-show after 30 seconds
     dismissTimerRef.current = setTimeout(() => {
-      if (hasStale && window.location.pathname !== '/cart') {
+      const currentPath = window.location.pathname;
+      if (hasStale && currentPath !== '/cart' && currentPath !== '/checkout') {
         setShowReminder(true);
         try {
           localStorage.removeItem(DISMISS_KEY);

@@ -44,7 +44,14 @@ export default function Login() {
         // Điều hướng theo role (nếu me chưa về kịp thì coi như user thường)
         if (me?.role === 'admin') nav('/dashboard/admin', { replace: true });
         else if (me?.role === 'staff') nav('/dashboard', { replace: true });
-        else nav('/', { replace: true });
+        else {
+          // Nếu đến từ cart với selectedIds, giữ nguyên state khi quay về checkout
+          if (fromPath === '/checkout' && location.state?.selectedIds) {
+            nav('/checkout', { replace: true, state: { selectedIds: location.state.selectedIds } });
+          } else {
+            nav(fromPath, { replace: true });
+          }
+        }
       }
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đăng nhập thất bại');
@@ -69,7 +76,12 @@ export default function Login() {
         // Chuyển đến luồng thêm SĐT sau khi login bằng Google
         nav('/add-phone', { replace: true });
       } else {
-        nav('/', { replace: true });
+        // Kiểm tra xem có cần quay về checkout với selectedIds không
+        if (fromPath === '/checkout' && location.state?.selectedIds) {
+          nav('/checkout', { replace: true, state: { selectedIds: location.state.selectedIds } });
+        } else {
+          nav(fromPath, { replace: true });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -88,7 +100,12 @@ export default function Login() {
       const idToken = await result.user.getIdToken(); // nếu provider không có idToken, hãy ẩn nút FB
       const { data } = await authApi.firebaseLogin(idToken);
       setUser(data.user);
-      nav('/', { replace: true });
+      // Kiểm tra xem có cần quay về checkout với selectedIds không
+      if (fromPath === '/checkout' && location.state?.selectedIds) {
+        nav('/checkout', { replace: true, state: { selectedIds: location.state.selectedIds } });
+      } else {
+        nav(fromPath, { replace: true });
+      }
     } catch (err) {
       console.error(err);
       setMsg('Đăng nhập Facebook thất bại');
