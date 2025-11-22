@@ -61,6 +61,10 @@ export const login = async ({ identifier, password }) => {
     throw err;
   }
 
+  // Cập nhật lastLoginAt
+  user.lastLoginAt = new Date();
+  await user.save();
+
   const token = jwt.sign({ sub: user._id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: TOKEN_AGE,
   });
@@ -111,6 +115,7 @@ export const firebaseSocialLogin = async ({ idToken }) => {
       provider: firebase?.sign_in_provider || 'google.com',
       firebaseUid: uid,
       phoneVerified: false,
+      lastLoginAt: new Date(),
     });
 
     console.log('   ✅ User mới được tạo (chưa có SĐT)');
@@ -127,6 +132,11 @@ export const firebaseSocialLogin = async ({ idToken }) => {
       user.firebaseUid = uid;
       updated = true;
     }
+    
+    // Cập nhật lastLoginAt
+    user.lastLoginAt = new Date();
+    updated = true;
+    
     if (updated) {
       await user.save();
       console.log('   ✅ Đã cập nhật thông tin user');

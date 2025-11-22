@@ -1,4 +1,5 @@
 import * as adminUserService from '../services/admin-user.service.js';
+import { getOnlineStats } from '../config/socket.js';
 import Otp from '../models/Otp.js';
 import { randomBytes } from 'crypto';
 import { sendMail } from '../services/mail.service.js';
@@ -120,6 +121,92 @@ export const postSendSetPassword = async (req, res) => {
     await sendMail(user.email, subject, `Link đặt lại mật khẩu: ${link}`, html);
 
     return res.status(200).json({ message: 'Đã gửi link đặt lại mật khẩu tới email người dùng.' });
+  } catch (err) {
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
+  }
+};
+
+/* -------------------- USER ANALYTICS -------------------- */
+
+/* ==================== USER ANALYTICS CONTROLLERS ==================== */
+
+/**
+ * 1. Thống kê user mới theo thời gian (today, 7days, thisMonth, custom)
+ * GET /api/admin/users/analytics/new-users?period=today|7days|thisMonth|custom&from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+export const getNewUsersByTime = async (req, res) => {
+  try {
+    const { period, from, to } = req.query;
+    const data = await adminUserService.getNewUsersByTime({ period, from, to });
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
+  }
+};
+
+/**
+ * 2. Tổng quan hệ thống user (totalUsers, phoneVerifiedUsers, phoneUnverifiedUsers)
+ * GET /api/admin/users/analytics/overview
+ */
+export const getUsersOverview = async (req, res) => {
+  try {
+    const data = await adminUserService.getUsersOverview();
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
+  }
+};
+
+/**
+ * 2.5. Top khách hàng mua nhiều nhất
+ * GET /api/admin/users/analytics/top-customers?limit=10&from=YYYY-MM-DD&to=YYYY-MM-DD&sortBy=revenue|orders|avgOrder
+ */
+export const getTopCustomers = async (req, res) => {
+  try {
+    const { limit, from, to, sortBy } = req.query;
+    const data = await adminUserService.getTopCustomers({ limit, from, to, sortBy });
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
+  }
+};
+
+/**
+ * 3. Heatmap thời gian hoạt động (Login Activity Heatmap)
+ * GET /api/admin/users/analytics/login-heatmap?from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+export const getLoginHeatmap = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const data = await adminUserService.getLoginHeatmap({ from, to });
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
+  }
+};
+
+/**
+ * 4. Thống kê địa lý (user thường ở đâu khi đặt hàng)
+ * GET /api/admin/users/analytics/geography?from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+export const getUsersByGeography = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const data = await adminUserService.getUsersByGeography({ from, to });
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
+  }
+};
+
+/**
+ * 5. Real-time online users (Socket.IO)
+ * GET /api/admin/users/analytics/online
+ */
+export const getOnlineUsers = async (req, res) => {
+  try {
+    const data = getOnlineStats();
+    return res.status(200).json(data);
   } catch (err) {
     return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
   }

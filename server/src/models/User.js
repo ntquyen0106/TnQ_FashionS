@@ -65,6 +65,11 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Trạng thái xác thực SĐT
     },
+    lastLoginAt: {
+      type: Date,
+      default: null, // Thời điểm login gần nhất (để phân tích heatmap)
+      index: true,
+    },
     firebaseUid: {
       type: String,
       sparse: true, // UID từ Firebase Authentication

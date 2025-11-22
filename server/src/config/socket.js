@@ -4,6 +4,12 @@ import { authenticateSocket } from '../middlewares/socket-auth.middleware.js';
 // Global IO instance
 let io = null;
 
+// Online users tracking: Map<userId, { socketId, connectedAt, lastActivity }>
+const onlineUsers = new Map();
+
+// Active sessions tracking: Map<socketId, { userId, userName, role, connectedAt, lastActivity }>
+const activeSessions = new Map();
+
 /**
  * Get the Socket.IO instance
  * @returns {Server} Socket.IO instance
@@ -34,7 +40,31 @@ export const setupSocketIO = (httpServer, clientURL) => {
 
   // Socket connection handling
   io.on('connection', (socket) => {
-    console.log(`[Socket] ${socket.user?.name || 'Guest'} kết nối (${socket.id})`);
+    const userId = socket.user?._id?.toString();
+    const userName = socket.user?.name || 'Guest';
+    const userRole = socket.user?.role || 'guest';
+
+    console.log(`[Socket] ${userName} kết nối (${socket.id})`);
+
+    // Track online user
+    if (userId) {
+      onlineUsers.set(userId, {
+        socketId: socket.id,
+        connectedAt: new Date(),
+        lastActivity: new Date(),
+      });
+
+      activeSessions.set(socket.id, {
+        userId,
+        userName,
+        role: userRole,
+        connectedAt: new Date(),
+        lastActivity: new Date(),
+      });
+
+      // Broadcast updated online stats to admins
+      broadcastOnlineStats(io);
+    }
 
     // Staff auto-join staff room to receive new chat requests
     if (socket.user?.role === 'staff' || socket.user?.role === 'admin') {
@@ -78,6 +108,20 @@ export const setupSocketIO = (httpServer, clientURL) => {
       });
     });
 
+    // User activity tracking (update lastActivity)
+    socket.on('activity', () => {
+      const session = activeSessions.get(socket.id);
+      if (session) {
+        session.lastActivity = new Date();
+      }
+      if (userId) {
+        const userOnline = onlineUsers.get(userId);
+        if (userOnline) {
+          userOnline.lastActivity = new Date();
+        }
+      }
+    });
+
     // Handle staff request from customer
     socket.on('request_staff', (data) => {
       console.log(`[Socket] Customer requesting staff for session: ${data.sessionId}`);
@@ -93,8 +137,33 @@ export const setupSocketIO = (httpServer, clientURL) => {
 
     socket.on('disconnect', () => {
       console.log(`[Socket] ${socket.user?.name || 'Guest'} ngắt kết nối`);
+
+      // Remove from tracking
+      if (userId) {
+        onlineUsers.delete(userId);
+      }
+      activeSessions.delete(socket.id);
+
+      // Broadcast updated stats
+      broadcastOnlineStats(io);
     });
   });
+
+  // Cleanup stale sessions every 5 minutes
+  setInterval(() => {
+    const now = Date.now();
+    const staleThreshold = 10 * 60 * 1000; // 10 minutes
+
+    activeSessions.forEach((session, socketId) => {
+      if (now - session.lastActivity.getTime() > staleThreshold) {
+        console.log(`🧹 [Socket] Cleaning stale session: ${session.userName}`);
+        onlineUsers.delete(session.userId);
+        activeSessions.delete(socketId);
+      }
+    });
+
+    broadcastOnlineStats(io);
+  }, 5 * 60 * 1000);
 
   return io;
 };
@@ -108,4 +177,46 @@ export const attachSocketIO = (io) => {
     req.io = io;
     next();
   };
+};
+
+/**
+ * Broadcast online statistics to admin clients
+ */
+const broadcastOnlineStats = (io) => {
+  const stats = getOnlineStats();
+  io.to('staff-room').emit('online-stats', stats);
+};
+
+/**
+ * Get current online statistics
+ */
+export const getOnlineStats = () => {
+  const sessions = Array.from(activeSessions.values());
+
+  // Group by role
+  const byRole = sessions.reduce((acc, s) => {
+    acc[s.role] = (acc[s.role] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    onlineUsers: onlineUsers.size,
+    activeSessions: activeSessions.size,
+    byRole: Object.entries(byRole).map(([role, count]) => ({ role, count })),
+    timestamp: new Date(),
+  };
+};
+
+/**
+ * Check if user is online
+ */
+export const isUserOnline = (userId) => {
+  return onlineUsers.has(userId);
+};
+
+/**
+ * Get online user IDs
+ */
+export const getOnlineUserIds = () => {
+  return Array.from(onlineUsers.keys());
 };

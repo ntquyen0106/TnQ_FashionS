@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import User from '../models/User.js';
+import Order from '../models/Order.js';
 import mongoose from 'mongoose';
 import validator from 'validator';
 import { sendWelcomeEmail } from './mail.service.js';
@@ -526,3 +527,409 @@ export const sanitize = (u) => ({
   createdAt: u.createdAt,
   updatedAt: u.updatedAt,
 });
+
+/* ==================== USER ANALYTICS FUNCTIONS ==================== */
+
+/**
+ * 1. Thống kê user mới theo thời gian
+ * Hỗ trợ: today, 7days, thisMonth, custom (from-to)
+ * GET /api/admin/users/analytics/new-users?period=today|7days|thisMonth|custom&from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+export const getNewUsersByTime = async ({ period = '7days', from, to } = {}) => {
+  const now = new Date();
+  let fromDate, toDate;
+
+  // Xác định khoảng thời gian
+  switch (period) {
+    case 'today':
+      fromDate = new Date(now.setHours(0, 0, 0, 0));
+      toDate = new Date(now.setHours(23, 59, 59, 999));
+      break;
+    case '7days':
+      toDate = new Date(now.setHours(23, 59, 59, 999));
+      fromDate = new Date(toDate.getTime() - 6 * 24 * 60 * 60 * 1000);
+      fromDate.setHours(0, 0, 0, 0);
+      break;
+    case 'thisMonth':
+      fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      break;
+    case 'custom':
+      if (!from || !to) {
+        throw new Error('Custom period requires from and to dates');
+      }
+      fromDate = new Date(from);
+      toDate = new Date(to);
+      fromDate.setHours(0, 0, 0, 0);
+      toDate.setHours(23, 59, 59, 999);
+      break;
+    default:
+      throw new Error('Invalid period. Use: today, 7days, thisMonth, or custom');
+  }
+
+  const pipeline = [
+    {
+      $match: {
+        createdAt: { $gte: fromDate, $lte: toDate },
+        role: 'user', // Chỉ đếm user thường, không đếm admin/staff
+      },
+    },
+    {
+      $facet: {
+        // Tổng số user mới
+        summary: [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+            },
+          },
+        ],
+        // Phân tích theo ngày
+        byDay: [
+          {
+            $group: {
+              _id: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: '$createdAt',
+                  timezone: 'Asia/Ho_Chi_Minh',
+                },
+              },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ],
+      },
+    },
+  ];
+
+  const [result] = await User.aggregate(pipeline);
+
+  return {
+    period: period,
+    dateRange: {
+      from: fromDate,
+      to: toDate,
+    },
+    totalNewUsers: result.summary[0]?.total || 0,
+    dailyBreakdown: result.byDay.map((d) => ({
+      date: d._id,
+      count: d.count,
+    })),
+  };
+};
+
+/**
+ * 2. Tổng quan hệ thống user
+ * GET /api/admin/users/analytics/overview
+ */
+export const getUsersOverview = async () => {
+  const [summary] = await User.aggregate([
+    {
+      $facet: {
+        total: [{ $count: 'count' }],
+        // Phân loại phone verified (vì user đăng ký bắt buộc bằng SĐT)
+        phoneVerified: [{ $match: { phoneVerified: true } }, { $count: 'count' }],
+        phoneUnverified: [
+          { $match: { $or: [{ phoneVerified: false }, { phoneVerified: { $exists: false } }] } },
+          { $count: 'count' },
+        ],
+        // Phân loại theo role
+        byRole: [
+          {
+            $group: {
+              _id: '$role',
+              count: { $sum: 1 },
+            },
+          },
+        ],
+        // Phân loại theo status
+        byStatus: [
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return {
+    totalUsers: summary.total[0]?.count || 0,
+    phoneVerifiedUsers: summary.phoneVerified[0]?.count || 0,
+    phoneUnverifiedUsers: summary.phoneUnverified[0]?.count || 0,
+    byRole: summary.byRole.map((r) => ({
+      role: r._id,
+      count: r.count,
+    })),
+    byStatus: summary.byStatus.map((s) => ({
+      status: s._id,
+      count: s.count,
+    })),
+  };
+};
+
+/**
+ * 3. Heatmap thời gian hoạt động (Login Activity Heatmap)
+ * GET /api/admin/users/analytics/login-heatmap?from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+export const getLoginHeatmap = async ({ from, to } = {}) => {
+  const now = new Date();
+  const toDate = to ? new Date(to) : now;
+  const fromDate = from ? new Date(from) : new Date(toDate.getTime() - 29 * 24 * 60 * 60 * 1000);
+  fromDate.setHours(0, 0, 0, 0);
+  toDate.setHours(23, 59, 59, 999);
+
+  const pipeline = [
+    {
+      $match: {
+        lastLoginAt: { $gte: fromDate, $lte: toDate, $ne: null },
+      },
+    },
+    {
+      $project: {
+        dayOfWeek: { $dayOfWeek: '$lastLoginAt' }, // 1=Sunday, 7=Saturday
+        hour: { $hour: { date: '$lastLoginAt', timezone: 'Asia/Ho_Chi_Minh' } },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          dayOfWeek: '$dayOfWeek',
+          hour: '$hour',
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { '_id.dayOfWeek': 1, '_id.hour': 1 },
+    },
+  ];
+
+  const heatmapData = await User.aggregate(pipeline);
+
+  // Chuyển đổi sang format dễ dùng cho FE
+  const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const heatmapMatrix = [];
+
+  // Group by hour
+  const byHour = {};
+  heatmapData.forEach((item) => {
+    const hour = item._id.hour;
+    const day = item._id.dayOfWeek;
+    if (!byHour[hour]) byHour[hour] = {};
+    byHour[hour][day] = item.count;
+  });
+
+  // Tạo matrix 24 giờ x 7 ngày
+  for (let hour = 0; hour < 24; hour++) {
+    const hourData = { hour, days: [] };
+    for (let day = 1; day <= 7; day++) {
+      hourData.days.push({
+        day: dayNames[day - 1],
+        dayIndex: day,
+        count: byHour[hour]?.[day] || 0,
+      });
+    }
+    heatmapMatrix.push(hourData);
+  }
+
+  // Tìm giờ và ngày login nhiều nhất
+  const hourlyTotal = {};
+  const dailyTotal = {};
+  heatmapData.forEach((item) => {
+    const hour = item._id.hour;
+    const day = item._id.dayOfWeek;
+    hourlyTotal[hour] = (hourlyTotal[hour] || 0) + item.count;
+    dailyTotal[day] = (dailyTotal[day] || 0) + item.count;
+  });
+
+  const peakHour = Object.entries(hourlyTotal).sort((a, b) => b[1] - a[1])[0];
+  const peakDay = Object.entries(dailyTotal).sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    period: {
+      from: fromDate,
+      to: toDate,
+    },
+    heatmapMatrix, // 24 hours x 7 days
+    peakHour: peakHour ? { hour: parseInt(peakHour[0]), count: peakHour[1] } : null,
+    peakDay: peakDay ? { day: dayNames[parseInt(peakDay[0]) - 1], dayIndex: parseInt(peakDay[0]), count: peakDay[1] } : null,
+    totalLogins: heatmapData.reduce((sum, item) => sum + item.count, 0),
+  };
+};
+
+/**
+ * 4. Thống kê địa lý (user thường ở đâu khi đặt hàng)
+ * Phân tích dựa trên shippingAddress từ Order
+ * GET /api/admin/users/analytics/geography?from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+export const getUsersByGeography = async ({ from, to } = {}) => {
+  const Order = mongoose.model('Order');
+
+  const matchStage = { status: { $in: ['DONE', 'SHIPPING', 'DELIVERING'] } };
+
+  // Thêm filter theo thời gian nếu có
+  if (from || to) {
+    const fromDate = from ? new Date(from) : new Date('2020-01-01');
+    const toDate = to ? new Date(to) : new Date();
+    fromDate.setHours(0, 0, 0, 0);
+    toDate.setHours(23, 59, 59, 999);
+    matchStage.createdAt = { $gte: fromDate, $lte: toDate };
+  }
+
+  const pipeline = [
+    { $match: matchStage },
+    {
+      $group: {
+        _id: {
+          city: '$shippingAddress.city',
+          district: '$shippingAddress.district',
+        },
+        orderCount: { $sum: 1 },
+        uniqueUsers: { $addToSet: '$userId' },
+      },
+    },
+    {
+      $addFields: {
+        userCount: { $size: '$uniqueUsers' },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        city: '$_id.city',
+        district: '$_id.district',
+        orderCount: 1,
+        userCount: 1,
+      },
+    },
+    { $sort: { orderCount: -1 } },
+  ];
+
+  const geoData = await Order.aggregate(pipeline);
+
+  // Tổng hợp theo city
+  const byCity = geoData.reduce((acc, item) => {
+    const city = item.city || 'Unknown';
+    if (!acc[city]) {
+      acc[city] = { city, orderCount: 0, userCount: 0, districts: [] };
+    }
+    acc[city].orderCount += item.orderCount;
+    acc[city].userCount += item.userCount;
+    if (item.district) {
+      acc[city].districts.push({
+        district: item.district,
+        orderCount: item.orderCount,
+        userCount: item.userCount,
+      });
+    }
+    return acc;
+  }, {});
+
+  // Chuyển object thành array và sort
+  const citiesSorted = Object.values(byCity).sort((a, b) => b.orderCount - a.orderCount);
+
+  return {
+    topCities: citiesSorted.slice(0, 10).map((c) => ({
+      city: c.city,
+      orderCount: c.orderCount,
+      userCount: c.userCount,
+    })),
+    detailedByCity: citiesSorted.map((c) => ({
+      city: c.city,
+      orderCount: c.orderCount,
+      userCount: c.userCount,
+      topDistricts: c.districts.sort((a, b) => b.orderCount - a.orderCount).slice(0, 5),
+    })),
+  };
+};
+
+/**
+ * 2.5. Top khách hàng mua nhiều nhất
+ * GET /api/admin/users/analytics/top-customers?limit=10&from=YYYY-MM-DD&to=YYYY-MM-DD&sortBy=revenue|orders|avgOrder
+ */
+export const getTopCustomers = async ({ limit = 10, from, to, sortBy = 'revenue' } = {}) => {
+  const lim = Math.max(1, Math.min(100, Number(limit) || 10));
+
+  const matchCondition = {
+    status: 'DONE',
+  };
+
+  // Thêm filter theo thời gian nếu có
+  if (from || to) {
+    matchCondition.createdAt = {};
+    if (from) {
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      matchCondition.createdAt.$gte = fromDate;
+    }
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      matchCondition.createdAt.$lte = toDate;
+    }
+  }
+
+  // Aggregate để tính toán
+  const topCustomers = await Order.aggregate([
+    { $match: matchCondition },
+    {
+      $group: {
+        _id: '$userId',
+        totalOrders: { $sum: 1 },
+        totalRevenue: { $sum: '$amounts.subtotal' }, // Doanh thu từ khách (chưa VAT)
+        totalDiscount: { $sum: '$amounts.discount' },
+        totalShipping: { $sum: '$amounts.shippingFee' },
+        avgOrderValue: { $avg: '$amounts.subtotal' },
+        lastOrderDate: { $max: '$createdAt' },
+      },
+    },
+    {
+      $sort:
+        sortBy === 'orders'
+          ? { totalOrders: -1 }
+          : sortBy === 'avgOrder'
+            ? { avgOrderValue: -1 }
+            : { totalRevenue: -1 }, // Default: sort by revenue
+    },
+    { $limit: lim },
+    {
+      $lookup: {
+        from: 'users',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'userInfo',
+      },
+    },
+    { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        userId: '$_id',
+        name: '$userInfo.name',
+        email: '$userInfo.email',
+        phone: '$userInfo.phoneNumber',
+        totalOrders: 1,
+        totalRevenue: 1,
+        totalDiscount: 1,
+        totalShipping: 1,
+        avgOrderValue: { $round: ['$avgOrderValue', 0] },
+        lastOrderDate: 1,
+        registeredDate: '$userInfo.createdAt',
+      },
+    },
+  ]);
+
+  return {
+    sortBy,
+    limit: lim,
+    total: topCustomers.length,
+    customers: topCustomers,
+  };
+};
+
+

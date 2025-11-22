@@ -1,12 +1,13 @@
 import { Router } from "express";
 import * as userController from "../controllers/user.controller.js";
 import { requireAuth } from "../middlewares/requireAuth.js";
+import { trackLastLogin } from "../middlewares/trackLastLogin.js";
 
 const router = Router();
 
 /* -------------------- USER PROFILE & SETTINGS ROUTES -------------------- */
 // All routes require authentication
-router.use(requireAuth);
+router.use(requireAuth, trackLastLogin);
 
 // Profile Management
 router.get("/profile", userController.getProfile);                    // Get my profile  

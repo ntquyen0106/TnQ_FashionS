@@ -15,14 +15,15 @@ import {
   getCartRecommendations,
 } from '../controllers/cart.controller.js';
 import { optionalAuth, requireAuth } from '../middlewares/requireAuth.js';
+import { trackLastLogin } from '../middlewares/trackLastLogin.js';
 
 const router = Router();
 
-router.get('/', optionalAuth, getCart);
-router.post('/add', optionalAuth, postAddToCart);
-router.get('/total', optionalAuth, getCartTotal);
-router.post('/apply-promo', optionalAuth, postApplyPromotion);
-router.post('/merge-guest', requireAuth, postMergeGuestCart);
+router.get('/', optionalAuth, trackLastLogin, getCart);
+router.post('/add', optionalAuth, trackLastLogin, postAddToCart);
+router.get('/total', optionalAuth, trackLastLogin, getCartTotal);
+router.post('/apply-promo', optionalAuth, trackLastLogin, postApplyPromotion);
+router.post('/merge-guest', requireAuth, trackLastLogin, postMergeGuestCart);
 router.post('/clear-promo', optionalAuth, postClearPromotion);
 router.get('/recommendations', optionalAuth, getCartRecommendations);
 
