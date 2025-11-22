@@ -501,7 +501,9 @@ export default function CartPage() {
             onClick={() => {
               if (!user) {
                 toast.error('Vui lòng đăng nhập để tiếp tục thanh toán');
-                nav('/login', { state: { from: { pathname: '/checkout' }, selectedIds: [...selected] } });
+                nav('/login', {
+                  state: { from: { pathname: '/checkout' }, selectedIds: [...selected] },
+                });
                 return;
               }
               nav('/checkout', { state: { selectedIds: [...selected] } });
