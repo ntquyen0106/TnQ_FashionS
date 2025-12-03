@@ -13,15 +13,15 @@ import AdminProductNew from '@/pages/dashboard/admin/AdminProductNew';
 import AdminProductEdit from '@/pages/dashboard/admin/AdminProductEdit';
 
 const LINKS = [
-  { to: '/dashboard/admin/orders', label: 'Đơn hàng' },
-  { to: '/dashboard/admin/products', label: 'Sản phẩm' },
-  { to: '/dashboard/admin/inventory', label: 'Kho' },
-  { to: '/dashboard/admin/categories', label: 'Danh mục' },
-  { to: '/dashboard/admin/promotions', label: 'Quản lý khuyến mãi' },
-  { to: '/dashboard/admin/users', label: 'Nhân sự' },
-  { to: '/dashboard/admin/shifts', label: 'Quản lý ca' },
-  { to: '/dashboard/admin/reports', label: 'Thống kê' },
-  { to: '/dashboard/admin/chatbot', label: 'Chatbot' },
+  { to: '/dashboard/admin/orders', label: 'Đơn hàng', icon: '📦' },
+  { to: '/dashboard/admin/products', label: 'Sản phẩm', icon: '👕' },
+  { to: '/dashboard/admin/inventory', label: 'Kho', icon: '📊' },
+  { to: '/dashboard/admin/categories', label: 'Danh mục', icon: '🗂️' },
+  { to: '/dashboard/admin/promotions', label: 'Khuyến mãi', icon: '🎁' },
+  { to: '/dashboard/admin/users', label: 'Nhân sự', icon: '👥' },
+  { to: '/dashboard/admin/shifts', label: 'Quản lý ca', icon: '🕐' },
+  { to: '/dashboard/admin/reports', label: 'Thống kê', icon: '📈' },
+  { to: '/dashboard/admin/chatbot', label: 'Chatbot', icon: '🤖' },
 ];
 
 export default function AdminDashboard() {

@@ -12,12 +12,12 @@ import { shiftApi } from '@/api';
 
 const buildLinks = (chatBadge) => [
   // Ẩn hàng đợi; điều hướng chính sang "Đơn hàng của tôi"
-  { to: '/dashboard/my-orders', label: 'Đơn hàng của tôi' },
-  { to: '/dashboard/my-shifts', label: 'Ca làm của tôi' },
-  { to: '/dashboard/inventory', label: 'Kho hàng' },
-  { to: '/dashboard/stats', label: 'Thống kê cá nhân' },
+  { to: '/dashboard/my-orders', label: 'Đơn hàng của tôi', icon: '📋' },
+  { to: '/dashboard/my-shifts', label: 'Ca làm của tôi', icon: '⏰' },
+  { to: '/dashboard/inventory', label: 'Kho hàng', icon: '📦' },
+  { to: '/dashboard/stats', label: 'Thống kê cá nhân', icon: '📊' },
   // Move chat to the end of the list so it appears at the bottom of the staff panel
-  { to: '/dashboard/chat', label: '💬 Chat với khách', badge: chatBadge },
+  { to: '/dashboard/chat', label: 'Chat với khách', icon: '💬', badge: chatBadge },
 ];
 
 export default function StaffDashboard() {

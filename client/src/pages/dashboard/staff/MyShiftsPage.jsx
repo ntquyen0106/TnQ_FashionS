@@ -130,6 +130,9 @@ export default function MyShiftsPage() {
 
       // derive current staff id (mine shifts all belong to me)
       const myStaffId = myList[0]?.staff?._id || myList[0]?.staff?.id;
+      const myShiftIds = new Set(
+        myList.map((s) => String(s._id || s.id || '')).filter((id) => !!id),
+      );
       // fetch all shifts in same extended range to allow choosing a target
       const allRes = await shiftApi.shifts.list({
         from: dayjs().startOf('month').toISOString(),
@@ -139,6 +142,7 @@ export default function MyShiftsPage() {
       const now = dayjs();
       const targets = allList
         .filter((s) => String(s.staff?._id || s.staff?.id) !== String(myStaffId))
+        .filter((s) => !myShiftIds.has(String(s._id || s.id)))
         .filter((s) => {
           const st = (s.status || '').toLowerCase();
           if (['cancelled', 'completed'].includes(st)) return false; // hide cancelled & completed

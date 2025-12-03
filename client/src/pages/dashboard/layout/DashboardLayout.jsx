@@ -106,7 +106,10 @@ export default function DashboardLayout({ links = [] }) {
                     opacity: disabled ? 0.6 : 1,
                   })}
                 >
-                  <span>{l.label}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {l.icon && <span style={{ fontSize: 18 }}>{l.icon}</span>}
+                    <span>{l.label}</span>
+                  </span>
                   {typeof l.badge === 'number' && l.badge > 0 && (
                     <span
                       style={{

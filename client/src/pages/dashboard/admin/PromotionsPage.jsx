@@ -149,6 +149,7 @@ export default function PromotionsPage() {
     endAt: '',
     status: 'inactive', // active | inactive
   });
+  const [formErrors, setFormErrors] = useState({});
 
   // Confirmation modal state
   const [confirmState, setConfirmState] = useState({
@@ -268,6 +269,7 @@ export default function PromotionsPage() {
       endAt: '',
       status: 'inactive',
     });
+    setFormErrors({});
     setOpen(true);
   };
 
@@ -284,6 +286,7 @@ export default function PromotionsPage() {
       endAt: toLocalDT(r.endAt),
       status: r.status || 'inactive',
     });
+    setFormErrors({});
     setOpen(true);
   };
 
@@ -302,7 +305,39 @@ export default function PromotionsPage() {
   };
 
   /* --------- save / delete --------- */
+  const validateForm = () => {
+    const errs = {};
+    const codeValue = String(form.code || '').trim();
+    if (!codeValue) errs.code = 'Vui lòng nhập mã khuyến mãi.';
+
+    const rawValue = String(form.value ?? '').trim();
+    const numericValue = Number(rawValue);
+    if (!rawValue) errs.value = 'Vui lòng nhập giá trị khuyến mãi.';
+    else if (Number.isNaN(numericValue) || numericValue <= 0)
+      errs.value = 'Giá trị khuyến mãi phải lớn hơn 0.';
+    else if (form.type === 'percent' && numericValue > 100)
+      errs.value = 'Giá trị phần trăm tối đa 100%.';
+
+    const minOrderValue = Number(form.minOrder ?? 0);
+    if (Number.isNaN(minOrderValue) || minOrderValue < 0) errs.minOrder = 'Đơn tối thiểu phải ≥ 0.';
+
+    if (!form.startAt) errs.startAt = 'Vui lòng chọn thời gian bắt đầu.';
+    if (!form.endAt) errs.endAt = 'Vui lòng chọn thời gian kết thúc.';
+    if (form.startAt && form.endAt) {
+      const start = new Date(form.startAt).getTime();
+      const end = new Date(form.endAt).getTime();
+      if (!Number.isNaN(start) && !Number.isNaN(end) && end <= start) {
+        errs.endAt = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+      }
+    }
+
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const save = async () => {
+    if (!validateForm()) return false;
+
     const payload = {
       code: String(form.code || '')
         .trim()
@@ -320,6 +355,8 @@ export default function PromotionsPage() {
     else await promotionsApi.create(payload);
     setOpen(false);
     fetchList();
+    setFormErrors({});
+    return true;
   };
 
   const remove = async (id) => {
@@ -413,6 +450,13 @@ export default function PromotionsPage() {
     setPickerTempTargets(arr);
   };
   const clearTargets = () => setForm((f) => ({ ...f, targetIds: [] }));
+  const clearFieldError = (key) =>
+    setFormErrors((prev) => {
+      if (!prev?.[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
   // Tick mỗi giây để UI chuyển trạng thái đúng thời điểm
   useEffect(() => {
@@ -553,8 +597,12 @@ export default function PromotionsPage() {
                   <input
                     className={styles.input}
                     value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    onChange={(e) => {
+                      clearFieldError('code');
+                      setForm({ ...form, code: e.target.value });
+                    }}
                   />
+                  {formErrors.code && <p className={styles.errorText}>{formErrors.code}</p>}
                 </div>
 
                 <div className={styles.formItem}>
@@ -577,13 +625,17 @@ export default function PromotionsPage() {
                       type="number"
                       placeholder={form.type === 'percent' ? 'Nhập %' : 'Nhập số tiền'}
                       value={form.value}
-                      onChange={(e) => setForm({ ...form, value: e.target.value })}
+                      onChange={(e) => {
+                        clearFieldError('value');
+                        setForm({ ...form, value: e.target.value });
+                      }}
                       inputMode={form.type === 'percent' ? 'decimal' : 'numeric'}
                     />
                     <span className={styles.inputSuffixInline}>
                       {form.type === 'percent' ? '%' : '₫'}
                     </span>
                   </div>
+                  {formErrors.value && <p className={styles.errorText}>{formErrors.value}</p>}
                 </div>
 
                 <div className={styles.formItem}>
@@ -592,8 +644,12 @@ export default function PromotionsPage() {
                     className={styles.input}
                     type="number"
                     value={form.minOrder}
-                    onChange={(e) => setForm({ ...form, minOrder: e.target.value })}
+                    onChange={(e) => {
+                      clearFieldError('minOrder');
+                      setForm({ ...form, minOrder: e.target.value });
+                    }}
                   />
+                  {formErrors.minOrder && <p className={styles.errorText}>{formErrors.minOrder}</p>}
                 </div>
 
                 <div className={styles.formItem}>
@@ -675,8 +731,12 @@ export default function PromotionsPage() {
                     className={styles.input}
                     type="datetime-local"
                     value={form.startAt}
-                    onChange={(e) => setForm({ ...form, startAt: e.target.value })}
+                    onChange={(e) => {
+                      clearFieldError('startAt');
+                      setForm({ ...form, startAt: e.target.value });
+                    }}
                   />
+                  {formErrors.startAt && <p className={styles.errorText}>{formErrors.startAt}</p>}
                 </div>
 
                 <div className={styles.formItem}>
@@ -685,8 +745,12 @@ export default function PromotionsPage() {
                     className={styles.input}
                     type="datetime-local"
                     value={form.endAt}
-                    onChange={(e) => setForm({ ...form, endAt: e.target.value })}
+                    onChange={(e) => {
+                      clearFieldError('endAt');
+                      setForm({ ...form, endAt: e.target.value });
+                    }}
                   />
+                  {formErrors.endAt && <p className={styles.errorText}>{formErrors.endAt}</p>}
                 </div>
 
                 <div className={styles.formItem}>

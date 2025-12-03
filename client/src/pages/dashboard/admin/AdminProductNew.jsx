@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminProductForm from './AdminProductForm';
 import { productsApi } from '@/api/products-api';
 import ConfirmModal from '@/components/ConfirmModal';
+import { toast } from '@/components/Toast';
 
 export default function AdminProductNew() {
   const nav = useNavigate();
@@ -24,6 +25,7 @@ export default function AdminProductNew() {
       setCreating(true);
       const created = await productsApi.create(pendingPayloadRef.current);
       const id = created?._id || created?.id;
+      toast.success('Đã tạo sản phẩm thành công!');
       if (stayHere) {
         // Ở lại trang để tạo tiếp: reset form bằng cách đổi key
         setFormKey((k) => k + 1);
