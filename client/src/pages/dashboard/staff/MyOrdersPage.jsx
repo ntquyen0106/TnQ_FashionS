@@ -163,7 +163,9 @@ export default function MyOrdersPage() {
           const qrLink = orderLink ? `${orderLink}?qr=1` : '';
           const qrImg = qrLink
             ? `<div class='qrBox'>
-                <img src='https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrLink)}' alt='QR đơn hàng' />
+                <img src='https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                  qrLink,
+                )}' alt='QR đơn hàng' />
                 <div class='qrHint'>Quét để cập nhật trạng thái & xem thông tin giao hàng</div>
               </div>`
             : '';
@@ -187,8 +189,9 @@ export default function MyOrdersPage() {
               <div class='meta'>
                 <div><strong>Mã đơn:</strong> ${id}</div>
                 <div><strong>Ngày tạo:</strong> ${created}</div>
-                <div style='grid-column:1 / -1'><strong>Khách hàng:</strong> ${addr.fullName ||
-                  o.customerName || ''}</div>
+                <div style='grid-column:1 / -1'><strong>Khách hàng:</strong> ${
+                  addr.fullName || o.customerName || ''
+                }</div>
                 <div style='grid-column:1 / -1'><strong>Địa chỉ:</strong> ${addressLine}</div>
               </div>
               ${qrImg}

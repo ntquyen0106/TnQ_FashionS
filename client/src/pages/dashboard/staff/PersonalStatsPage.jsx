@@ -251,7 +251,6 @@ export default function PersonalStatsPage() {
               </div>
             </div>
           </div>
-
         </>
       )}
     </div>
