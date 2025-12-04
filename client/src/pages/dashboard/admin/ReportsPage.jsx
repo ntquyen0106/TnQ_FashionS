@@ -805,31 +805,41 @@ function MonthlyRevenueSection({ defaultMonth }) {
     }));
   }, [summary]);
 
+  const processingRows = useMemo(() => {
+    const taxableStatuses = new Set(['DONE']);
+    return statusRows.filter((row) => !taxableStatuses.has(row.status) && row.count > 0);
+  }, [statusRows]);
+
+  const processingTotals = useMemo(() => {
+    return processingRows.reduce(
+      (acc, row) => {
+        acc.count += row.count;
+        acc.total += row.totalValue;
+        return acc;
+      },
+      { count: 0, total: 0 },
+    );
+  }, [processingRows]);
+
   const dailyRows = summary?.daily || [];
   const summaryCards = useMemo(
     () => [
       {
-        key: 'salesRevenue',
-        label: 'Doanh thu bán hàng',
-        value: fmtVND(tax.salesRevenue || 0),
-        tone: 'highlight',
-      },
-      {
-        key: 'netRevenue',
-        label: 'Doanh thu thuần',
-        value: fmtVND(tax.netRevenue || 0),
+        key: 'totalRevenueWithVAT',
+        label: 'Tổng tiền khách trả (đã VAT)',
+        value: fmtVND(tax.totalRevenueWithVAT || 0),
         tone: 'highlight',
       },
       {
         key: 'outputVAT',
-        label: 'Thuế GTGT (8%)',
+        label: 'Thuế GTGT tách ra (8%)',
         value: fmtVND(tax.outputVAT || 0),
         tone: 'highlight',
       },
       {
-        key: 'totalRevenueWithVAT',
-        label: 'Tổng thu (bao gồm VAT)',
-        value: fmtVND(tax.totalRevenueWithVAT || 0),
+        key: 'netRevenue',
+        label: 'Doanh thu thuần (chưa VAT)',
+        value: fmtVND(tax.netRevenue || 0),
         tone: 'highlight',
       },
       {
@@ -849,7 +859,7 @@ function MonthlyRevenueSection({ defaultMonth }) {
       },
       {
         key: 'avgOrderValue',
-        label: 'Giá trị TB/đơn',
+        label: 'Giá trị TB/đơn (đã VAT)',
         value: fmtVND(orderStats.avgOrderValue || 0),
       },
     ],
@@ -857,7 +867,6 @@ function MonthlyRevenueSection({ defaultMonth }) {
       orderStats.avgOrderValue,
       orderStats.totalOrders,
       tax.outputVAT,
-      tax.salesRevenue,
       tax.totalDiscount,
       tax.totalRevenueWithVAT,
       tax.totalShipping,
@@ -918,6 +927,12 @@ function MonthlyRevenueSection({ defaultMonth }) {
             ))}
           </div>
 
+          <div className={s.monthTaxNote}>
+            <strong>Giá thực nhận:</strong> Hệ thống áp dụng mô hình giá bán đã bao gồm thuế GTGT.
+            Khách thanh toán đúng giá niêm yết; khi đơn chuyển sang trạng thái DONE, hệ thống tự
+            động tách phần thuế từ tổng tiền để bạn dùng cho kê khai và báo cáo doanh thu.
+          </div>
+
           <div className={s.monthGrid}>
             <div className={s.monthPanel}>
               <h4 className={s.monthTableTitle}>Trạng thái đơn hàng</h4>
@@ -944,6 +959,51 @@ function MonthlyRevenueSection({ defaultMonth }) {
                         <td style={{ textAlign: 'right' }}>{fmtVND(row.totalValue)}</td>
                       </tr>
                     ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className={s.monthPanel}>
+              <h4 className={s.monthTableTitle}>Đơn đang xử lý (không tính thuế)</h4>
+              <p className={s.note}>
+                Bảng phụ giúp đối chiếu các đơn chưa hoàn tất; số liệu này không có trong file xuất
+                thuế.
+              </p>
+              <table className={s.smallTable}>
+                <thead>
+                  <tr>
+                    <th>Trạng thái</th>
+                    <th>Số đơn</th>
+                    <th>Tổng giá trị</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processingRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                        Không có đơn đang xử lý
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {processingRows.map((row) => (
+                        <tr key={`processing-${row.status}`}>
+                          <td>{row.status}</td>
+                          <td className={s.centerCell}>{row.count}</td>
+                          <td style={{ textAlign: 'right' }}>{fmtVND(row.totalValue)}</td>
+                        </tr>
+                      ))}
+                      <tr className={s.processingTotalRow}>
+                        <td style={{ fontWeight: 600 }}>Tổng đang xử lý</td>
+                        <td className={s.centerCell} style={{ fontWeight: 600 }}>
+                          {processingTotals.count}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                          {fmtVND(processingTotals.total)}
+                        </td>
+                      </tr>
+                    </>
                   )}
                 </tbody>
               </table>

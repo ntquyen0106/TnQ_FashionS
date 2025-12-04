@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 import styles from './CategoriesPage.module.css';
 import {
   getCategories,
@@ -55,6 +56,12 @@ export default function CategoriesPage() {
     sort: 0,
   });
   const [saving, setSaving] = useState(false);
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    type: 'create',
+    title: '',
+    message: '',
+  });
 
   const reload = async () => {
     setLoading(true);
@@ -178,6 +185,25 @@ export default function CategoriesPage() {
 
   const handleSave = async (e) => {
     e?.preventDefault?.();
+    if (!sel) {
+      setConfirmState({
+        open: true,
+        type: 'create',
+        title: 'Xác nhận tạo danh mục',
+        message: 'Bạn có chắc chắn muốn tạo danh mục mới?',
+      });
+      return;
+    }
+    setConfirmState({
+      open: true,
+      type: 'update',
+      title: 'Xác nhận cập nhật',
+      message: 'Bạn có chắc chắn muốn lưu thay đổi cho danh mục này?',
+    });
+  };
+
+  const handleConfirmSave = async () => {
+    setConfirmState({ ...confirmState, open: false });
     setSaving(true);
     try {
       if (sel) {
@@ -217,17 +243,36 @@ export default function CategoriesPage() {
     // không cho xóa nếu còn con
     const hasChild = all.some((x) => String(x.parentId || '') === String(selectedId));
     if (hasChild) {
-      alert('Vui lòng xóa các danh mục con trước.');
+      setConfirmState({
+        open: true,
+        type: 'error',
+        title: 'Không thể xóa',
+        message: 'Vui lòng xóa các danh mục con trước khi xóa danh mục này.',
+      });
       return;
     }
-    if (!window.confirm('Xóa danh mục này?')) return;
+    setConfirmState({
+      open: true,
+      type: 'delete',
+      title: 'Xác nhận xóa',
+      message: `Bạn có chắc chắn muốn xóa danh mục "${sel.name}"? Thao tác này không thể hoàn tác.`,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    setConfirmState({ ...confirmState, open: false });
     try {
       await apiDeleteCategory(getId(sel));
       setAll((prev) => prev.filter((x) => String(getId(x)) !== String(selectedId)));
       setSelectedId(null);
     } catch (e) {
       console.error(e);
-      alert('Xóa thất bại');
+      setConfirmState({
+        open: true,
+        type: 'error',
+        title: 'Lỗi',
+        message: 'Xóa danh mục thất bại. Vui lòng thử lại.',
+      });
     }
   };
 
@@ -467,6 +512,38 @@ export default function CategoriesPage() {
           </form>
         </section>
       </div>
+      <ConfirmModal
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={
+          confirmState.type === 'error'
+            ? 'Đóng'
+            : saving
+            ? 'Đang xử lý…'
+            : confirmState.type === 'delete'
+            ? 'Xóa'
+            : confirmState.type === 'update'
+            ? 'Lưu'
+            : 'Tạo'
+        }
+        cancelText="Hủy"
+        confirmType={
+          confirmState.type === 'delete' || confirmState.type === 'error' ? 'danger' : 'primary'
+        }
+        disabled={saving}
+        hideCancel={confirmState.type === 'error'}
+        onConfirm={() => {
+          if (confirmState.type === 'error') {
+            setConfirmState({ ...confirmState, open: false });
+          } else if (confirmState.type === 'delete') {
+            handleConfirmDelete();
+          } else {
+            handleConfirmSave();
+          }
+        }}
+        onCancel={() => setConfirmState({ ...confirmState, open: false })}
+      />
     </div>
   );
 }

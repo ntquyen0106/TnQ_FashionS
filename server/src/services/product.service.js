@@ -291,6 +291,55 @@ export const remove = async (id) => {
   return { message: 'Deleted' };
 };
 
+export const searchByKeyword = async (
+  keyword,
+  { limit = 10, minPrice, maxPrice, sizes, colors, categoryPath, includeOutOfStock = true } = {},
+) => {
+  const query = {
+    q: keyword,
+    limit: Math.min(Math.max(Number(limit) || 10, 1), 20),
+    page: 1,
+    status: 'active',
+  };
+
+  if (minPrice != null) query.minPrice = Number(minPrice);
+  if (maxPrice != null) query.maxPrice = Number(maxPrice);
+  if (categoryPath) query.path = categoryPath;
+  if (sizes?.length) query.sizes = sizes;
+  if (colors?.length) query.colors = colors;
+  if (!includeOutOfStock) query.onlyInStock = true;
+
+  const { items = [] } = await search(query);
+
+  return items.slice(0, query.limit).map((item) => {
+    const variantSizes = Array.from(
+      new Set((item.variants || []).map((v) => v.size).filter(Boolean)),
+    );
+    const variantColors = Array.from(
+      new Set((item.variants || []).map((v) => v.color).filter(Boolean)),
+    );
+    const min = Number(item.minPrice) || 0;
+    const max = Number(item.maxPrice) || min;
+    const hasStock =
+      typeof item.inStock === 'boolean'
+        ? item.inStock
+        : (item.variants || []).some((v) => Number(v?.stock) > 0);
+
+    return {
+      id: String(item._id),
+      name: item.name,
+      slug: item.slug,
+      minPrice: min,
+      maxPrice: max,
+      inStock: hasStock,
+      rating: Number(item.ratingAvg) || 0,
+      image: item.coverPublicId || item.images?.[0]?.publicId || '',
+      sizes: variantSizes,
+      colors: variantColors,
+    };
+  });
+};
+
 // helpers
 function toArr(x) {
   if (x == null) return [];

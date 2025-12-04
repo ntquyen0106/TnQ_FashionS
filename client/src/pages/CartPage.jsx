@@ -34,6 +34,18 @@ export default function CartPage() {
   const staleItems = Array.isArray(staleInfo.items) ? staleInfo.items : [];
   const hasUrgentStale = staleItems.some((it) => it.level === 'urgent');
   const [confirm, setConfirm] = useState({ open: false, onConfirm: null, message: '' });
+  const closeConfirm = () => setConfirm({ open: false, onConfirm: null, message: '' });
+  const requestRemoveItem = (item, message) => {
+    if (!item) return;
+    setConfirm({
+      open: true,
+      message: message || 'Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?',
+      onConfirm: async () => {
+        closeConfirm();
+        await del(item);
+      },
+    });
+  };
 
   const [selected, setSelected] = useState(() => new Set());
   useEffect(() => {
@@ -152,14 +164,7 @@ export default function CartPage() {
   const dec = async (it) => {
     const current = Number(it.quantity ?? it.qty) || 1;
     if (current <= 1) {
-      setConfirm({
-        open: true,
-        message: 'Bạn chắc chắn muốn bỏ sản phẩm này?',
-        onConfirm: async () => {
-          setConfirm({ open: false, onConfirm: null, message: '' });
-          await del(it);
-        },
-      });
+      requestRemoveItem(it, 'Bạn chắc chắn muốn bỏ sản phẩm này?');
       return;
     }
     setBusyId(it._id);
@@ -216,7 +221,7 @@ export default function CartPage() {
       open: true,
       message: `Bạn có chắc muốn xóa ${ids.length} sản phẩm đã chọn?`,
       onConfirm: async () => {
-        setConfirm({ open: false, onConfirm: null, message: '' });
+        closeConfirm();
         try {
           await removeMany(ids);
           setSelected(new Set());
@@ -458,7 +463,7 @@ export default function CartPage() {
                   <button
                     className={`${styles.iconBtn} ${styles.danger}`}
                     disabled={disabled}
-                    onClick={() => del(it)}
+                    onClick={() => requestRemoveItem(it)}
                     aria-label="Xóa"
                     title="Xóa"
                   >
@@ -540,7 +545,7 @@ export default function CartPage() {
         confirmText="Đồng ý"
         cancelText="Hủy"
         confirmType="danger"
-        onCancel={() => setConfirm({ open: false, onConfirm: null, message: '' })}
+        onCancel={closeConfirm}
         onConfirm={confirm.onConfirm}
       />
     </div>
