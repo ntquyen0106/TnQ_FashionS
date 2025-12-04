@@ -40,7 +40,11 @@ export const setupSocketIO = (httpServer, clientURL) => {
     'http://localhost:3000',
   ].filter(Boolean);
 
-  const allowPatterns = [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/, /^https:\/\/[\w-]+\.vercel\.app$/];
+  const allowPatterns = [
+    /^http:\/\/localhost(?::\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(?::\d+)?$/,
+    /^https:\/\/[\w-]+\.vercel\.app$/,
+  ];
 
   io = new Server(httpServer, {
     cors: {
