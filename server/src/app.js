@@ -34,6 +34,17 @@ import { specs } from './config/swagger.js';
 
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 
+const normalizeOrigins = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+  return String(value)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+};
+
 export const createApp = (clientUrl) => {
   const app = express();
 
@@ -57,7 +68,12 @@ export const createApp = (clientUrl) => {
   app.use(express.json());
   app.use(cookieParser());
 
-  const allowList = [clientUrl, 'http://localhost:5173', 'http://localhost:3000'].filter(Boolean);
+  const allowList = [
+    ...normalizeOrigins(clientUrl),
+    ...normalizeOrigins(process.env.CORS_EXTRA_ORIGINS),
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ].filter(Boolean);
   const allowPatterns = [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/];
 
   app.use(
