@@ -63,10 +63,14 @@ const MAX_DAILY_MINUTES = 12 * 60; // 12h/ngày
 const MAX_MONTHLY_MINUTES = 40 * 60; // 40h/tháng (giờ làm thêm tổng)
 const MAX_YEARLY_MINUTES = 300 * 60; // 300h/năm (giờ làm thêm tổng)
 
+const MINUTES_IN_DAY = 24 * 60;
+
 const computeShiftDuration = ({ start, end }) => {
   if (start == null || end == null) return 0;
-  const diff = end - start;
-  return diff > 0 ? diff : 0;
+  let diff = end - start;
+  if (diff <= 0) diff += MINUTES_IN_DAY; // hỗ trợ ca qua ngày (ví dụ 16:00 → 02:00)
+  if (diff <= 0 || diff > MINUTES_IN_DAY) return 0;
+  return diff;
 };
 
 const ensureHourLimits = async ({ staffId, date, start, end, excludeId }) => {

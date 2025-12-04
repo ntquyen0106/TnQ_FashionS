@@ -9,6 +9,30 @@ const parseTimeToMinutes = (t) => {
   return h * 60 + m;
 };
 
+const getTimeZone = () => process.env.APP_TIMEZONE || process.env.TZ || 'Asia/Ho_Chi_Minh';
+
+const getTimeParts = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: getTimeZone(),
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const partsArray = formatter.formatToParts(date);
+  const parts = {};
+  for (const part of partsArray) {
+    if (part.type !== 'literal') parts[part.type] = Number(part.value);
+  }
+  return parts;
+};
+
+const zonedUtcDate = ({ year, month, day, hour = 0, minute = 0, second = 0 }) =>
+  new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+
 const getShiftWindowMinutes = async (shift) => {
   let start = null;
   let end = null;
@@ -24,20 +48,27 @@ const getShiftWindowMinutes = async (shift) => {
       end = parseTimeToMinutes(tpl.endTime);
     }
   }
-  return { start, end };
+  const spansMidnight = start != null && end != null && end <= start;
+  return { start, end, spansMidnight };
 };
 
 const minutesOfNow = () => {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
+  const parts = getTimeParts();
+  return (parts.hour || 0) * 60 + (parts.minute || 0);
 };
 
 const dayRange = (d = new Date()) => {
-  const s = new Date(d);
-  s.setHours(0, 0, 0, 0);
-  const e = new Date(s);
-  e.setDate(e.getDate() + 1);
-  return { s, e };
+  const parts = getTimeParts(d);
+  const start = zonedUtcDate({ year: parts.year, month: parts.month, day: parts.day });
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { s: start, e: end };
+};
+
+const isWithinWindow = (nowMinutes, window) => {
+  if (window.start == null || window.end == null) return false;
+  if (!window.spansMidnight) return nowMinutes >= window.start && nowMinutes <= window.end;
+  return nowMinutes >= window.start || nowMinutes <= window.end;
 };
 
 export const myStatus = async (req, res, next) => {
@@ -55,9 +86,9 @@ export const myStatus = async (req, res, next) => {
     const nowMin = minutesOfNow();
     let currentShift = null;
     for (const sh of shifts) {
-      const { start, end } = await getShiftWindowMinutes(sh);
-      if (start != null && end != null && nowMin >= start && nowMin <= end) {
-        currentShift = { ...sh, _startMin: start, _endMin: end };
+      const window = await getShiftWindowMinutes(sh);
+      if (isWithinWindow(nowMin, window)) {
+        currentShift = { ...sh, _startMin: window.start, _endMin: window.end };
         break;
       }
     }
@@ -102,8 +133,8 @@ export const checkIn = async (req, res, next) => {
     const nowMin = minutesOfNow();
     let cur = null;
     for (const sh of shifts) {
-      const { start, end } = await getShiftWindowMinutes(sh);
-      if (start != null && end != null && nowMin >= start && nowMin <= end) {
+      const window = await getShiftWindowMinutes(sh);
+      if (isWithinWindow(nowMin, window)) {
         cur = sh;
         break;
       }

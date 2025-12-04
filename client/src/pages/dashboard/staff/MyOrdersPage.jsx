@@ -129,12 +129,14 @@ export default function MyOrdersPage() {
     if (!win) return;
     const fmtCurrency = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
     const shopName = 'TNQ Fashion';
+    const clientOrigin = window?.location?.origin || '';
     const html = `<!DOCTYPE html><html><head><title>In đơn hàng</title>
       <meta charset='utf-8' />
       <style>
         body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;margin:0;padding:16px;}
         h1{font-size:18px;margin:0 0 12px;font-weight:700;text-align:center;}
         .order{margin:0 0 28px;page-break-after:always;border:1px solid #ccc;padding:12px;border-radius:6px;}
+        .metaWrap{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;}
         .meta{margin:0 0 8px;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;}
         .meta div{padding:2px 4px;}
         table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
@@ -143,6 +145,9 @@ export default function MyOrdersPage() {
         .totals{margin-top:8px;display:grid;justify-content:end;width:100%;}
         .totals table{width:auto;}
         .right{text-align:right;}
+        .qrBox{text-align:center;font-size:10px;color:#374151;}
+        .qrBox img{width:120px;height:120px;border:1px solid #d1d5db;padding:6px;border-radius:8px;background:#fff;}
+        .qrHint{margin-top:4px;max-width:140px;line-height:1.3;}
         @media print {button{display:none;} .order{box-shadow:none;border-color:#999;} }
       </style></head><body>
       <h1>${shopName}</h1>
@@ -154,6 +159,14 @@ export default function MyOrdersPage() {
           const addressLine = [addr.line1, addr.ward, addr.district, addr.city]
             .filter(Boolean)
             .join(', ');
+          const orderLink = clientOrigin ? `${clientOrigin}/orders/${id}` : '';
+          const qrLink = orderLink ? `${orderLink}?qr=1` : '';
+          const qrImg = qrLink
+            ? `<div class='qrBox'>
+                <img src='https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrLink)}' alt='QR đơn hàng' />
+                <div class='qrHint'>Quét để cập nhật trạng thái & xem thông tin giao hàng</div>
+              </div>`
+            : '';
           const rows = (o.items || [])
             .map(
               (it, idx) => `<tr>
@@ -170,12 +183,15 @@ export default function MyOrdersPage() {
             .join('');
           const amounts = o.amounts || {};
           return `<div class='order'>
-            <div class='meta'>
-              <div><strong>Mã đơn:</strong> ${id}</div>
-              <div><strong>Ngày tạo:</strong> ${created}</div>
-              <div><strong>Khách hàng:</strong> ${addr.fullName || o.customerName || ''}</div>
-              <div><strong>SĐT:</strong> ${addr.phone || o.customerPhone || ''}</div>
-              <div style='grid-column:1 / -1'><strong>Địa chỉ:</strong> ${addressLine}</div>
+            <div class='metaWrap'>
+              <div class='meta'>
+                <div><strong>Mã đơn:</strong> ${id}</div>
+                <div><strong>Ngày tạo:</strong> ${created}</div>
+                <div style='grid-column:1 / -1'><strong>Khách hàng:</strong> ${addr.fullName ||
+                  o.customerName || ''}</div>
+                <div style='grid-column:1 / -1'><strong>Địa chỉ:</strong> ${addressLine}</div>
+              </div>
+              ${qrImg}
             </div>
             <table>
               <thead><tr><th>#</th><th>Sản phẩm</th><th>SKU</th><th>SL</th><th>Giá</th><th>Thành tiền</th></tr></thead>

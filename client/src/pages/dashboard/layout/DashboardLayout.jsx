@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/AuthProvider';
 import Navbar from '@/components/Navbar'; // <-- dùng lại Navbar có modal tài khoản
 import { useEffect, useState } from 'react';
@@ -7,6 +7,8 @@ import ConfirmModal from '@/components/ConfirmModal';
 
 export default function DashboardLayout({ links = [] }) {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [att, setAtt] = useState({
     withinShift: false,
     checkedIn: false,
@@ -33,6 +35,16 @@ export default function DashboardLayout({ links = [] }) {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role]);
+
+  const allowedOffShift = ['/dashboard/my-shifts', '/dashboard/stats'];
+
+  useEffect(() => {
+    if (user?.role !== 'staff') return;
+    const locked = !att.withinShift || !att.checkedIn;
+    if (locked && !allowedOffShift.includes(location.pathname)) {
+      navigate('/dashboard/my-shifts', { replace: true });
+    }
+  }, [att.withinShift, att.checkedIn, location.pathname, navigate, user?.role]);
 
   return (
     <>
@@ -82,8 +94,7 @@ export default function DashboardLayout({ links = [] }) {
             {links.map((l) => {
               // Lock when staff is outside shift OR has checked out (i.e., not checkedIn)
               const locked = user?.role === 'staff' && (!att.withinShift || !att.checkedIn);
-              const allowed = ['/dashboard/my-shifts', '/dashboard/stats'];
-              const disabled = locked && !allowed.includes(l.to);
+              const disabled = locked && !allowedOffShift.includes(l.to);
               return (
                 <NavLink
                   key={l.to}

@@ -252,24 +252,6 @@ export default function PersonalStatsPage() {
             </div>
           </div>
 
-          {/* Row 3: Năng suất */}
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>⚡ Năng suất</h3>
-            <div className={styles.gridRow}>
-              <div className={`${styles.card} ${styles.cardHighlight}`}>
-                <div className={styles.cardIcon}>⚡</div>
-                <div className={styles.label}>Đơn/giờ</div>
-                <div className={styles.value}>{stats.productivity?.ordersPerWorkedHour || 0}</div>
-              </div>
-              <div className={`${styles.card} ${styles.cardHighlight}`}>
-                <div className={styles.cardIcon}>💵</div>
-                <div className={styles.label}>Doanh thu/giờ</div>
-                <div className={styles.valueMoney}>
-                  {formatCurrency(stats.productivity?.valuePerWorkedHour || 0)}
-                </div>
-              </div>
-            </div>
-          </div>
         </>
       )}
     </div>
