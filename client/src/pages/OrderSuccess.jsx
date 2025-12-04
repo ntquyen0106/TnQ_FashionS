@@ -11,11 +11,18 @@ export default function OrderSuccess() {
 
   const orderId = state?.orderId || sp.get('orderId') || null;
   const orderCode = state?.orderCode || null;
+  const cancelled = state?.cancelled || sp.get('cancelled') === 'true';
 
   const [loading, setLoading] = useState(!!orderId);
   const [info, setInfo] = useState(null);
   const [countdown, setCountdown] = useState(6); // đếm 6s chờ PayOS confirm
   const [polling, setPolling] = useState(!!orderId);
+
+  useEffect(() => {
+    if (cancelled) {
+      toast('Bạn đã hủy thanh toán. Đơn hàng vẫn đang chờ được thanh toán lại.');
+    }
+  }, [cancelled]);
 
   // Poll trạng thái trong vài giây đầu để chờ PayOS webhook/confirm
   useEffect(() => {
@@ -79,6 +86,7 @@ export default function OrderSuccess() {
   const isPaid = !!info?.isPaid;
   const method = (info?.paymentMethod || state?.method || '').toUpperCase();
   const awaiting = status === 'AWAITING_PAYMENT' && !isPaid && method === 'BANK';
+  const showAwaitingNotice = cancelled && awaiting && !loading;
 
   const payAgain = async () => {
     if (!orderId) return;
@@ -137,6 +145,13 @@ export default function OrderSuccess() {
           <strong>
             {status === 'PENDING' ? 'Chờ xác nhận' : status === 'DONE' ? 'Hoàn tất' : status}
           </strong>
+        </div>
+      )}
+
+      {showAwaitingNotice && (
+        <div className={styles.notice}>
+          Bạn vừa hủy thao tác thanh toán tại PayOS. Đơn hàng vẫn ở trạng thái chờ thanh toán, hãy
+          nhấn "Thanh toán lại" để hoàn tất hoặc chọn phương thức khác.
         </div>
       )}
 

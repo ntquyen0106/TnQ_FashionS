@@ -219,7 +219,7 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
         orderId: order._id.toString(),
         amount: amounts.grandTotal,
         returnUrl: `${clientUrl}/order-success?orderId=${order._id}`,
-        cancelUrl: `${clientUrl}/orders?cancelled=true&orderId=${order._id}`,
+        cancelUrl: `${clientUrl}/order/success?orderId=${order._id}&cancelled=true`,
       });
       order.paymentOrderCode = paymentData.orderCode;
       await order.save();

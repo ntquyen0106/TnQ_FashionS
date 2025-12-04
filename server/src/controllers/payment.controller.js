@@ -109,6 +109,7 @@ export const checkPaymentStatus = async (req, res, next) => {
         paymentMethod: order.paymentMethod,
         isPaid: order.status !== 'AWAITING_PAYMENT',
         synced: false,
+        awaitingPaymentNotice: false,
       });
     }
 
@@ -121,6 +122,7 @@ export const checkPaymentStatus = async (req, res, next) => {
       synced: result.synced,
       statusChanged: result.statusChanged,
       paymentInfo: result.paymentInfo,
+      awaitingPaymentNotice: result.awaitingPaymentNotice,
     });
   } catch (error) {
     next(error);
@@ -299,7 +301,7 @@ export const createPaymentLinkForOrder = async (req, res, next) => {
       orderId: String(order._id),
       amount,
       returnUrl: `${clientUrl}/order-success?orderId=${order._id}`,
-      cancelUrl: `${clientUrl}/?cancelled=true&orderId=${order._id}`,
+      cancelUrl: `${clientUrl}/order/success?orderId=${order._id}&cancelled=true`,
     });
 
     // Lưu lại orderCode mới

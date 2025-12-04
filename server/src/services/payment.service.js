@@ -1,6 +1,5 @@
 import payos from '../config/payos.js';
 import Order from '../models/Order.js';
-import { releaseInventoryForOrder } from './inventory.service.js';
 import { getPrimaryClientUrl } from '../utils/url.js';
 
 /**
@@ -224,6 +223,7 @@ export const syncOrderStatusWithPayOS = async (orderId) => {
     console.log(`   Order Status: ${order.status}`);
 
     let statusChanged = false;
+    let awaitingPaymentNotice = false;
 
     // Sync status: PAID → set PENDING (chờ xác nhận)
     if (paymentInfo.status === 'PAID' && order.status === 'AWAITING_PAYMENT') {
@@ -239,33 +239,26 @@ export const syncOrderStatusWithPayOS = async (orderId) => {
       statusChanged = true;
     }
 
-    // Sync status: CANCELLED
+    // PayOS hủy nhưng yêu cầu giữ đơn ở trạng thái chờ thanh toán để khách thử lại
     if (paymentInfo.status === 'CANCELLED' && order.status === 'AWAITING_PAYMENT') {
-      // Trả lại tồn kho
-      console.log(`\n🔄 [PayOS Sync] Payment cancelled, releasing inventory...`);
-      try {
-        await releaseInventoryForOrder(order);
-      } catch (err) {
-        console.error(`⚠️  [PayOS Sync] Failed to release inventory:`, err.message);
-      }
-
-      order.status = 'CANCELLED';
       order.history.push({
         action: 'PAYMENT_CANCELLED',
         fromStatus: 'AWAITING_PAYMENT',
-        toStatus: 'CANCELLED',
-        note: 'Thanh toán bị hủy (synced via API)',
+        toStatus: 'AWAITING_PAYMENT',
+        note: 'Khách hủy PayOS, giữ đơn ở trạng thái chờ thanh toán',
       });
       await order.save();
-      console.log(`❌ [PayOS] Order ${order._id} cancelled (status sync)`);
-      statusChanged = true;
+      awaitingPaymentNotice = true;
+      console.log(`ℹ️  [PayOS] Payment cancelled but order kept in AWAITING_PAYMENT for retry`);
     }
 
     return {
+      success: true,
       orderId: order._id,
       status: order.status,
       synced: true,
       statusChanged,
+      awaitingPaymentNotice,
       paymentInfo: {
         amount: paymentInfo.amount,
         status: paymentInfo.status,
@@ -275,6 +268,7 @@ export const syncOrderStatusWithPayOS = async (orderId) => {
   } catch (error) {
     console.error(`❌ [PayOS] Sync error:`, error.message);
     return {
+      success: false,
       orderId: order._id,
       status: order.status,
       synced: false,
