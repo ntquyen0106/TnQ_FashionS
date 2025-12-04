@@ -39,14 +39,28 @@ export const getIO = () => {
  * @returns {Server} Socket.IO instance
  */
 export const setupSocketIO = (httpServer, clientURL) => {
+  const staticOrigins = [
+    ...normalizeOrigins(clientURL),
+    ...normalizeOrigins(process.env.CORS_EXTRA_ORIGINS),
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ].filter(Boolean);
+
+  const allowPatterns = [
+    /^http:\/\/localhost(?::\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(?::\d+)?$/,
+    /^https:\/\/[\w-]+\.vercel\.app$/,
+  ];
+
   io = new Server(httpServer, {
     cors: {
-      origin: [
-        ...normalizeOrigins(clientURL),
-        ...normalizeOrigins(process.env.CORS_EXTRA_ORIGINS),
-        'http://localhost:5173',
-        'http://localhost:3000',
-      ].filter(Boolean),
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (staticOrigins.includes(origin) || allowPatterns.some((re) => re.test(origin))) {
+          return cb(null, true);
+        }
+        return cb(new Error('Socket CORS not allowed'));
+      },
       credentials: true,
     },
   });
