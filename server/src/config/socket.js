@@ -1,6 +1,17 @@
 import { Server } from 'socket.io';
 import { authenticateSocket } from '../middlewares/socket-auth.middleware.js';
 
+const normalizeOrigins = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+  return String(value)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+};
+
 // Global IO instance
 let io = null;
 
@@ -24,7 +35,12 @@ export const getIO = () => {
 export const setupSocketIO = (httpServer, clientURL) => {
   io = new Server(httpServer, {
     cors: {
-      origin: [clientURL, 'http://localhost:5173', 'http://localhost:3000'].filter(Boolean),
+      origin: [
+        ...normalizeOrigins(clientURL),
+        ...normalizeOrigins(process.env.CORS_EXTRA_ORIGINS),
+        'http://localhost:5173',
+        'http://localhost:3000',
+      ].filter(Boolean),
       credentials: true,
     },
   });
