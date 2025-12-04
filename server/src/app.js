@@ -74,7 +74,11 @@ export const createApp = (clientUrl) => {
     'http://localhost:5173',
     'http://localhost:3000',
   ].filter(Boolean);
-  const allowPatterns = [/^http:\/\/localhost(?::\d+)?$/, /^http:\/\/127\.0\.0\.1(?::\d+)?$/];
+  const allowPatterns = [
+    /^http:\/\/localhost(?::\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(?::\d+)?$/,
+    /^https:\/\/[\w-]+\.vercel\.app$/,
+  ];
 
   app.use(
     cors({
