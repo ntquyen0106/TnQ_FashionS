@@ -17,6 +17,7 @@ export default function MyOrdersPage() {
 
   const STATUS_LABEL = {
     PENDING: 'Chờ xác nhận',
+    AWAITING_PAYMENT: 'Chờ thanh toán',
     CONFIRMED: 'Đã xác nhận',
     SHIPPING: 'Vận chuyển',
     DELIVERING: 'Đang giao',
@@ -29,6 +30,7 @@ export default function MyOrdersPage() {
     const cur = String(s || '').toLowerCase();
     const map = {
       pending: 'PENDING',
+      awaiting_payment: 'AWAITING_PAYMENT',
       confirmed: 'CONFIRMED',
       processing: 'CONFIRMED',
       shipping: 'SHIPPING',

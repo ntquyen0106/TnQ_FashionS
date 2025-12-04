@@ -20,6 +20,7 @@ const normalize = (s) =>
 
 const STATUS_LABEL = {
   PENDING: 'Chờ xác nhận',
+  AWAITING_PAYMENT: 'Chờ thanh toán',
   CONFIRMED: 'Đã xác nhận',
   SHIPPING: 'Vận chuyển',
   DELIVERING: 'Đang giao',
@@ -92,7 +93,13 @@ export default function MyOrders() {
       const namesJoined = (o.items || []).map((it) => it?.nameSnapshot || it?.name || '').join(' ');
       const namesNorm = normalize(namesJoined);
       const byText = !term || codeNorm.includes(term) || namesNorm.includes(term);
-      const byStatus = filter === 'ALL' || String(o.status) === filter;
+      
+      // When filtering by PENDING, also show AWAITING_PAYMENT orders
+      let byStatus = filter === 'ALL' || String(o.status) === filter;
+      if (filter === 'PENDING' && String(o.status) === 'AWAITING_PAYMENT') {
+        byStatus = true;
+      }
+      
       return byText && byStatus;
     });
   }, [orders, q, filter]);

@@ -9,6 +9,7 @@ import {
   createPayOSPayment,
 } from '../services/payment.service.js';
 import { releaseInventoryForOrder } from '../services/inventory.service.js';
+import { getPrimaryClientUrl } from '../utils/url.js';
 
 /**
  * PayOS Webhook Handler
@@ -293,11 +294,12 @@ export const createPaymentLinkForOrder = async (req, res, next) => {
       return res.status(400).json({ message: 'Số tiền không hợp lệ để tạo thanh toán' });
     }
 
+    const clientUrl = getPrimaryClientUrl();
     const paymentData = await createPayOSPayment({
       orderId: String(order._id),
       amount,
-      returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
-      cancelUrl: `${process.env.CLIENT_URL}/?cancelled=true&orderId=${order._id}`,
+      returnUrl: `${clientUrl}/order-success?orderId=${order._id}`,
+      cancelUrl: `${clientUrl}/?cancelled=true&orderId=${order._id}`,
     });
 
     // Lưu lại orderCode mới

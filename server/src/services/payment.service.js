@@ -1,6 +1,7 @@
 import payos from '../config/payos.js';
 import Order from '../models/Order.js';
 import { releaseInventoryForOrder } from './inventory.service.js';
+import { getPrimaryClientUrl } from '../utils/url.js';
 
 /**
  * Tạo link thanh toán PayOS bằng SDK
@@ -17,17 +18,18 @@ export const createPayOSPayment = async ({
 
     const numericAmount = Number(amount);
 
+    const clientUrl = getPrimaryClientUrl();
     const paymentData = {
       orderCode,
       amount: numericAmount,
       description: description || `Thanh toán đơn #${orderCode}`,
-      returnUrl: returnUrl || `${process.env.CLIENT_URL}/order/success`,
-      cancelUrl: cancelUrl || `${process.env.CLIENT_URL}/cart`,
+      returnUrl: returnUrl || `${clientUrl}/order/success`,
+      cancelUrl: cancelUrl || `${clientUrl}/cart`,
       items: [
         {
           name: `DH ${orderId.slice(-8)}`,
           quantity: 1,
-          price: numericAmount, 
+          price: numericAmount,
         },
       ],
     };
@@ -158,30 +160,22 @@ export const processPaymentFailure = async (orderCode, code, desc, reference) =>
   }
 
   if (order.status === 'AWAITING_PAYMENT') {
-    // Trả lại tồn kho trước khi cancel
-    console.log(`\n🔄 [PayOS] Payment failed, releasing inventory...`);
-    try {
-      await releaseInventoryForOrder(order);
-    } catch (err) {
-      console.error(`⚠️  [PayOS] Failed to release inventory:`, err.message);
-      // Vẫn tiếp tục cancel order
-    }
-
-    order.status = 'CANCELLED';
+    // CHỈ log thông tin, KHÔNG cancel đơn
+    // User có thể thử thanh toán lại hoặc tự hủy đơn
     order.history.push({
-      action: 'PAYMENT_FAILED',
+      action: 'PAYMENT_CANCELLED',
       fromStatus: 'AWAITING_PAYMENT',
-      toStatus: 'CANCELLED',
-      note: `Thanh toán không thành công qua PayOS. Lý do: ${desc} (Code: ${code}). Mã GD: ${
+      toStatus: 'AWAITING_PAYMENT',
+      note: `User hủy thanh toán qua PayOS. Lý do: ${desc} (Code: ${code}). Mã GD: ${
         reference || 'N/A'
-      }`,
+      }. Đơn vẫn giữ nguyên để user có thể thử lại.`,
     });
     await order.save();
 
-    console.log(`❌ [PayOS] Order ${order._id} cancelled due to payment failure`);
-    console.log(`   Status: AWAITING_PAYMENT → CANCELLED`);
+    console.log(`⚠️  [PayOS] Payment cancelled for order ${order._id}`);
+    console.log(`   Status: AWAITING_PAYMENT (unchanged - user can retry)`);
 
-    return { success: true, order, statusChanged: true };
+    return { success: true, order, statusChanged: false };
   }
 
   return { success: true, order, statusChanged: false };

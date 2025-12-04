@@ -7,6 +7,7 @@ import { computeShippingFee } from '../utils/shipping.js';
 import { createPayOSPayment } from './payment.service.js';
 import StaffShift from '../models/shifts/StaffShift.js';
 import { reserveOrderItems, releaseInventoryForOrder } from './inventory.service.js';
+import { getPrimaryClientUrl } from '../utils/url.js';
 
 // FE → Model status mapping (giữ theo FE của bạn)
 const FE_TO_MODEL = {
@@ -213,11 +214,12 @@ export const checkout = async ({ userId, sessionId, addressId, paymentMethod, se
   let paymentData = null;
   if (pm === 'BANK') {
     try {
+      const clientUrl = getPrimaryClientUrl();
       paymentData = await createPayOSPayment({
         orderId: order._id.toString(),
         amount: amounts.grandTotal,
-        returnUrl: `${process.env.CLIENT_URL}/order-success?orderId=${order._id}`,
-        cancelUrl: `${process.env.CLIENT_URL}/?cancelled=true&orderId=${order._id}`,
+        returnUrl: `${clientUrl}/order-success?orderId=${order._id}`,
+        cancelUrl: `${clientUrl}/orders?cancelled=true&orderId=${order._id}`,
       });
       order.paymentOrderCode = paymentData.orderCode;
       await order.save();
@@ -249,10 +251,14 @@ export const list = async ({ status, unassigned, assignee, meId, limit = 100 }) 
       .map((s) => toModelStatus(s.trim()))
       .filter(Boolean);
 
-    // Special case: if status is PENDING, include unprinted CONFIRMED orders
+    // Special case: if status is PENDING, include AWAITING_PAYMENT + unprinted CONFIRMED orders
     if (statuses.includes('PENDING')) {
       query.$or = [
-        { status: { $in: [...statuses, ...statuses.map((s) => s.toLowerCase())] } },
+        {
+          status: {
+            $in: [...statuses, 'AWAITING_PAYMENT', ...statuses.map((s) => s.toLowerCase())],
+          },
+        },
         { status: 'CONFIRMED', printedAt: null }, // unprinted confirmed orders
       ];
     } else if (statuses.length > 0) {
