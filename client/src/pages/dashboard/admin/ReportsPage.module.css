@@ -265,6 +265,26 @@
 .centerCell {
   text-align: center;
 }
+.note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 10px;
+}
+.monthTaxNote {
+  margin: 8px 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+  background: #f1f5f9;
+  border: 1px dashed var(--border);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.monthTaxNote strong {
+  color: var(--text);
+}
+.processingTotalRow td {
+  background: #f5f3ff;
+}
 .staffName {
   font-weight: 600;
 }
