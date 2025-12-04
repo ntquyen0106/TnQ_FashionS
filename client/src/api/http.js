@@ -10,6 +10,9 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Double guarantee so every follow-up request (even when config is overridden) keeps cookies on
+http.defaults.withCredentials = true;
+
 // Cookie-only: không gắn Authorization
 http.interceptors.request.use((config) => config);
 

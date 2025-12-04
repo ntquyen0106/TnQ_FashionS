@@ -68,17 +68,25 @@ export const createApp = (clientUrl) => {
   app.use(express.json());
   app.use(cookieParser());
 
-  const allowList = [
-    ...normalizeOrigins(clientUrl),
-    ...normalizeOrigins(process.env.CORS_EXTRA_ORIGINS),
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ].filter(Boolean);
+  const allowList = Array.from(
+    new Set(
+      [
+        ...normalizeOrigins(clientUrl),
+        ...normalizeOrigins(process.env.CORS_EXTRA_ORIGINS),
+        'http://localhost:5173',
+        'http://localhost:3000',
+      ].filter(Boolean),
+    ),
+  );
   const allowPatterns = [
     /^http:\/\/localhost(?::\d+)?$/,
     /^http:\/\/127\.0\.0\.1(?::\d+)?$/,
     /^https:\/\/[\w-]+\.vercel\.app$/,
   ];
+
+  if (process.env.LOG_CORS === 'true') {
+    console.log('[CORS] Allow list:', allowList);
+  }
 
   app.use(
     cors({

@@ -7,7 +7,7 @@ const ONE_DAY = 1000 * 60 * 60 * 24;
 const SEVEN_DAYS = ONE_DAY * 7;
 const THIRTY_DAYS = ONE_DAY * 30;
 
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
 
 export const baseCookieOpts = {
   httpOnly: true,
