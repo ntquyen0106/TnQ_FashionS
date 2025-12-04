@@ -6,9 +6,10 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
     "seed:promotions": "node ./scripts/seedPromotions.js",
     "migrate:drop-legacy-review-index": "node ./scripts/dropLegacyReviewIndex.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "NODE_ENV=test node --test"
   },
   "keywords": [],
   "author": "",
@@ -44,5 +45,9 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=18.18.0",
+    "npm": ">=9.0.0"
   }
 }
