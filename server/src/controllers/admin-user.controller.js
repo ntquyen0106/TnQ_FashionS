@@ -104,9 +104,17 @@ export const postSendSetPassword = async (req, res) => {
       { upsert: true, new: true },
     );
 
-    const frontendUrl =
-      process.env.FRONTEND_URL || process.env.CLIENT_ORIGIN || 'http://localhost:5173';
-    const base = frontendUrl.replace(/\/$/, '');
+    const pickFrontendUrl = () => {
+      const sources = [process.env.FRONTEND_URL, process.env.CLIENT_URL, process.env.CLIENT_ORIGIN];
+      for (const raw of sources) {
+        if (!raw) continue;
+        const first = String(raw).split(',')[0].trim();
+        if (first) return first.replace(/\/$/, '');
+      }
+      return 'http://localhost:5173';
+    };
+
+    const base = pickFrontendUrl();
     // Client route is /forgot/reset and expects query param 'resetToken'
     const link = `${base}/forgot/reset?resetToken=${resetToken}`;
 

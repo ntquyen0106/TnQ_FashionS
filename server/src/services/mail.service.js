@@ -2,6 +2,16 @@ import nodemailer from 'nodemailer';
 
 const provider = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
 
+const pickFrontendUrl = () => {
+  const sources = [process.env.FRONTEND_URL, process.env.CLIENT_URL, process.env.CLIENT_ORIGIN];
+  for (const raw of sources) {
+    if (!raw) continue;
+    const first = String(raw).split(',')[0].trim();
+    if (first) return first.replace(/\/$/, '');
+  }
+  return 'http://localhost:5173';
+};
+
 const commonTimeouts = {
   connectionTimeout: 10000,
   greetingTimeout: 10000,
@@ -45,9 +55,7 @@ export async function sendMail(to, subject, text, html) {
 
 export async function sendWelcomeEmail(userEmail, userName, password = 'P@ssw0rd') {
   const subject = 'Tài khoản của bạn đã được tạo - TnQ Fashion';
-  const frontendUrl =
-    process.env.FRONTEND_URL || process.env.CLIENT_ORIGIN || 'http://localhost:5173';
-  const loginUrl = `${String(frontendUrl).replace(/\/$/, '')}/login`;
+  const loginUrl = `${pickFrontendUrl()}/login`;
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
