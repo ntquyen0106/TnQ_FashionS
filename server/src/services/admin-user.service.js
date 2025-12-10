@@ -386,6 +386,8 @@ export const getUsers = async (query) => {
     phoneNumber,
     role,
     status,
+    excludeRole,
+    excludeRoles,
     fromDate,
     toDate,
     // Pagination parameters
@@ -398,6 +400,23 @@ export const getUsers = async (query) => {
 
   // Build search filter
   const filter = {};
+
+  // Collect roles that should be excluded (comma-separated or array)
+  const excludedRoles = new Set();
+  const collectExcluded = (input) => {
+    if (!input) return;
+    if (Array.isArray(input)) {
+      input.forEach((entry) => collectExcluded(entry));
+      return;
+    }
+    String(input)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((item) => excludedRoles.add(item));
+  };
+  collectExcluded(excludeRole);
+  collectExcluded(excludeRoles);
 
   // Global search across multiple fields
   if (search) {
@@ -416,6 +435,7 @@ export const getUsers = async (query) => {
   if (email) filter.email = new RegExp(email, 'i');
   if (phoneNumber) filter.phoneNumber = new RegExp(phoneNumber, 'i');
   if (role) filter.role = role;
+  else if (excludedRoles.size > 0) filter.role = { $nin: Array.from(excludedRoles) };
   if (status) filter.status = status;
 
   // Date range filter
@@ -758,7 +778,13 @@ export const getLoginHeatmap = async ({ from, to } = {}) => {
     },
     heatmapMatrix, // 24 hours x 7 days
     peakHour: peakHour ? { hour: parseInt(peakHour[0]), count: peakHour[1] } : null,
-    peakDay: peakDay ? { day: dayNames[parseInt(peakDay[0]) - 1], dayIndex: parseInt(peakDay[0]), count: peakDay[1] } : null,
+    peakDay: peakDay
+      ? {
+          day: dayNames[parseInt(peakDay[0]) - 1],
+          dayIndex: parseInt(peakDay[0]),
+          count: peakDay[1],
+        }
+      : null,
     totalLogins: heatmapData.reduce((sum, item) => sum + item.count, 0),
   };
 };
@@ -894,8 +920,8 @@ export const getTopCustomers = async ({ limit = 10, from, to, sortBy = 'revenue'
         sortBy === 'orders'
           ? { totalOrders: -1 }
           : sortBy === 'avgOrder'
-            ? { avgOrderValue: -1 }
-            : { totalRevenue: -1 }, // Default: sort by revenue
+          ? { avgOrderValue: -1 }
+          : { totalRevenue: -1 }, // Default: sort by revenue
     },
     { $limit: lim },
     {
@@ -931,5 +957,3 @@ export const getTopCustomers = async ({ limit = 10, from, to, sortBy = 'revenue'
     customers: topCustomers,
   };
 };
-
-

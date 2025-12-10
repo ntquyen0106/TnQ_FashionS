@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 
-const provider = process.env.EMAIL_PROVIDER || 'gmail';
+const provider = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
+
 const transporter =
   provider === 'mailtrap'
     ? nodemailer.createTransport({
@@ -8,6 +9,13 @@ const transporter =
         port: Number(process.env.MAILTRAP_PORT || 587),
         secure: false,
         auth: { user: process.env.MAILTRAP_USER, pass: process.env.MAILTRAP_PASS },
+      })
+    : provider === 'smtp'
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: String(process.env.SMTP_SECURE ?? 'false').toLowerCase() === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       })
     : nodemailer.createTransport({
         host: 'smtp.gmail.com',

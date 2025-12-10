@@ -25,22 +25,29 @@ export default function FirstLoginChangePassword() {
     try {
       setLoading(true);
       await authApi.changePasswordFirst({ newPassword: password });
-      // Refresh profile to clear mustChange flag
-      try {
-        const me = await authApi.me();
-        if (me) setUser(me);
-      } catch {}
-      // Show success modal then redirect by role after close
+      setUser((prev) => (prev ? { ...prev, mustChangePassword: false } : prev));
+      // Show success modal then force re-login with new password
       setSuccessModal({
         open: true,
         title: 'Đổi mật khẩu thành công',
-        message: 'Mật khẩu đã được cập nhật',
+        message: 'Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.',
       });
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đổi mật khẩu thất bại');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuccessClose = async () => {
+    setSuccessModal({ open: false, title: '', message: '' });
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.warn('logout after password change failed', err?.message);
+    }
+    setUser(null);
+    nav('/login', { replace: true });
   };
 
   return (
@@ -89,14 +96,7 @@ export default function FirstLoginChangePassword() {
         open={successModal.open}
         title={successModal.title}
         message={successModal.message}
-        onClose={() => {
-          setSuccessModal({ open: false, title: '', message: '' });
-          // Redirect by role
-          const role = user?.role || 'user';
-          if (role === 'admin') nav('/dashboard/admin', { replace: true });
-          else if (role === 'staff') nav('/dashboard', { replace: true });
-          else nav('/', { replace: true });
-        }}
+        onClose={handleSuccessClose}
       />
     </div>
   );

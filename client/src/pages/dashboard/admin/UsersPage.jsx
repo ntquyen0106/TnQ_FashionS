@@ -50,6 +50,8 @@ const StatusChip = ({ status }) => {
   );
 };
 
+const EXCLUDED_ROLES = ['admin'];
+
 const emptyForm = {
   name: '',
   email: '',
@@ -86,6 +88,7 @@ export default function UsersPage() {
       if (q) params.search = q;
       if (role) params.role = role;
       if (status) params.status = status;
+      if (EXCLUDED_ROLES.length) params.excludeRoles = EXCLUDED_ROLES.join(',');
       const res = await usersApi.list(params);
       // Support multiple response shapes from the server:
       // - legacy: { items: [...], total: N }
@@ -234,7 +237,6 @@ export default function UsersPage() {
           }}
         >
           <MenuItem value="">Tất cả</MenuItem>
-          <MenuItem value="admin">Quản trị</MenuItem>
           <MenuItem value="staff">Nhân viên</MenuItem>
           <MenuItem value="user">Khách</MenuItem>
         </TextField>
@@ -272,47 +274,53 @@ export default function UsersPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((r) => {
-                const id = r.id || r._id;
-                return (
-                  <TableRow key={id} hover>
-                    <TableCell>{r.name}</TableCell>
-                    <TableCell>{r.email}</TableCell>
-                    <TableCell>{r.phoneNumber || '-'}</TableCell>
-                    <TableCell>
-                      <RoleChip role={r.role} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusChip status={r.status} />
-                    </TableCell>
-                    <TableCell align="right">
-                      {r.role !== 'user' && (
-                        <Tooltip title="Sửa">
-                          <IconButton onClick={() => openEdit(id)}>
-                            <EditIcon />
+              {rows
+                .filter((r) => !EXCLUDED_ROLES.includes(r.role))
+                .map((r) => {
+                  const id = r.id || r._id;
+                  return (
+                    <TableRow key={id} hover>
+                      <TableCell>{r.name}</TableCell>
+                      <TableCell>{r.email}</TableCell>
+                      <TableCell>{r.phoneNumber || '-'}</TableCell>
+                      <TableCell>
+                        <RoleChip role={r.role} />
+                      </TableCell>
+                      <TableCell>
+                        <StatusChip status={r.status} />
+                      </TableCell>
+                      <TableCell align="right">
+                        {r.role !== 'user' && (
+                          <Tooltip title="Sửa">
+                            <IconButton onClick={() => openEdit(id)}>
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title={r.status === 'active' ? 'Khoá' : 'Mở khoá'}>
+                          <IconButton onClick={() => toggleStatus(id, r.status)}>
+                            {actionLoadingId === id ? (
+                              <CircularProgress size={18} />
+                            ) : r.status === 'active' ? (
+                              <LockIcon />
+                            ) : (
+                              <LockOpenIcon />
+                            )}
                           </IconButton>
                         </Tooltip>
-                      )}
-                      <Tooltip title={r.status === 'active' ? 'Khoá' : 'Mở khoá'}>
-                        <IconButton onClick={() => toggleStatus(id, r.status)}>
-                          {actionLoadingId === id ? (
-                            <CircularProgress size={18} />
-                          ) : r.status === 'active' ? (
-                            <LockIcon />
-                          ) : (
-                            <LockOpenIcon />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Xoá">
-                        <IconButton onClick={() => remove(id)} color="error">
-                          {actionLoadingId === id ? <CircularProgress size={18} /> : <DeleteIcon />}
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                        <Tooltip title="Xoá">
+                          <IconButton onClick={() => remove(id)} color="error">
+                            {actionLoadingId === id ? (
+                              <CircularProgress size={18} />
+                            ) : (
+                              <DeleteIcon />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         )}
@@ -396,9 +404,7 @@ export default function UsersPage() {
             value={form.role}
             onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
           >
-            <MenuItem value="admin">Quản trị</MenuItem>
             <MenuItem value="staff">Nhân viên</MenuItem>
-            <MenuItem value="user">Khách</MenuItem>
           </TextField>
           <TextField
             select
