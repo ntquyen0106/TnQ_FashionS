@@ -118,23 +118,38 @@ export const listReviewsByProduct = async (productId, { page = 1, limit = 10 } =
 
   const skip = (page - 1) * limit;
   const reviews = await Review.find({ productId })
-    .populate('userId', 'name avatar')
+    .populate('userId', 'fullName avatar')
     .populate({ path: 'orderId', select: 'shippingAddress.fullName' })
+    .populate('replies.userId', 'fullName avatar role')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
-    .select('rating comment variantSku images video userId orderId createdAt')
+    .select('rating comment variantSku images video userId orderId replies createdAt')
     .lean();
   const total = await Review.countDocuments({ productId });
 
   const enriched = reviews.map((review) => {
     const customerName =
-      review.userId?.name || review.orderId?.shippingAddress?.fullName || 'Khách hàng';
+      review.userId?.fullName || review.orderId?.shippingAddress?.fullName || 'Khách hàng';
     const customerAvatar = review.userId?.avatar || null;
+    
+    // Format replies nếu có (mảng)
+    const repliesData = (review.replies || []).map((reply) => ({
+      _id: reply._id,
+      comment: reply.comment,
+      userId: reply.userId?._id,
+      userName: reply.userId?.fullName || 'Staff',
+      userAvatar: reply.userId?.avatar || null,
+      userRole: reply.userId?.role || null,
+      createdAt: reply.createdAt,
+      updatedAt: reply.updatedAt,
+    }));
+    
     return {
       ...review,
       customerName,
       customerAvatar,
+      replies: repliesData,
     };
   });
 
@@ -184,4 +199,117 @@ export const listUserReviews = async (userId) => {
     video: review.video || '',
     createdAt: review.createdAt,
   }));
+};
+
+/**
+ * Admin/Staff reply to a review (thêm reply mới vào mảng)
+ */
+export const replyToReview = async ({ reviewId, userId, comment }) => {
+  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    throw { code: 400, message: 'ID đánh giá không hợp lệ' };
+  }
+
+  if (!comment || !comment.trim()) {
+    throw { code: 400, message: 'Nội dung reply không được để trống' };
+  }
+
+  const review = await Review.findById(reviewId);
+  if (!review) {
+    throw { code: 404, message: 'Không tìm thấy đánh giá' };
+  }
+
+  // Thêm reply mới vào mảng replies
+  review.replies.push({
+    userId,
+    comment: comment.trim(),
+  });
+
+  await review.save();
+
+  return review;
+};
+
+/**
+ * Admin/Staff update their reply
+ */
+export const updateReply = async ({ reviewId, replyId, userId, comment, userRole }) => {
+  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    throw { code: 400, message: 'ID đánh giá không hợp lệ' };
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(replyId)) {
+    throw { code: 400, message: 'ID reply không hợp lệ' };
+  }
+
+  if (!comment || !comment.trim()) {
+    throw { code: 400, message: 'Nội dung reply không được để trống' };
+  }
+
+  const review = await Review.findById(reviewId);
+  if (!review) {
+    throw { code: 404, message: 'Không tìm thấy đánh giá' };
+  }
+
+  // Tìm reply trong mảng
+  const replyIndex = review.replies.findIndex(
+    (r) => r._id.toString() === replyId.toString()
+  );
+
+  if (replyIndex === -1) {
+    throw { code: 404, message: 'Không tìm thấy reply' };
+  }
+
+  const reply = review.replies[replyIndex];
+
+  // Chỉ người tạo reply hoặc admin mới được sửa
+  if (reply.userId.toString() !== userId.toString() && userRole !== 'admin') {
+    throw { code: 403, message: 'Bạn không có quyền sửa reply này' };
+  }
+
+  // Cập nhật reply
+  review.replies[replyIndex].comment = comment.trim();
+
+  await review.save();
+
+  return review;
+};
+
+/**
+ * Admin/Staff delete their reply
+ */
+export const deleteReply = async ({ reviewId, replyId, userId, userRole }) => {
+  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    throw { code: 400, message: 'ID đánh giá không hợp lệ' };
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(replyId)) {
+    throw { code: 400, message: 'ID reply không hợp lệ' };
+  }
+
+  const review = await Review.findById(reviewId);
+  if (!review) {
+    throw { code: 404, message: 'Không tìm thấy đánh giá' };
+  }
+
+  // Tìm reply trong mảng
+  const replyIndex = review.replies.findIndex(
+    (r) => r._id.toString() === replyId.toString()
+  );
+
+  if (replyIndex === -1) {
+    throw { code: 404, message: 'Không tìm thấy reply' };
+  }
+
+  const reply = review.replies[replyIndex];
+
+  // Chỉ người tạo reply hoặc admin mới được xóa
+  if (reply.userId.toString() !== userId.toString() && userRole !== 'admin') {
+    throw { code: 403, message: 'Bạn không có quyền xóa reply này' };
+  }
+
+  // Xóa reply khỏi mảng
+  review.replies.splice(replyIndex, 1);
+  await review.save();
+
+  return review;
 };

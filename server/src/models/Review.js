@@ -1,5 +1,22 @@
 import mongoose from 'mongoose';
 
+// Reply Schema - admin/staff có thể reply nhiều lần
+const ReplySchema = new mongoose.Schema(
+  {
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User', 
+      required: true 
+    },
+    comment: { 
+      type: String, 
+      required: true,
+      trim: true 
+    }
+  },
+  { timestamps: true }
+);
+
 const ReviewSchema = new mongoose.Schema(
   {
     productId: {
@@ -34,8 +51,13 @@ const ReviewSchema = new mongoose.Schema(
         message: 'Video không hợp lệ',
       },
     },
+    // Replies từ admin/staff (mảng - có thể có nhiều replies)
+    replies: {
+      type: [ReplySchema],
+      default: []
+    }
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // Mỗi đơn hàng chỉ được đánh giá một lần duy nhất (kiểm tra bằng orderId)

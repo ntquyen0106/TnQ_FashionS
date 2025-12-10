@@ -39,8 +39,8 @@ const start = async () => {
   startOrderScheduler();
 
   httpServer.listen(PORT, () => {
-    console.log(`🚀 API http://localhost:${PORT}`);
-    console.log(`🔌 WebSocket ready for chat`);
+    console.log(` API http://localhost:${PORT}`);
+    console.log(` WebSocket ready for chat`);
   });
 };
 start();
