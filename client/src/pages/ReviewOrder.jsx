@@ -1,9 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ordersApi from '@/api/orders-api';
 import { reviewsApi } from '@/api/reviews-api';
 import { mediaApi } from '@/api/media-api';
 import styles from './OrderDetail.module.css';
+
+const REVIEW_NOTICE_SEEN_KEY = 'tnq_review_notice_seen_at';
+const REVIEW_NOTICE_DATA_KEY = 'tnq_review_notice_data';
+const REVIEW_FOCUS_PRODUCT_KEY = 'tnq_review_focus_product';
+const REVIEW_NOTICE_STORAGE_KEY = 'tnq_review_notice_state';
 
 const useCloudImage = () => {
   const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -51,6 +56,30 @@ const Stars = ({ value, onChange, readOnly = false }) => {
   );
 };
 
+const formatDateTime = (value) => {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString('vi-VN', { hour12: false });
+  } catch (err) {
+    return String(value);
+  }
+};
+
+const normalizeId = (value, fallback = '') => {
+  if (!value) return fallback;
+  if (typeof value === 'object') {
+    if (value._id) return String(value._id);
+    if (value.id) return String(value.id);
+  }
+  return String(value);
+};
+
+const toTimestamp = (value) => {
+  if (!value) return 0;
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : 0;
+};
+
 export default function ReviewOrder() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -63,6 +92,201 @@ export default function ReviewOrder() {
 
   // Per-product reviews: [{ productId, rating, comment, variantSku, images: [], video: '', uploading: false, uploadProgress: 0 }]
   const [productReviews, setProductReviews] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [highlightedProduct, setHighlightedProduct] = useState('');
+  const productRefs = useRef({});
+  const highlightTimer = useRef(null);
+  const pendingFocusRef = useRef('');
+  const orderItems = useMemo(() => (Array.isArray(order?.items) ? order.items : []), [order]);
+  const [lastSeenReplyAt, setLastSeenReplyAt] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const raw = Number(window.localStorage?.getItem(REVIEW_NOTICE_SEEN_KEY) || 0);
+      return Number.isFinite(raw) ? raw : 0;
+    } catch (err) {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = Number(window.localStorage?.getItem(REVIEW_NOTICE_SEEN_KEY) || 0);
+      if (Number.isFinite(raw)) setLastSeenReplyAt(raw);
+    } catch (err) {}
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimer.current) {
+        clearTimeout(highlightTimer.current);
+      }
+    };
+  }, []);
+
+  const notifications = useMemo(() => {
+    const list = [];
+    productReviews.forEach((pr, idx) => {
+      const replies = Array.isArray(pr.replies) ? pr.replies : [];
+      if (!replies.length) return;
+      const item = orderItems[idx] || {};
+      const productKey = pr.productId || normalizeId(item.productId, String(idx));
+      const productName = item.nameSnapshot || item.name || 'Sản phẩm';
+      const variantSku = item.variantSku || pr.variantSku || '';
+      replies.forEach((reply) => {
+        list.push({
+          id: `${productKey}-${reply._id}`,
+          productKey,
+          productName,
+          variantSku,
+          reply,
+        });
+      });
+    });
+    return list.sort((a, b) => {
+      const aTime = new Date(a.reply?.createdAt || 0).getTime();
+      const bTime = new Date(b.reply?.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  }, [productReviews, orderItems]);
+
+  const latestReplyAt = useMemo(() => {
+    if (!notifications.length) return 0;
+    return notifications.reduce((max, n) => {
+      const ts = toTimestamp(n.reply?.createdAt);
+      return ts > max ? ts : max;
+    }, 0);
+  }, [notifications]);
+
+  const unreadNotifications = useMemo(() => {
+    if (!notifications.length) return [];
+    return notifications.filter((n) => toTimestamp(n.reply?.createdAt) > lastSeenReplyAt);
+  }, [notifications, lastSeenReplyAt]);
+
+  const unreadCount = unreadNotifications.length;
+  const hasUnreadNotifications = unreadCount > 0;
+  const totalNotifications = notifications.length;
+  const hasNotifications = totalNotifications > 0;
+
+  const persistLastSeen = useCallback(
+    (value) => {
+      if (!value) return;
+      setLastSeenReplyAt(value);
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage?.setItem(REVIEW_NOTICE_SEEN_KEY, String(value));
+        } catch (err) {}
+      }
+    },
+    [setLastSeenReplyAt],
+  );
+
+  useEffect(() => {
+    if (!hasNotifications) {
+      setNotifOpen(false);
+    }
+  }, [hasNotifications]);
+
+  useEffect(() => {
+    if (!notifOpen) return;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setNotifOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [notifOpen]);
+
+  useEffect(() => {
+    if (!notifOpen) return;
+    if (!hasNotifications || !latestReplyAt) return;
+    persistLastSeen(latestReplyAt);
+  }, [notifOpen, hasNotifications, latestReplyAt, persistLastSeen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage?.getItem(REVIEW_FOCUS_PRODUCT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.productKey) pendingFocusRef.current = parsed.productKey;
+      }
+      window.localStorage?.removeItem(REVIEW_FOCUS_PRODUCT_KEY);
+    } catch (err) {}
+  }, []);
+
+  useEffect(() => {
+    if (!pendingFocusRef.current) return undefined;
+    const key = pendingFocusRef.current;
+    const tryFocus = () => {
+      const node = productRefs.current[key];
+      if (!node) return false;
+      focusReview(key);
+      pendingFocusRef.current = '';
+      return true;
+    };
+    if (tryFocus()) return undefined;
+    const timer = setTimeout(() => {
+      if (pendingFocusRef.current) tryFocus();
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [productReviews]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const detail = {
+      count: readOnly && hasUnreadNotifications ? unreadCount : 0,
+      available: Boolean(readOnly && hasUnreadNotifications),
+    };
+    const orderId = order?._id || order?.id || id;
+    const orderCode = order?.code || '';
+    const notificationData =
+      readOnly && notifications.length
+        ? {
+            notifications: notifications.map((n) => ({
+              id: n.id,
+              productKey: n.productKey,
+              productName: n.productName,
+              variantSku: n.variantSku,
+              reply: n.reply,
+              orderId,
+              orderCode,
+            })),
+            latestReplyAt,
+            total: notifications.length,
+            orderId,
+            orderCode,
+          }
+        : null;
+    if (notificationData) detail.data = notificationData;
+    window.__tnqReviewNotifications = detail;
+    if (notificationData) {
+      window.__tnqReviewNotificationData = notificationData;
+    } else {
+      delete window.__tnqReviewNotificationData;
+    }
+    try {
+      window.localStorage?.setItem(REVIEW_NOTICE_STORAGE_KEY, JSON.stringify(detail));
+      if (notificationData) {
+        window.localStorage?.setItem(REVIEW_NOTICE_DATA_KEY, JSON.stringify(notificationData));
+      } else {
+        window.localStorage?.removeItem(REVIEW_NOTICE_DATA_KEY);
+      }
+    } catch (err) {}
+    window.dispatchEvent(new CustomEvent('tnq-review-notifications', { detail }));
+  }, [hasUnreadNotifications, unreadCount, readOnly, notifications, order, latestReplyAt, id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleOpen = () => {
+      if (readOnly && hasNotifications) {
+        setNotifOpen(true);
+      }
+    };
+    window.addEventListener('tnq-open-review-notifications', handleOpen);
+    return () => window.removeEventListener('tnq-open-review-notifications', handleOpen);
+  }, [readOnly, hasNotifications]);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,14 +304,15 @@ export default function ReviewOrder() {
 
         // Initialize productReviews from order items
         const items = o.items || [];
-        const initReviews = items.map((item) => ({
-          productId: item.productId,
+        const initReviews = items.map((item, index) => ({
+          productId: normalizeId(item.productId, String(index)),
           rating: 0,
           comment: '',
           variantSku: item.variantSku || '',
           images: [],
           video: '',
           uploading: false,
+          replies: [],
         }));
         setProductReviews(initReviews);
       } catch (e) {
@@ -142,6 +367,7 @@ export default function ReviewOrder() {
                   comment: existing.comment || '',
                   images: existing.images || [],
                   video: existing.video || '',
+                  replies: existing.replies || [],
                 };
               }
               return pr;
@@ -260,6 +486,27 @@ export default function ReviewOrder() {
     updateProductReview(index, 'video', '');
   };
 
+  const focusReview = (productKey) => {
+    if (!productKey) return;
+    const node = productRefs.current[productKey];
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    setNotifOpen(false);
+    setHighlightedProduct(productKey);
+    if (highlightTimer.current) {
+      clearTimeout(highlightTimer.current);
+    }
+    highlightTimer.current = setTimeout(() => {
+      setHighlightedProduct('');
+    }, 2800);
+  };
+
+  const handleNotificationClick = (notification) => {
+    if (!notification) return;
+    focusReview(notification.productKey);
+  };
+
   const submit = async () => {
     // Validate at least one product has rating
     const hasRating = productReviews.some((pr) => pr.rating > 0);
@@ -294,20 +541,19 @@ export default function ReviewOrder() {
   if (loading) return <div className={styles.wrap}>Đang tải…</div>;
   if (!order) return <div className={styles.wrap}>Không tìm thấy đơn hàng.</div>;
 
-  const items = order.items || [];
+  const items = orderItems;
 
   return (
     <div className={styles.wrap}>
       <div className={styles.panel}>
         <div className={styles.header}>
-          <button className={styles.back} onClick={() => nav(-1)} aria-label="Quay lại">
-            <span className={styles.arrow}>←</span>
+          <button className={styles.back} onClick={() => nav(-1)} aria-label="Quay lại trang trước">
+            <span className={styles.backIcon}>←</span>
           </button>
-          <div>
+          <div className={styles.headerTitles}>
             <h2>{readOnly ? 'Xem đánh giá' : 'Đánh giá đơn hàng'}</h2>
             <div className={styles.subLine}>Mã đơn: {order.code || order._id}</div>
           </div>
-          <div />
         </div>
 
         {readOnly && (
@@ -330,8 +576,24 @@ export default function ReviewOrder() {
 
         {items.map((item, idx) => {
           const pr = productReviews[idx] || {};
+          const productKey = pr.productId || normalizeId(item.productId, String(idx));
+          const replies = Array.isArray(pr.replies) ? pr.replies : [];
           return (
-            <section key={idx} className={styles.card} style={{ marginBottom: 16 }}>
+            <section
+              key={productKey || idx}
+              ref={(node) => {
+                if (!productKey) return;
+                if (node) {
+                  productRefs.current[productKey] = node;
+                } else {
+                  delete productRefs.current[productKey];
+                }
+              }}
+              className={`${styles.card} ${
+                highlightedProduct === productKey ? styles.cardHighlight : ''
+              }`}
+              style={{ marginBottom: 16 }}
+            >
               <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
                 <img
                   src={buildImageUrl(item.imageSnapshot, 80)}
@@ -568,6 +830,21 @@ export default function ReviewOrder() {
                     </div>
                   </div>
                 )}
+
+                {replies.length > 0 && (
+                  <div className={styles.replyBox}>
+                    <p className={styles.replyHeading}>Phản hồi từ cửa hàng</p>
+                    {replies.map((reply) => (
+                      <div key={reply._id || reply.createdAt} className={styles.replyBubble}>
+                        <div className={styles.replyMeta}>
+                          <strong>{reply.staffName || 'TNQ Fashion'}</strong>
+                          <span>{formatDateTime(reply.createdAt) || 'Vừa xong'}</span>
+                        </div>
+                        <p style={{ margin: 0 }}>{reply.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
           );
@@ -585,6 +862,54 @@ export default function ReviewOrder() {
           </div>
         )}
       </div>
+      {notifOpen && hasNotifications && readOnly && (
+        <div
+          className={styles.noticeOverlay}
+          aria-modal="true"
+          role="dialog"
+          onClick={() => setNotifOpen(false)}
+        >
+          <div className={styles.noticeModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.noticeHead}>
+              <div>
+                <p className={styles.noticeTitle}>Phản hồi từ TNQ Fashion</p>
+                <span className={styles.noticeSubtitle}>
+                  {totalNotifications === 1
+                    ? '1 phản hồi mới'
+                    : `${totalNotifications} phản hồi từ cửa hàng`}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={styles.noticeClose}
+                onClick={() => setNotifOpen(false)}
+                aria-label="Đóng thông báo"
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.noticeList}>
+              {notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  className={styles.noticeItem}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <div className={styles.noticeMeta}>
+                    <p>{notification.productName}</p>
+                    {notification.variantSku && <span>{notification.variantSku}</span>}
+                  </div>
+                  <p className={styles.noticePreview}>{notification.reply.comment}</p>
+                  <span className={styles.noticeTime}>
+                    {formatDateTime(notification.reply.createdAt) || 'Vừa xong'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

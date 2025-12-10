@@ -19,34 +19,68 @@
   /* subtle left accent */
   content: '';
   position: absolute;
+  top: 0;
   left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 6px;
-  border-top-left-radius: 12px;
-  border-bottom-left-radius: 12px;
-  background: linear-gradient(180deg, #111827, #374151);
-  opacity: 0.06;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  border-radius: 16px 0 0 16px;
 }
+
 .header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   max-width: 900px;
   margin: 0 auto 16px;
 }
+
 .back {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
   border: 1px solid #e5e7eb;
   background: #fff;
-  border-radius: 10px;
-  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
 }
-.arrow {
-  font-size: 16px;
+
+.back:hover {
+  border-color: #2563eb;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+  color: #2563eb;
+  transform: translateX(-2px);
 }
-.titleBox h2 {
+
+.backIcon {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.headerTitles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.headerTitles h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+.bellButton {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
   margin: 0;
 }
 .subLine {
@@ -116,6 +150,11 @@
   border-radius: 14px;
   padding: 14px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+}
+.cardHighlight {
+  border-color: #2563eb;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 .addr {
   background: #fafafa;
@@ -335,6 +374,119 @@
   justify-content: flex-end;
   gap: 10px; /* add spacing between the three buttons */
   padding: 8px 0;
+}
+.replyBox {
+  border-top: 1px dashed #e5e7eb;
+  margin-top: 12px;
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.replyHeading {
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+.replyBubble {
+  border: 1px solid #cbd5f5;
+  background: #eef2ff;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.replyMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+.noticeOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1100;
+}
+.noticeModal {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.noticeHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.noticeTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.noticeSubtitle {
+  color: #475569;
+  font-size: 13px;
+}
+.noticeClose {
+  border: none;
+  background: #f1f5f9;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.noticeList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.noticeItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.noticeItem:hover {
+  border-color: #2563eb;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+}
+.noticeMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+}
+.noticeMeta span {
+  font-size: 13px;
+  color: #475569;
+}
+.noticePreview {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+}
+.noticeTime {
+  font-size: 12px;
+  color: #94a3b8;
 }
 .btnDanger {
   background: #ca1414 !important;

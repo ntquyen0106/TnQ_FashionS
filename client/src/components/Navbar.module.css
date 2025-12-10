@@ -233,10 +233,135 @@
   background: #eff6ff;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
+.iconMuted {
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  cursor: default;
+  box-shadow: none;
+}
+.iconMuted:hover {
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  background: #f9fafb;
+  box-shadow: none;
+}
 .cartWrap {
   position: relative;
   display: inline-flex;
   align-items: center;
+}
+
+.reviewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 24px;
+}
+
+.reviewModal {
+  width: min(420px, 100%);
+  max-height: min(520px, 100%);
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reviewHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.reviewTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.reviewSubtitle {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #475467;
+}
+
+.reviewClose {
+  border: none;
+  background: #f3f4f6;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.reviewClose:hover {
+  background: #e5e7eb;
+}
+
+.reviewList {
+  padding: 8px 0 16px;
+  overflow-y: auto;
+}
+
+.reviewItem {
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.15s ease;
+}
+
+.reviewItem:hover {
+  background: #f9fafb;
+}
+
+.reviewMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.reviewMeta p {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.reviewMeta span {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.reviewPreview {
+  margin: 0;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.reviewTime {
+  font-size: 12px;
+  color: #94a3b8;
 }
 
 .badge {

@@ -481,6 +481,7 @@ export const listUserReviews = async (userId) => {
         select: 'name thumbnail',
       },
     })
+    .populate('replies.userId', 'fullName name avatar role')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -509,6 +510,18 @@ export const listUserReviews = async (userId) => {
     images: review.images || [],
     video: review.video || '',
     createdAt: review.createdAt,
+    replies: Array.isArray(review.replies)
+      ? review.replies.map((reply) => ({
+          _id: reply._id,
+          comment: reply.comment,
+          createdAt: reply.createdAt,
+          updatedAt: reply.updatedAt,
+          userId: reply.userId?._id || reply.userId || null,
+          staffName: reply.userId?.fullName || reply.userId?.name || 'TNQ Staff',
+          staffAvatar: reply.userId?.avatar || null,
+          staffRole: reply.userId?.role || null,
+        }))
+      : [],
   }));
 };
 
