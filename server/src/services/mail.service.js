@@ -43,10 +43,10 @@ const transporter =
         },
         ...commonTimeouts,
         // Thêm cấu hình cho Gmail trên production
-        // secure: true,
-        // tls: {
-        //   rejectUnauthorized: true,
-        // },
+        secure: true,
+        tls: {
+          rejectUnauthorized: true,
+        },
       });
 
 export async function sendMail(to, subject, text, html) {
