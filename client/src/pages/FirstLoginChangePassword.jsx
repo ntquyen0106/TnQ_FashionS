@@ -26,11 +26,16 @@ export default function FirstLoginChangePassword() {
       setLoading(true);
       await authApi.changePasswordFirst({ newPassword: password });
       setUser((prev) => (prev ? { ...prev, mustChangePassword: false } : prev));
-      // Show success modal then force re-login with new password
-      setSuccessModal({
-        open: true,
-        title: 'Đổi mật khẩu thành công',
-        message: 'Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.',
+      // Đăng xuất và chuyển ngay về trang đăng nhập để dùng mật khẩu mới
+      try {
+        await authApi.logout();
+      } catch (err) {
+        console.warn('logout after password change failed', err?.message);
+      }
+      setUser(null);
+      nav('/login', {
+        replace: true,
+        state: { message: 'Đổi mật khẩu thành công, vui lòng đăng nhập lại.' },
       });
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đổi mật khẩu thất bại');

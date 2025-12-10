@@ -1,19 +1,25 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env từ thư mục server (parent của src)
+// Load .env từ thư mục server (parent của src) nếu tồn tại; trên Render dùng env dashboard
 const envPath = resolve(__dirname, '../.env');
-const result = dotenv.config({ path: envPath });
-
-if (result.error) {
-  console.error('❌ Lỗi load .env:', result.error);
+if (fs.existsSync(envPath)) {
+  const result = dotenv.config({ path: envPath });
+  if (result.error) {
+    console.error('❌ Lỗi load .env:', result.error);
+  } else {
+    console.log(`✅ Loaded .env from: ${envPath}`);
+    console.log(
+      `   OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? 'Found ✓' : 'Missing ✗'}`,
+    );
+  }
 } else {
-  console.log(`✅ Loaded .env from: ${envPath}`);
-  console.log(`   OPENROUTER_API_KEY: ${process.env.OPENROUTER_API_KEY ? 'Found ✓' : 'Missing ✗'}`);
+  console.log('ℹ️ .env file not found; using environment variables only (Render).');
 }
 
 import { createServer } from 'http';

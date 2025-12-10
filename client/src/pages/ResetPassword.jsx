@@ -47,10 +47,10 @@ export default function ResetPassword() {
       sessionStorage.removeItem('pwResetToken');
       sessionStorage.removeItem('pwResetEmail');
 
-      setSuccessModal({
-        open: true,
-        title: 'Đổi mật khẩu thành công',
-        message: 'Vui lòng đăng nhập lại.',
+      // Sau khi đổi thành công, chuyển thẳng về login để đăng nhập bằng mật khẩu mới
+      nav('/login', {
+        replace: true,
+        state: { message: 'Đổi mật khẩu thành công, vui lòng đăng nhập lại.' },
       });
     } catch (e) {
       setMsg(e?.response?.data?.message || 'Đổi mật khẩu thất bại');
@@ -130,15 +130,7 @@ export default function ResetPassword() {
           {msg && <div className={styles.err}>{msg}</div>}
         </form>
       </div>
-      <SuccessModal
-        open={successModal.open}
-        title={successModal.title}
-        message={successModal.message}
-        onClose={() => {
-          setSuccessModal({ open: false, title: '', message: '' });
-          nav('/login');
-        }}
-      />
+      <SuccessModal open={false} />
     </div>
   );
 }
