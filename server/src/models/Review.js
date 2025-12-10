@@ -3,18 +3,18 @@ import mongoose from 'mongoose';
 // Reply Schema - admin/staff có thể reply nhiều lần
 const ReplySchema = new mongoose.Schema(
   {
-    userId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User', 
-      required: true 
-    },
-    comment: { 
-      type: String, 
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
-      trim: true 
-    }
+    },
+    comment: {
+      type: String,
+      required: true,
+      trim: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const ReviewSchema = new mongoose.Schema(
@@ -51,17 +51,39 @@ const ReviewSchema = new mongoose.Schema(
         message: 'Video không hợp lệ',
       },
     },
+    acknowledged: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    acknowledgedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    acknowledgedAt: {
+      type: Date,
+      default: null,
+    },
+    acknowledgedNote: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     // Replies từ admin/staff (mảng - có thể có nhiều replies)
     replies: {
       type: [ReplySchema],
-      default: []
-    }
+      default: [],
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Mỗi đơn hàng chỉ được đánh giá một lần duy nhất (kiểm tra bằng orderId)
 // Nhưng tạo nhiều bản ghi review - mỗi sản phẩm trong đơn một bản
 ReviewSchema.index({ orderId: 1, productId: 1 }, { unique: true });
+ReviewSchema.index({ productId: 1, createdAt: -1 });
+ReviewSchema.index({ rating: 1, createdAt: -1 });
+ReviewSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Review', ReviewSchema);

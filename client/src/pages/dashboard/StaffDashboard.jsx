@@ -7,12 +7,15 @@ import MyShiftsPage from './staff/MyShiftsPage';
 import PersonalStatsPage from './staff/PersonalStatsPage';
 import InventoryPage from './staff/InventoryPage';
 import StaffChatPage from './staff/StaffChatPage';
+import StaffReviewsPage from './staff/StaffReviewsPage';
 import { chatbotApi } from '@/api/chatbot-api';
 import { shiftApi } from '@/api';
+import { reviewsApi } from '@/api/reviews-api';
 
-const buildLinks = (chatBadge) => [
+const buildLinks = (chatBadge, reviewBadge) => [
   // Ẩn hàng đợi; điều hướng chính sang "Đơn hàng của tôi"
   { to: '/dashboard/my-orders', label: 'Đơn hàng của tôi', icon: '📋' },
+  { to: '/dashboard/reviews', label: 'Đánh giá khách hàng', icon: '⭐', badge: reviewBadge },
   { to: '/dashboard/my-shifts', label: 'Ca làm của tôi', icon: '⏰' },
   { to: '/dashboard/inventory', label: 'Kho hàng', icon: '📦' },
   { to: '/dashboard/stats', label: 'Thống kê cá nhân', icon: '📊' },
@@ -23,6 +26,7 @@ const buildLinks = (chatBadge) => [
 export default function StaffDashboard() {
   const [chatCounts, setChatCounts] = useState({ waiting: 0, withStaff: 0, all: 0 });
   const [hasShifts, setHasShifts] = useState(null); // null = loading, true/false = result
+  const [reviewBadge, setReviewBadge] = useState(0);
   const isMountedRef = useRef(false);
 
   // Check if staff has any shifts
@@ -80,12 +84,37 @@ export default function StaffDashboard() {
     }
   }, []);
 
+  const handleReviewStatsChange = useCallback((nextStats) => {
+    if (!nextStats) return;
+    setReviewBadge(Number(nextStats?.pending || 0));
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const loadReviewStats = async () => {
+      try {
+        const stats = await reviewsApi.staffStats();
+        if (alive) {
+          setReviewBadge(Number(stats?.pending || 0));
+        }
+      } catch (error) {
+        console.error('[StaffDashboard] Error loading review stats:', error);
+      }
+    };
+    loadReviewStats();
+    const interval = setInterval(loadReviewStats, 120000);
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const activeBadge = useMemo(
     () => Number(chatCounts.waiting || 0) + Number(chatCounts.withStaff || 0),
     [chatCounts.waiting, chatCounts.withStaff],
   );
 
-  const links = useMemo(() => buildLinks(activeBadge), [activeBadge]);
+  const links = useMemo(() => buildLinks(activeBadge, reviewBadge), [activeBadge, reviewBadge]);
 
   // Component to handle default route based on shift status
   const DefaultRoute = () => {
@@ -103,6 +132,10 @@ export default function StaffDashboard() {
         {/* Duy trì route cũ nếu có bookmark */}
         <Route path="queue" element={<MyOrdersPage />} />
         <Route path="my-orders" element={<MyOrdersPage />} />
+        <Route
+          path="reviews"
+          element={<StaffReviewsPage onStatsChange={handleReviewStatsChange} />}
+        />
         <Route
           path="chat"
           element={<StaffChatPage onCountsChange={handleCountsChange} initialCounts={chatCounts} />}

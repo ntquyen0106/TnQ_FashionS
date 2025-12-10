@@ -19,6 +19,15 @@ const buildVideoUrl = (publicId) => {
   return `https://res.cloudinary.com/${CLOUD}/video/upload/${pid}`;
 };
 
+const formatReplyDate = (value) => {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleDateString('vi-VN');
+  } catch (err) {
+    return value;
+  }
+};
+
 const Stars = ({ value }) => {
   return (
     <div style={{ display: 'flex', gap: 2 }}>
@@ -48,6 +57,9 @@ const ReviewItem = ({ review, expanded, onToggle }) => {
   const shouldTruncate = comment.length > 300;
   const displayComment = !expanded && shouldTruncate ? comment.substring(0, 300) + '...' : comment;
   const avatarSrc = review.customerAvatar || review.userId?.avatar;
+  const latestReply = Array.isArray(review.replies)
+    ? review.replies[review.replies.length - 1]
+    : null;
 
   return (
     <div className={styles.reviewItem}>
@@ -94,6 +106,22 @@ const ReviewItem = ({ review, expanded, onToggle }) => {
 
       {review.video && (
         <video src={buildVideoUrl(review.video)} controls className={styles.reviewVideo} />
+      )}
+
+      {latestReply && (
+        <div className={styles.storeReply}>
+          <div className={styles.storeReplyHeader}>
+            <span className={styles.storeReplyIcon}>TNQ</span>
+            <div>
+              <p className={styles.storeReplyTitle}>Phản hồi từ TNQ Fashion</p>
+              <span className={styles.storeReplyMeta}>
+                {latestReply.userName || latestReply.user?.fullName || 'TNQ Fashion'} ·{' '}
+                {formatReplyDate(latestReply.updatedAt || latestReply.createdAt)}
+              </span>
+            </div>
+          </div>
+          <p className={styles.storeReplyBody}>{latestReply.comment}</p>
+        </div>
       )}
     </div>
   );
