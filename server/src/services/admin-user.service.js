@@ -140,7 +140,10 @@ export const createUser = async (data) => {
   await user.save();
 
   // Send welcome email to new user with temp password
-  await sendWelcomeEmail(user.email, user.name, tempPassword);
+  // Gửi email nền để không làm chậm phản hồi API; log nếu thất bại
+  sendWelcomeEmail(user.email, user.name, tempPassword).catch((err) => {
+    console.error('Welcome email failed (non-blocking):', err?.message || err);
+  });
 
   return {
     message: 'Tạo người dùng thành công. Đã gửi mật khẩu tạm và link đăng nhập tới email.',
