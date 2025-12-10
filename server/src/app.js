@@ -101,6 +101,9 @@ export const createApp = (clientUrl) => {
     }),
   );
 
+  // Root health check to avoid 404 noise from platform pings
+  app.get('/', (req, res) => res.json({ ok: true }));
+
   // Health
   app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
 
