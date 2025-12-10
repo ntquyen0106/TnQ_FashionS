@@ -37,19 +37,39 @@ const transporter =
       })
     : nodemailer.createTransport({
         service: 'gmail',
-
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
         ...commonTimeouts,
+        // Thêm cấu hình cho Gmail trên production
+        // secure: true,
+        // tls: {
+        //   rejectUnauthorized: true,
+        // },
       });
 
 export async function sendMail(to, subject, text, html) {
-  return transporter.sendMail({
-    from: process.env.SMTP_USER,
-    to,
-    subject,
-    text,
-    html: html ?? `<p>${text}</p>`,
-  });
+  try {
+    console.log(`[Email] Attempting to send email to: ${to}`);
+    console.log(`[Email] Using provider: ${provider}`);
+    console.log(`[Email] SMTP_USER configured: ${process.env.SMTP_USER ? 'Yes' : 'No'}`);
+    
+    const result = await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to,
+      subject,
+      text,
+      html: html ?? `<p>${text}</p>`,
+    });
+    
+    console.log(`[Email] Successfully sent to: ${to}, MessageId: ${result.messageId}`);
+    return result;
+  } catch (error) {
+    console.error(`[Email] Failed to send email to ${to}:`, error.message);
+    console.error(`[Email] Error details:`, error);
+    throw error;
+  }
 }
 
 export async function sendWelcomeEmail(userEmail, userName, password = 'P@ssw0rd') {
