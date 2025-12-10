@@ -13,9 +13,9 @@ const pickFrontendUrl = () => {
 };
 
 const commonTimeouts = {
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  connectionTimeout: 7000,
+  greetingTimeout: 7000,
+  socketTimeout: 7000,
 };
 
 const transporter =
