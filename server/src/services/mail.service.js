@@ -36,16 +36,15 @@ const transporter =
         ...commonTimeouts,
       })
     : nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        service: 'gmail',
+
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
         ...commonTimeouts,
       });
 
 export async function sendMail(to, subject, text, html) {
   return transporter.sendMail({
-    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    from: process.env.SMTP_USER,
     to,
     subject,
     text,
