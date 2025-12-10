@@ -128,11 +128,15 @@ export const postSendSetPassword = async (req, res) => {
 
     try {
       await sendMail(user.email, subject, `Link đặt lại mật khẩu: ${link}`, html);
-      return res.status(200).json({ message: 'Đã gửi link đặt lại mật khẩu tới email người dùng.' });
+      return res
+        .status(200)
+        .json({ message: 'Đã gửi link đặt lại mật khẩu tới email người dùng.' });
     } catch (mailErr) {
       console.error('Send set-password mail failed:', mailErr?.message || mailErr);
       // Không chặn thao tác, trả về 202 để FE hiển thị cảnh báo nhưng không timeout
-      return res.status(202).json({ message: 'Tạo link thành công nhưng gửi email thất bại, thử lại sau.' });
+      return res
+        .status(202)
+        .json({ message: 'Tạo link thành công nhưng gửi email thất bại, thử lại sau.' });
     }
   } catch (err) {
     return res.status(err.status || 500).json({ message: err.message || 'Lỗi server' });
