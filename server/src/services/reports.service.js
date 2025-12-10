@@ -457,42 +457,37 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   };
 
   // ============================================
-  // TÍNH TOÁN THEO CHUẨN KẾ TOÁN VIỆT NAM
+  // TÍNH TOÁN DOANH THU & THUẾ
   // ============================================
-  // LƯU Ý: Giá niêm yết trong hệ thống đã bao gồm VAT. Khách thanh toán đúng amounts.grandTotal
-  // và chúng ta phải tách ngược phần thuế từ tổng tiền thực thu.
+  // Khách trả: 100,000đ
+  // Shop thu: 100,000đ
+  // Thuế VAT shop phải nộp: 8,000đ (8% của doanh thu)
+  // Shop thực nhận: 92,000đ
   //
   // CẤU TRÚC Order Model:
   // - amounts.subtotal = Tổng giá trị hàng hóa trước khi trừ giảm giá
   // - amounts.discount = Giảm giá/voucher
   // - amounts.shippingFee = Phí vận chuyển thu từ khách
-  // - amounts.grandTotal = subtotal - discount + shippingFee (đÃ BAO GỒM VAT)
-  //
-  // CÔNG THỨC TÁCH THUẾ:
-  // - Thuế GTGT = Tổng tiền đã thu × VAT_RATE / (1 + VAT_RATE)
-  // - Doanh thu thuần (chưa VAT) = Tổng tiền đã thu - Thuế GTGT
+  // - amounts.grandTotal = subtotal - discount + shippingFee
 
-  const VAT_RATE = 0.08; // 8% thuế GTGT cho hàng hóa, dịch vụ
+  const VAT_RATE = 0.08; // 8% thuế GTGT
 
-  const grossRevenue = Math.max(
+  // Doanh thu từ khách (số tiền khách trả)
+  const totalRevenue = Math.max(
     0,
     (revenue.totalSubtotal || 0) - (revenue.totalDiscount || 0) + (revenue.totalShipping || 0),
   );
 
-  // Thuế GTGT được tách ngược từ tổng tiền thực thu
-  const outputVAT = Math.round((grossRevenue * VAT_RATE) / (1 + VAT_RATE));
+  // Thuế VAT shop phải nộp (8% của doanh thu)
+  const vatPayable = Math.round(totalRevenue * VAT_RATE);
 
-  // Doanh thu thuần sau khi loại VAT
-  const netRevenue = grossRevenue - outputVAT;
+  // Doanh thu thuần sau khi trừ thuế (số tiền shop thực nhận)
+  const netRevenue = totalRevenue - vatPayable;
+  const salesRevenue = totalRevenue;
 
-  // Giữ lại key salesRevenue để tương thích UI/Excel (đều hiểu là "chưa VAT")
-  const salesRevenue = netRevenue;
-
-  const totalRevenueWithVAT = grossRevenue;
-
-  // Giá trị trung bình đơn hàng (tính theo subtotal)
+  // Giá trị trung bình đơn hàng
   const avgOrderValue =
-    revenue.totalOrders > 0 ? Math.round(grossRevenue / revenue.totalOrders) : 0;
+    revenue.totalOrders > 0 ? Math.round(totalRevenue / revenue.totalOrders) : 0;
 
   // ============================================
   // XỬ LÝ PHƯƠNG THỨC THANH TOÁN
@@ -507,7 +502,7 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
     });
   });
 
-  const totalCollected = grossRevenue || 0;
+  const totalCollected = totalRevenue || 0;
   const paymentMethods = ['COD', 'BANK'].map((method) => {
     const data = paymentMap.get(method) || { revenue: 0, orders: 0 };
     const methodName = method === 'BANK' ? 'Chuyển khoản' : 'COD (Tiền mặt)';
@@ -527,16 +522,17 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   // XỬ LÝ DOANH THU THEO NGÀY
   // ============================================
   const daily = data.dailyRevenue.map((d) => {
-    const gross = d.gross || 0;
-    const vat = Math.round((gross * VAT_RATE) / (1 + VAT_RATE));
+    const revenue = d.gross || 0;
+    const vat = Math.round(revenue * VAT_RATE);
+    const netRevenue = revenue - vat;
     return {
       date: d._id,
-      revenue: gross,
+      revenue,
       discount: d.discount,
       shipping: d.shipping,
       orders: d.orders,
       vat,
-      netRevenue: gross - vat,
+      netRevenue,
     };
   });
 
@@ -555,58 +551,42 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
     },
 
     // ============================================
-    // BÁO CÁO THUẾ GTGT (Theo Thông tư 78/2021/TT-BTC)
+    // BÁO CÁO DOANH THU
     // ============================================
-    // Phần này dùng để kê khai thuế GTGT hàng tháng
-    // File mẫu: Mẫu 01/GTGT
-    taxReport: {
-      // [1] DOANH THU BÁN HÀNG (chưa có thuế GTGT)
-      // = Tổng giá trị hàng hóa, dịch vụ đã bán
-      // VD: Bán hàng 100,000đ (giá chưa thuế)
-      salesRevenue,
+    revenueReport: {
+      // Tổng doanh thu (không có thuế VAT)
+      // = Số tiền khách hàng thực tế thanh toán
+      totalRevenue,
 
-      // [2] DOANH THU THUẦN (Net Revenue)
-      // = Doanh thu bán hàng - Các khoản giảm trừ
-      // = Doanh thu thực tế sau giảm giá
-      // VD: 100,000đ - 10,000đ (voucher) = 90,000đ
+      // Doanh thu thuần = Tổng doanh thu
       netRevenue,
 
-      // [3] THUẾ GTGT ĐẦU RA (Output VAT - Số tiền phải nộp)
-      // = Doanh thu bán hàng × 8%
-      // VD: 100,000đ × 8% = 8,000đ → Phải nộp cho cơ quan thuế
-      outputVAT,
-
-      // [4] TỔNG TIỀN PHẢI THU (bao gồm thuế GTGT)
-      // = Doanh thu bán hàng + Thuế GTGT
-      // = Số tiền khách hàng phải thanh toán
-      // VD: 100,000đ + 8,000đ = 108,000đ
-      totalRevenueWithVAT,
-
-      // [CHỉ TIÊU BỔ SUNG] - Giảm giá, chiết khấu thương mại
-      // = Tổng voucher/khuyến mại đã giảm cho khách
-      // VD: Khách dùng voucher giảm 10,000đ
+      // Giảm giá / Voucher
       totalDiscount: revenue.totalDiscount,
 
-      // [CHỈ TIÊU BỔ SUNG] - Phí vận chuyển (Dịch vụ kèm theo)
-      // = Phí ship thu từ khách hàng
+      // Phí vận chuyển
       totalShipping: revenue.totalShipping,
-      //    → Tháng 2 thực chất kém hơn tháng 1!
+
+      // Tổng giá trị hàng (trước giảm giá)
+      totalSubtotal: revenue.totalSubtotal,
+    },
+
+    // BÁO CÁO THUẾ GTGT
+    taxReport: {
+      // Tổng doanh thu (khách trả)
+      totalRevenue,
+      salesRevenue,
+
+      // Thuế VAT shop phải nộp (8%)
+      vatPayable,
+
+      // Doanh thu thuần (sau khi trừ thuế)
       netRevenue,
 
-      // ============================================
-      // GHI CHÚ QUAN TRỌNG KHI NỘP THUẾ:
-      // ============================================
-      // 1. Thuế GTGT đầu ra (outputVAT): Số tiền phải nộp ngân sách nhà nước
-      // 2. Thời hạn nộp: Trước ngày 20 của tháng tiếp theo
-      //    VD: Tháng 11/2025 → Nộp trước 20/12/2025
-      // 3. Hồ sơ kèm theo:
-      //    - Tờ khai thuế GTGT (Mẫu 01/GTGT)
-      //    - Bảng kê hóa đơn, chứng từ hàng hóa dịch vụ bán ra (Mẫu 01-1/GTGT)
-      //    - Chi tiết đơn hàng (từ phần 'orders' bên dưới)
-      // 4. Lưu ý:
-      //    - CHỈ tính đơn DONE (đã hoàn thành, đã thu tiền)
-      //    - Đơn CANCELLED, RETURNED KHÔNG tính vào doanh thu
-      //    - Cần lưu giữ chứng từ thanh toán (COD/BANK) tối thiểu 10 năm
+      // Chi tiết
+      totalSubtotal: revenue.totalSubtotal,
+      totalDiscount: revenue.totalDiscount,
+      totalShipping: revenue.totalShipping,
     },
 
     // Thống kê đơn hàng
@@ -902,7 +882,10 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
     const vCell = row.getCell(2);
     vCell.value = value ?? 0;
     vCell.alignment = { horizontal: 'right', vertical: 'middle' };
-    if (typeof value === 'number' && !unit) vCell.numFmt = '#,##0';
+    // Format số với dấu phẩy cho cả tiền và số lượng
+    if (typeof value === 'number') {
+      vCell.numFmt = unit === 'VNĐ' || !unit ? '#,##0' : '#,##0.0';
+    }
 
     const uCell = row.getCell(3);
     uCell.value = unit;
@@ -936,15 +919,16 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
   addInfoRow('Ngày xuất báo cáo:', new Date().toLocaleDateString('vi-VN'));
   addEmptyRow();
 
-  // ===== PHẦN II: BÁO CÁO THUẾ =====
+  // ===== PHẦN II: BÁO CÁO DOANH THU & THUẾ =====
   const tax = data.summary.taxReport;
-  addSectionHeader('PHẦN II: BÁO CÁO THUẾ (DOANH THU & THUẾ GTGT)');
+  addSectionHeader('PHẦN II: BÁO CÁO DOANH THU & THUẾ GTGT');
 
-  addMoneyRow('Tổng tiền khách đã thanh toán (đã gồm VAT):', tax.totalRevenueWithVAT, true);
-  addMoneyRow('Thuế GTGT đầu ra 8% (tách từ tổng tiền):', tax.outputVAT, true);
-  addMoneyRow('Doanh thu thuần (chưa VAT):', tax.netRevenue, true);
-  addMoneyRow('Giảm giá / Voucher (VNĐ):', tax.totalDiscount);
-  addMoneyRow('Phí vận chuyển (VNĐ):', tax.totalShipping);
+  addMoneyRow('Tổng giá trị hàng hóa:', tax.totalSubtotal);
+  addMoneyRow('Giảm giá / Voucher:', tax.totalDiscount);
+  addMoneyRow('Phí vận chuyển:', tax.totalShipping);
+  addMoneyRow('Tổng doanh thu (khách trả):', tax.totalRevenue);
+  addMoneyRow('Thuế GTGT (8%):', tax.vatPayable);
+  addMoneyRow('Doanh thu thuần (sau thuế):', tax.netRevenue);
   addEmptyRow();
 
   // ===== PHẦN III: THỐNG KÊ TỔNG HỢP =====
@@ -975,14 +959,15 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
 
     const statusNames = {
       DONE: 'Hoàn thành',
-      CONFIRMED: 'Đã xác nhận',
       CANCELLED: 'Đã huỷ',
-      RETURNED: 'Hoàn trả',
-      PENDING: 'Chờ xử lý',
-      SHIPPING: 'Đang giao',
     };
 
+    // Chỉ hiển thị trạng thái DONE và CANCELLED
+    const allowedStatuses = ['DONE', 'CANCELLED'];
+    
     Object.entries(data.summary.statusBreakdown).forEach(([status, stat]) => {
+      if (!allowedStatuses.includes(status)) return;
+      
       const r = ws.getRow(currentRow);
       r.height = 18;
       const name = statusNames[status] || status;
