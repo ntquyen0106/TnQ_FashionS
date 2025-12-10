@@ -57,9 +57,9 @@ export async function sendMail(to, subject, text, html) {
     
     const result = await transporter.sendMail({
       from: process.env.SMTP_USER,
-      to,
-      subject,
-      text,
+      to: to,
+      subject: subject,
+      text: text,
       html: html ?? `<p>${text}</p>`,
     });
     
