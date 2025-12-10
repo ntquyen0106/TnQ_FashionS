@@ -457,10 +457,12 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   };
 
   // ============================================
-  // TÍNH TOÁN DOANH THU
+  // TÍNH TOÁN DOANH THU & THUẾ
   // ============================================
-  // Khách hàng KHÔNG chịu thuế VAT
-  // Doanh thu = Tổng tiền khách thực tế thanh toán
+  // Khách trả: 100,000đ
+  // Shop thu: 100,000đ
+  // Thuế VAT shop phải nộp: 8,000đ (8% của doanh thu)
+  // Shop thực nhận: 92,000đ
   //
   // CẤU TRÚC Order Model:
   // - amounts.subtotal = Tổng giá trị hàng hóa trước khi trừ giảm giá
@@ -468,13 +470,19 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   // - amounts.shippingFee = Phí vận chuyển thu từ khách
   // - amounts.grandTotal = subtotal - discount + shippingFee
 
+  const VAT_RATE = 0.08; // 8% thuế GTGT
+
+  // Doanh thu từ khách (số tiền khách trả)
   const totalRevenue = Math.max(
     0,
     (revenue.totalSubtotal || 0) - (revenue.totalDiscount || 0) + (revenue.totalShipping || 0),
   );
 
-  // Doanh thu thuần = Tổng doanh thu (không có VAT)
-  const netRevenue = totalRevenue;
+  // Thuế VAT shop phải nộp (8% của doanh thu)
+  const vatPayable = Math.round(totalRevenue * VAT_RATE);
+
+  // Doanh thu thuần sau khi trừ thuế (số tiền shop thực nhận)
+  const netRevenue = totalRevenue - vatPayable;
   const salesRevenue = totalRevenue;
 
   // Giá trị trung bình đơn hàng
@@ -515,12 +523,16 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
   // ============================================
   const daily = data.dailyRevenue.map((d) => {
     const revenue = d.gross || 0;
+    const vat = Math.round(revenue * VAT_RATE);
+    const netRevenue = revenue - vat;
     return {
       date: d._id,
       revenue,
       discount: d.discount,
       shipping: d.shipping,
       orders: d.orders,
+      vat,
+      netRevenue,
     };
   });
 
@@ -559,11 +571,20 @@ export const getMonthlyRevenueSummary = async ({ year, month } = {}) => {
       totalSubtotal: revenue.totalSubtotal,
     },
 
-    // Giữ lại taxReport để tương thích code cũ (nếu có)
+    // BÁO CÁO THUẾ GTGT
     taxReport: {
-      salesRevenue,
-      netRevenue,
+      // Tổng doanh thu (khách trả)
       totalRevenue,
+      salesRevenue,
+
+      // Thuế VAT shop phải nộp (8%)
+      vatPayable,
+
+      // Doanh thu thuần (sau khi trừ thuế)
+      netRevenue,
+
+      // Chi tiết
+      totalSubtotal: revenue.totalSubtotal,
       totalDiscount: revenue.totalDiscount,
       totalShipping: revenue.totalShipping,
     },
@@ -861,7 +882,10 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
     const vCell = row.getCell(2);
     vCell.value = value ?? 0;
     vCell.alignment = { horizontal: 'right', vertical: 'middle' };
-    if (typeof value === 'number' && !unit) vCell.numFmt = '#,##0';
+    // Format số với dấu phẩy cho cả tiền và số lượng
+    if (typeof value === 'number') {
+      vCell.numFmt = unit === 'VNĐ' || !unit ? '#,##0' : '#,##0.0';
+    }
 
     const uCell = row.getCell(3);
     uCell.value = unit;
@@ -895,14 +919,16 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
   addInfoRow('Ngày xuất báo cáo:', new Date().toLocaleDateString('vi-VN'));
   addEmptyRow();
 
-  // ===== PHẦN II: BÁO CÁO DOANH THU =====
-  const rev = data.summary.revenueReport;
-  addSectionHeader('PHẦN II: BÁO CÁO DOANH THU');
+  // ===== PHẦN II: BÁO CÁO DOANH THU & THUẾ =====
+  const tax = data.summary.taxReport;
+  addSectionHeader('PHẦN II: BÁO CÁO DOANH THU & THUẾ GTGT');
 
-  addMoneyRow('Tổng giá trị hàng hóa:', rev.totalSubtotal);
-  addMoneyRow('Giảm giá / Voucher (VNĐ):', rev.totalDiscount);
-  addMoneyRow('Phí vận chuyển (VNĐ):', rev.totalShipping);
-  addMoneyRow('Tổng doanh thu:', rev.totalRevenue, true);
+  addMoneyRow('Tổng giá trị hàng hóa:', tax.totalSubtotal);
+  addMoneyRow('Giảm giá / Voucher:', tax.totalDiscount);
+  addMoneyRow('Phí vận chuyển:', tax.totalShipping);
+  addMoneyRow('Tổng doanh thu (khách trả):', tax.totalRevenue);
+  addMoneyRow('Thuế GTGT (8%):', tax.vatPayable);
+  addMoneyRow('Doanh thu thuần (sau thuế):', tax.netRevenue);
   addEmptyRow();
 
   // ===== PHẦN III: THỐNG KÊ TỔNG HỢP =====
