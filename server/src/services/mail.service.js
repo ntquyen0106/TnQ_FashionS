@@ -12,12 +12,6 @@ const pickFrontendUrl = () => {
   return 'http://localhost:5173';
 };
 
-const commonTimeouts = {
-  connectionTimeout: 7000,
-  greetingTimeout: 7000,
-  socketTimeout: 7000,
-};
-
 const transporter =
   provider === 'mailtrap'
     ? nodemailer.createTransport({
@@ -25,7 +19,6 @@ const transporter =
         port: Number(process.env.MAILTRAP_PORT || 587),
         secure: false,
         auth: { user: process.env.MAILTRAP_USER, pass: process.env.MAILTRAP_PASS },
-        ...commonTimeouts,
       })
     : provider === 'smtp'
     ? nodemailer.createTransport({
@@ -33,19 +26,12 @@ const transporter =
         port: Number(process.env.SMTP_PORT || 587),
         secure: String(process.env.SMTP_SECURE ?? 'false').toLowerCase() === 'true',
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        ...commonTimeouts,
       })
     : nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
-        },
-        ...commonTimeouts,
-        // Thêm cấu hình cho Gmail trên production
-        secure: true,
-        tls: {
-          rejectUnauthorized: true,
         },
       });
 
