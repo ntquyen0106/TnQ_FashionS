@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const provider = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
+const resendApiKey = process.env.RESEND_API_KEY;
 
 const pickFrontendUrl = () => {
   const sources = [process.env.FRONTEND_URL, process.env.CLIENT_URL, process.env.CLIENT_ORIGIN];
@@ -11,6 +13,8 @@ const pickFrontendUrl = () => {
   }
   return 'http://localhost:5173';
 };
+
+const resendClient = provider === 'resend' && resendApiKey ? new Resend(resendApiKey) : null;
 
 const transporter =
   provider === 'mailtrap'
@@ -27,28 +31,50 @@ const transporter =
         secure: String(process.env.SMTP_SECURE ?? 'false').toLowerCase() === 'true',
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       })
-    : nodemailer.createTransport({
+    : provider === 'gmail'
+    ? nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
-      });
+      })
+    : null;
 
 export async function sendMail(to, subject, text, html) {
   try {
     console.log(`[Email] Attempting to send email to: ${to}`);
     console.log(`[Email] Using provider: ${provider}`);
     console.log(`[Email] SMTP_USER configured: ${process.env.SMTP_USER ? 'Yes' : 'No'}`);
-    
+
+    const from = process.env.MAIL_FROM || process.env.SMTP_USER;
+
+    if (provider === 'resend') {
+      if (!resendClient) throw new Error('RESEND_API_KEY is required for Resend provider');
+      const { data, error } = await resendClient.emails.send({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        text,
+        html: html ?? `<p>${text}</p>`,
+      });
+      if (error) {
+        throw new Error(error.message || 'Resend send failed');
+      }
+      console.log(`[Email] Successfully sent via Resend to: ${to}, MessageId: ${data?.id}`);
+      return data;
+    }
+
+    if (!transporter) throw new Error(`Email provider '${provider}' is not configured`);
+
     const result = await transporter.sendMail({
-      from: process.env.SMTP_USER,
+      from,
       to: to,
       subject: subject,
       text: text,
       html: html ?? `<p>${text}</p>`,
     });
-    
+
     console.log(`[Email] Successfully sent to: ${to}, MessageId: ${result.messageId}`);
     return result;
   } catch (error) {
