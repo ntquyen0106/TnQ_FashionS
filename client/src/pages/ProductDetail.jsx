@@ -188,12 +188,18 @@ export default function ProductDetail() {
     return Array.from(set);
   }, [p]);
 
-  // Mảng size theo màu
-  const sizesForColor = useMemo(() => {
-    const list = (p?.variants || []).filter((v) => !color || v.color === color);
-    const set = new Set(list.map((v) => v.size).filter(Boolean));
+  // Tất cả size của sản phẩm
+  const allSizes = useMemo(() => {
+    const set = new Set((p?.variants || []).map((v) => v.size).filter(Boolean));
     return Array.from(set);
-  }, [p, color]);
+  }, [p]);
+
+  // Size có sẵn cho màu hiện tại
+  const availableSizesForColor = useMemo(() => {
+    if (!color) return new Set(allSizes);
+    const list = (p?.variants || []).filter((v) => v.color === color);
+    return new Set(list.map((v) => v.size).filter(Boolean));
+  }, [p, color, allSizes]);
 
   // Khi đổi màu/size -> chọn đúng variant
   useEffect(() => {
@@ -433,15 +439,23 @@ export default function ProductDetail() {
                   Size:
                 </div>
                 <div className={styles.variantList}>
-                  {sizesForColor.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setSize(s)}
-                      className={`${styles.variantBtn} ${size === s ? styles.active : ''}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                  {allSizes.map((s) => {
+                    const isAvailable = availableSizesForColor.has(s);
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => isAvailable && setSize(s)}
+                        disabled={!isAvailable}
+                        className={`${styles.variantBtn} ${size === s ? styles.active : ''}`}
+                        style={{
+                          opacity: isAvailable ? 1 : 0.3,
+                          cursor: isAvailable ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* {variant?.stock !== undefined && (
