@@ -1,5 +1,6 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
+import Attendance from '../models/Attendance.js';
 import ExcelJS from 'exceljs';
 
 // Parse YYYY-MM-DD as a LOCAL date to avoid UTC shift (which would move the day back)
@@ -173,8 +174,8 @@ export const getOrdersByStaff = async ({ from, to } = {}) => {
 
   const tz = 'Asia/Ho_Chi_Minh';
 
-  // Aggregate counts by staff and date
-  const agg = await Order.aggregate([
+  // Aggregate order counts by staff and date
+  const orderAgg = await Order.aggregate([
     { $match: { createdAt: { $gte: fromAt, $lte: toAt } } },
     {
       $group: {
@@ -188,12 +189,43 @@ export const getOrdersByStaff = async ({ from, to } = {}) => {
     { $sort: { '_id.staff': 1, '_id.date': 1 } },
   ]);
 
-  // Pivot into staff -> [{date,count}]
+  // Aggregate worked minutes from attendance by staff and date
+  const attendanceAgg = await Attendance.aggregate([
+    { $match: { date: { $gte: fromAt, $lte: toAt } } },
+    {
+      $group: {
+        _id: {
+          staff: '$staff',
+          date: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: tz } },
+        },
+        minutes: { $sum: { $ifNull: ['$minutes', 0] } },
+      },
+    },
+    { $sort: { '_id.staff': 1, '_id.date': 1 } },
+  ]);
+
+  // Pivot into staff -> Map(date -> { count, minutes })
   const map = new Map();
-  for (const it of agg) {
-    const sid = it._id.staff ? String(it._id.staff) : 'unassigned';
-    if (!map.has(sid)) map.set(sid, { staffId: it._id.staff || null, days: [] });
-    map.get(sid).days.push({ date: it._id.date, count: it.count });
+  const ensureEntry = (staffId) => {
+    const key = staffId ? String(staffId) : 'unassigned';
+    if (!map.has(key)) {
+      map.set(key, { staffId: staffId || null, dayMap: new Map() });
+    }
+    return map.get(key);
+  };
+
+  for (const it of orderAgg) {
+    const entry = ensureEntry(it._id.staff);
+    const cur = entry.dayMap.get(it._id.date) || { date: it._id.date, count: 0, minutes: 0 };
+    cur.count += it.count || 0;
+    entry.dayMap.set(it._id.date, cur);
+  }
+
+  for (const it of attendanceAgg) {
+    const entry = ensureEntry(it._id.staff);
+    const cur = entry.dayMap.get(it._id.date) || { date: it._id.date, count: 0, minutes: 0 };
+    cur.minutes += it.minutes || 0;
+    entry.dayMap.set(it._id.date, cur);
   }
 
   // Resolve staff names for non-null ids
@@ -212,7 +244,10 @@ export const getOrdersByStaff = async ({ from, to } = {}) => {
   for (const [k, v] of map.entries()) {
     const sid = v.staffId ? String(v.staffId) : null;
     const name = sid ? staffMap.get(sid)?.name || 'Unknown' : 'Chưa gán';
-    result.push({ staffId: v.staffId, staffName: name, days: v.days });
+    const days = Array.from(v.dayMap.values()).sort((a, b) => (a.date < b.date ? -1 : 1));
+    const totalOrders = days.reduce((s, it) => s + (it.count || 0), 0);
+    const totalMinutes = days.reduce((s, it) => s + (it.minutes || 0), 0);
+    result.push({ staffId: v.staffId, staffName: name, days, totalOrders, totalMinutes });
   }
 
   return { range: { from: fromAt, to: toAt }, items: result };
@@ -964,10 +999,10 @@ export const generateMonthlyRevenueExcel = async ({ year, month }) => {
 
     // Chỉ hiển thị trạng thái DONE và CANCELLED
     const allowedStatuses = ['DONE', 'CANCELLED'];
-    
+
     Object.entries(data.summary.statusBreakdown).forEach(([status, stat]) => {
       if (!allowedStatuses.includes(status)) return;
-      
+
       const r = ws.getRow(currentRow);
       r.height = 18;
       const name = statusNames[status] || status;

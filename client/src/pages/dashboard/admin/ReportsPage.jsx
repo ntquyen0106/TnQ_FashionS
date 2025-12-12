@@ -1220,6 +1220,9 @@ function StaffPanel({ from, to }) {
   const [loading, setLoading] = useState(false);
   const [staffData, setStaffData] = useState([]);
 
+  // view mode: show orders handled or worked hours
+  const [viewMode, setViewMode] = useState('orders');
+
   // filter: minimum total orders
   // (removed) minTotal filter - show all staff by default
 
@@ -1263,21 +1266,32 @@ function StaffPanel({ from, to }) {
 
   // compute totals and filter staff by minTotal
   const staffWithTotals = (staffData || []).map((st) => {
-    const totalAll = (st.days || []).reduce((s, it) => s + (it.count || 0), 0);
-    return { ...st, total: totalAll };
+    const totalOrders = (st.days || []).reduce((s, it) => s + (it.count || 0), 0);
+    const totalMinutes = (st.days || []).reduce((s, it) => s + (it.minutes || 0), 0);
+    return { ...st, totalOrders, totalMinutes };
   });
 
   // no minTotal filter: use all staffWithTotals
   const filteredStaff = staffWithTotals;
 
   // apply staff sort (by total asc/desc)
-  const [staffSortKey, staffSortDir] = (staffSort || 'total_desc').split('_');
+  const [, staffSortDir] = (staffSort || 'total_desc').split('_');
+  const getSortValue = (st) =>
+    viewMode === 'orders' ? Number(st.totalOrders || 0) : Number(st.totalMinutes || 0);
   const sortedStaff = filteredStaff.slice().sort((a, b) => {
-    const va = Number(a.total || 0);
-    const vb = Number(b.total || 0);
+    const va = getSortValue(a);
+    const vb = getSortValue(b);
     if (va === vb) return 0;
     return staffSortDir === 'asc' ? va - vb : vb - va;
   });
+
+  const toHours = (minutes) => Number(minutes || 0) / 60;
+  const fmtHours = (minutes) => {
+    const h = toHours(minutes);
+    if (!h) return '0';
+    const fixed = h >= 10 ? 0 : 1;
+    return h.toFixed(fixed).replace(/\.0+$/, '');
+  };
 
   return (
     <div className={s.panel}>
@@ -1288,6 +1302,17 @@ function StaffPanel({ from, to }) {
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ fontWeight: 700 }}>Nhân viên</div>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 13, color: 'var(--muted)' }}>Hiển thị:</label>
+              <select
+                className={s.select}
+                value={viewMode}
+                onChange={(e) => setViewMode(e.target.value)}
+                aria-label="Chọn số đơn hoặc giờ làm"
+                style={{ minWidth: 140 }}
+              >
+                <option value="orders">Số đơn xử lý</option>
+                <option value="hours">Giờ làm (theo chấm công)</option>
+              </select>
               {/* minTotal filter removed; show all staff */}
               <label style={{ fontSize: 13, color: 'var(--muted)' }}>Sắp xếp:</label>
               <select
@@ -1303,6 +1328,8 @@ function StaffPanel({ from, to }) {
               <button
                 className={`${s.pagerBtn} ${s.exportBtn}`}
                 onClick={() => {
+                  const toValue = (day) =>
+                    viewMode === 'orders' ? day?.count || 0 : toHours(day?.minutes || 0).toFixed(2);
                   const headers = [
                     { key: 'name', label: 'Nhân viên' },
                     ...days.map((dd) => ({
@@ -1312,13 +1339,19 @@ function StaffPanel({ from, to }) {
                         month: '2-digit',
                       }),
                     })),
-                    { key: 'total', label: 'Tổng' },
+                    { key: 'total', label: viewMode === 'orders' ? 'Tổng đơn' : 'Tổng giờ' },
                   ];
                   const rows = sortedStaff.map((st) => {
-                    const map = new Map((st.days || []).map((r) => [r.date, r.count]));
-                    const row = { name: st.staffName, total: st.total };
+                    const map = new Map((st.days || []).map((r) => [r.date, r]));
+                    const row = {
+                      name: st.staffName,
+                      total:
+                        viewMode === 'orders'
+                          ? st.totalOrders
+                          : toHours(st.totalMinutes || 0).toFixed(2),
+                    };
                     days.forEach((dd) => {
-                      row[dd] = map.get(dd) || 0;
+                      row[dd] = toValue(map.get(dd));
                     });
                     return row;
                   });
@@ -1370,25 +1403,43 @@ function StaffPanel({ from, to }) {
               </thead>
               <tbody>
                 {sortedStaff.map((st, rowIdx) => {
-                  const map = new Map((st.days || []).map((r) => [r.date, r.count]));
-                  const totalAll = st.total;
+                  const map = new Map((st.days || []).map((r) => [r.date, r]));
+                  const totalAll =
+                    viewMode === 'orders' ? st.totalOrders : toHours(st.totalMinutes || 0);
                   return (
                     <tr key={String(st.staffId) + st.staffName} className={s.staffRow}>
                       <td className={s.staffName}>{st.staffName}</td>
                       {pageDays.map((dd) => {
-                        const c = map.get(dd) || 0;
-                        const cls = c >= 6 ? s.countHigh : c >= 2 ? s.countMed : s.countLow;
+                        const day = map.get(dd) || { count: 0, minutes: 0 };
+                        const value =
+                          viewMode === 'orders' ? day.count || 0 : toHours(day.minutes || 0);
+                        const cls =
+                          viewMode === 'orders'
+                            ? value >= 6
+                              ? s.countHigh
+                              : value >= 2
+                              ? s.countMed
+                              : s.countLow
+                            : value >= 8
+                            ? s.countHigh
+                            : value >= 4
+                            ? s.countMed
+                            : s.countLow;
                         return (
                           <td key={dd} className={s.centerCell}>
-                            {c ? (
-                              <span className={`${s.countBadge} ${cls}`}>{c}</span>
+                            {value ? (
+                              <span className={`${s.countBadge} ${cls}`}>
+                                {viewMode === 'orders' ? value : fmtHours(day.minutes || 0)}
+                              </span>
                             ) : (
                               <span className={s.countZero}>—</span>
                             )}
                           </td>
                         );
                       })}
-                      <td className={s.centerCell}>{totalAll}</td>
+                      <td className={s.centerCell}>
+                        {viewMode === 'orders' ? totalAll : fmtHours(st.totalMinutes || 0)}
+                      </td>
                     </tr>
                   );
                 })}
