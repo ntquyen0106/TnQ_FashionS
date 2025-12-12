@@ -825,20 +825,20 @@ function MonthlyRevenueSection({ defaultMonth }) {
   const summaryCards = useMemo(
     () => [
       {
-        key: 'totalRevenueWithVAT',
-        label: 'Tổng tiền khách trả (đã VAT)',
-        value: fmtVND(tax.totalRevenueWithVAT || 0),
+        key: 'totalRevenue',
+        label: 'Tổng tiền khách trả',
+        value: fmtVND(tax.totalRevenue || 0),
         tone: 'highlight',
       },
       {
-        key: 'outputVAT',
-        label: 'Thuế GTGT tách ra (8%)',
-        value: fmtVND(tax.outputVAT || 0),
+        key: 'vatPayable',
+        label: 'Thuế GTGT phải nộp (8%)',
+        value: fmtVND(tax.vatPayable || 0),
         tone: 'highlight',
       },
       {
         key: 'netRevenue',
-        label: 'Doanh thu thuần (chưa VAT)',
+        label: 'Doanh thu thuần (sau thuế)',
         value: fmtVND(tax.netRevenue || 0),
         tone: 'highlight',
       },
@@ -859,16 +859,16 @@ function MonthlyRevenueSection({ defaultMonth }) {
       },
       {
         key: 'avgOrderValue',
-        label: 'Giá trị TB/đơn (đã VAT)',
+        label: 'Giá trị TB/đơn',
         value: fmtVND(orderStats.avgOrderValue || 0),
       },
     ],
     [
       orderStats.avgOrderValue,
       orderStats.totalOrders,
-      tax.outputVAT,
+      tax.vatPayable,
       tax.totalDiscount,
-      tax.totalRevenueWithVAT,
+      tax.totalRevenue,
       tax.totalShipping,
       tax.netRevenue,
     ],
