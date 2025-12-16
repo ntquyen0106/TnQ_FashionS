@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartProvider';
 import authApi from '@/api/auth-api';
 import ordersApi from '@/api/orders-api';
+import { promotionsApi } from '@/api/promotions-api';
 import styles from './Checkout.module.css';
 import toast from 'react-hot-toast';
 import VoucherPicker from '@/components/VoucherPicker';
@@ -24,6 +25,8 @@ export default function Checkout() {
   const [voucherOpen, setVoucherOpen] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState(null);
   const preserveVoucherRef = useRef(false);
+  const autoAppliedRef = useRef(false); // Track nếu đã tự động áp voucher
+  const userRemovedVoucherRef = useRef(false); // Track nếu user đã chủ động bỏ voucher
 
   const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const buildImageUrl = (snap, w = 120) => {
@@ -75,6 +78,19 @@ export default function Checkout() {
     return items.map((it) => ({ productId: String(it.productId), variantSku: it.variantSku }));
   }, [items, selectedIds]);
 
+  // Helper function để tính số tiền giảm từ voucher
+  const calculateVoucherDiscount = (voucher, subtotal) => {
+    if (!voucher || subtotal <= 0) return 0;
+    
+    if (voucher.type === 'percent') {
+      const discount = (subtotal * voucher.value) / 100;
+      return voucher.maxDiscount ? Math.min(discount, voucher.maxDiscount) : discount;
+    } else {
+      // fixed amount
+      return voucher.value;
+    }
+  };
+
   useEffect(() => {
     // load addresses
     (async () => {
@@ -98,12 +114,75 @@ export default function Checkout() {
   useEffect(() => {
     if (cart?.promotion?.code && Number(totals.discount) > 0) {
       setAppliedPromo(cart.promotion);
+      autoAppliedRef.current = true; // Đã có voucher từ cart
     }
   }, [cart?.promotion, totals.discount]);
+
+  // ✅ Tự động áp voucher tốt nhất khi vào trang checkout
+  useEffect(() => {
+    // Chỉ tự động áp nếu:
+    // 1. Chưa từng tự động áp (autoAppliedRef.current = false)
+    // 2. Chưa có voucher đang áp dụng (cart.promotion = null)
+    // 3. Đã có subtotal > 0
+    // 4. User CHƯA chủ động bỏ voucher (userRemovedVoucherRef.current = false)
+    if (autoAppliedRef.current || cart?.promotion?.code || totals.subtotal <= 0 || userRemovedVoucherRef.current) {
+      return;
+    }
+
+    (async () => {
+      try {
+        // Lấy danh sách voucher khả dụng
+        const productIds = items.map((it) => it.productId);
+        const categoryIds = items
+          .map((it) => it.categoryId)
+          .filter(Boolean);
+
+        const vouchers = await promotionsApi.available(totals.subtotal, {
+          all: true,
+          productIds,
+          categoryIds,
+        });
+
+        if (!Array.isArray(vouchers) || vouchers.length === 0) {
+          return; // Không có voucher nào
+        }
+
+        // Lọc voucher đủ điều kiện (eligible & applicable)
+        const eligibleVouchers = vouchers.filter((v) => v.eligible && v.applicable);
+        
+        if (eligibleVouchers.length === 0) {
+          return; // Không có voucher đủ điều kiện
+        }
+
+        // Tìm voucher tốt nhất (giảm nhiều nhất)
+        const bestVoucher = eligibleVouchers.reduce((best, current) => {
+          const currentDiscount = calculateVoucherDiscount(current, totals.subtotal);
+          const bestDiscount = calculateVoucherDiscount(best, totals.subtotal);
+          return currentDiscount > bestDiscount ? current : best;
+        });
+
+        // Tự động áp voucher tốt nhất
+        if (bestVoucher) {
+          autoAppliedRef.current = true;
+          await handleApplyVoucher(bestVoucher.code);
+          toast.success(`Đã tự động áp mã giảm giá: ${bestVoucher.code}`, {
+            duration: 3000,
+            icon: '🎉',
+          });
+        }
+      } catch (error) {
+        console.error('Lỗi khi tự động áp voucher:', error);
+        // Không hiện lỗi cho user, chỉ log
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totals.subtotal, cart?.promotion]);
 
   // Khi rời Checkout sang trang khác, sẽ gỡ voucher, TRỪ khi đi đến trang chọn địa chỉ
   useEffect(() => {
     preserveVoucherRef.current = false; // reset khi mount
+    autoAppliedRef.current = false; // reset auto-apply flag
+    userRemovedVoucherRef.current = false; // reset removed flag khi vào trang mới
     return () => {
       if (!preserveVoucherRef.current) {
         (async () => {
@@ -395,16 +474,20 @@ export default function Checkout() {
         <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           Phiếu giảm giá
           <button className={styles.linkBtn} onClick={() => setVoucherOpen(true)}>
-            Chọn voucher
+            {appliedPromo?.code ? 'Đổi voucher' : 'Chọn voucher'}
           </button>
         </h3>
         {appliedPromo?.code && totals.discount > 0 && (
           <div
             className={styles.note}
-            style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}
+            style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
           >
             <span>
               Đang áp dụng mã: <strong>{appliedPromo.code}</strong>
+              {autoAppliedRef.current && (
+                <span style={{ color: '#16a34a', marginLeft: 4, fontSize: '0.9em' }}>
+                </span>
+              )}
               {appliedPromo?.eligible === false && (
                 <>
                   {' '}
@@ -420,6 +503,8 @@ export default function Checkout() {
               onClick={async () => {
                 await clearPromotion();
                 setAppliedPromo(null);
+                autoAppliedRef.current = false; // Reset auto-apply flag
+                userRemovedVoucherRef.current = true; // ✅ Đánh dấu user đã chủ động bỏ voucher
                 // Recompute totals after clearing
                 const t = await getTotal(
                   selectedItemsPayload && selectedItemsPayload.length
@@ -634,6 +719,9 @@ export default function Checkout() {
         onClose={() => setVoucherOpen(false)}
         onPick={(p) => {
           setVoucherOpen(false);
+          // Khi user chọn voucher thủ công, không còn là tự động nữa
+          autoAppliedRef.current = false;
+          userRemovedVoucherRef.current = false; // ✅ Reset removed flag khi user chọn voucher mới
           // Chọn voucher trong danh sách sẽ áp dụng ngay, không đổ vào ô 'mã riêng'
           handleApplyVoucher(p.code);
         }}
