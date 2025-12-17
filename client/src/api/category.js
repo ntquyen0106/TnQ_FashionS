@@ -1,33 +1,35 @@
+import { getApiOrigin } from './apiBase';
+
+const API_ORIGIN = getApiOrigin();
+
 const qs = (obj = {}) =>
   Object.entries(obj)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join('&');
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
 export async function getCategories(params = {}) {
-  const url = `${API_BASE}/api/categories?${qs(params)}`;
+  const url = `${API_ORIGIN}/api/categories?${qs(params)}`;
   const res = await fetch(url, { credentials: 'include' }); // nếu backend dùng cookie
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return res.json();
 }
 export async function getChildren(params = {}) {
-  const url = `${API_BASE}/api/categories/children?${qs(params)}`;
+  const url = `${API_ORIGIN}/api/categories/children?${qs(params)}`;
   const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return res.json();
 }
 
 export async function getBreadcrumb(params = {}) {
-  const url = `${API_BASE}/api/categories/breadcrumb?${qs(params)}`;
+  const url = `${API_ORIGIN}/api/categories/breadcrumb?${qs(params)}`;
   const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return res.json();
 }
 // Thêm danh mục
 export async function createCategory(data) {
-  const url = `${API_BASE}/api/categories`;
+  const url = `${API_ORIGIN}/api/categories`;
   const payload = {
     ...data,
     parentId: data.parentId || null,
@@ -45,7 +47,7 @@ export async function createCategory(data) {
 
 // Sửa danh mục
 export async function updateCategory(id, data) {
-  const url = `${API_BASE}/api/categories/${id}`;
+  const url = `${API_ORIGIN}/api/categories/${id}`;
   const payload = {
     ...data,
     parentId: data.parentId === '' ? null : data.parentId,
@@ -63,7 +65,7 @@ export async function updateCategory(id, data) {
 
 // Xóa danh mục
 export async function deleteCategory(id) {
-  const url = `${API_BASE}/api/categories/${id}`;
+  const url = `${API_ORIGIN}/api/categories/${id}`;
   const res = await fetch(url, {
     method: 'DELETE',
     credentials: 'include',

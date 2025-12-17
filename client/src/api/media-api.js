@@ -1,12 +1,14 @@
 // src/api/media-api.js
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { getApiOrigin } from './apiBase';
+
+const API_ORIGIN = getApiOrigin();
 
 const mediaApi = {
   upload: async (file) => {
     const fd = new FormData();
     fd.append('file', file);
 
-    const res = await fetch(`${API_BASE}/api/media/upload`, {
+    const res = await fetch(`${API_ORIGIN}/api/media/upload`, {
       method: 'POST',
       body: fd,
       credentials: 'include',
@@ -22,7 +24,7 @@ const mediaApi = {
     if (prefix) qs.set('prefix', prefix);
     if (nextCursor) qs.set('nextCursor', nextCursor);
     if (max) qs.set('max', String(max));
-    const res = await fetch(`${API_BASE}/api/media/search?${qs.toString()}`, {
+    const res = await fetch(`${API_ORIGIN}/api/media/search?${qs.toString()}`, {
       credentials: 'include',
     });
     if (!res.ok) throw new Error(`Search failed: ${res.status}`);

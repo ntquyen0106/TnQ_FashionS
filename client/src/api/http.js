@@ -2,7 +2,9 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api';
+import { getApiBase } from './apiBase';
+
+const API_BASE = getApiBase();
 const http = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
