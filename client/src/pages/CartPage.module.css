@@ -350,20 +350,70 @@ button:disabled {
   }
 }
 @media (max-width: 600px) {
+  .container {
+    padding: 18px 12px;
+  }
+
+  .staleBanner {
+    display: none;
+  }
+
   .row {
     grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
   }
   .price,
   .qty,
-  .lineTotal,
   .actions {
     justify-content: space-between;
   }
 
-  .price,
-  .lineTotal {
+  .price {
     display: flex;
     align-items: center;
+    font-size: 14px;
+  }
+
+  .lineTotal {
+    display: none;
+  }
+
+  .prod {
+    gap: 10px;
+  }
+
+  .prod img {
+    width: 52px;
+    height: 52px;
+  }
+
+  .name {
+    font-size: 14px;
+  }
+
+  .variant {
+    font-size: 12px;
+  }
+
+  .qty button {
+    width: 26px;
+    height: 26px;
+  }
+
+  .qty {
+    max-width: 240px;
+    margin-left: auto;
+  }
+
+  .qty span {
+    min-width: 28px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .actions {
+    justify-content: flex-end;
   }
 
   .variantSelect,
@@ -373,7 +423,15 @@ button:disabled {
   .footer {
     grid-template-columns: 1fr;
     gap: 10px;
-    padding: 12px;
+    padding: 10px 12px;
+  }
+
+  .total {
+    font-size: 16px;
+  }
+
+  .checkout {
+    padding: 10px 14px;
   }
   .checkout {
     width: 100%;
@@ -385,6 +443,28 @@ button:disabled {
   .staleActions {
     width: 100%;
     align-items: stretch;
+  }
+
+  .recoSection {
+    margin-top: 28px;
+    padding-top: 18px;
+  }
+
+  .recoGrid {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .recoGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .recoGrid :global(.product-card) {
+    flex: 0 0 auto;
+    width: 150px;
   }
 }
 

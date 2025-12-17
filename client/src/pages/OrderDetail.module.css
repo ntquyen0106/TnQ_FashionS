@@ -35,6 +35,24 @@
   margin: 0 auto 16px;
 }
 
+.arrow {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.titleBox {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleBox h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
 .back {
   width: 44px;
   height: 44px;
@@ -507,12 +525,11 @@
 
 @media (max-width: 720px) {
   .header {
-    grid-template-columns: auto 1fr;
+    flex-wrap: wrap;
     gap: 10px;
   }
   .chip {
-    grid-column: 1 / -1;
-    justify-self: start;
+    order: 3;
   }
   .item {
     grid-template-columns: auto 1fr auto;
@@ -520,5 +537,57 @@
   .unit,
   .line {
     display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .wrap {
+    padding: 12px 10px;
+  }
+
+  .panel {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .back {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    box-shadow: none;
+  }
+
+  .titleBox h2 {
+    font-size: 18px;
+  }
+
+  .chip {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .card h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+  }
+
+  .item img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .bottomActions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .bottomActions :global(.btn) {
+    padding: 10px 12px;
+    font-size: 14px;
   }
 }

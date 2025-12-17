@@ -100,16 +100,21 @@
 .mobileTab {
   flex: 0 0 auto;
   border: none;
-  background: transparent;
-  padding: 10px 8px;
-  font-weight: 700;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.2px;
   color: #111827;
-  border-bottom: 2px solid transparent;
   cursor: pointer;
 }
 
 .mobileTabActive {
-  border-bottom-color: #111827;
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
 }
 
 .mobileSection {
@@ -596,7 +601,13 @@
 /* Mobile: xếp nút theo cột cho dễ bấm */
 @media (max-width: 480px) {
   .cartNoticeActions {
-    flex-direction: column;
+    flex-direction: row;
+  }
+
+  .cartNoticeBtn {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 }
 
@@ -717,7 +728,17 @@
   }
 
   .cartNotice {
-    display: none;
+    right: 0;
+    min-width: 0;
+    width: min(320px, calc(100vw - 28px));
+    padding: 14px 14px;
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  .cartNotice::before,
+  .cartNotice::after {
+    right: 16px;
   }
 
   .hasMega .mega {
@@ -735,6 +756,10 @@
 
 /* Responsive - Mobile */
 @media (max-width: 600px) {
+  .wrap {
+    padding-top: calc(env(safe-area-inset-top) + 8px);
+  }
+
   .inner {
     flex-direction: row;
     align-items: center;
@@ -759,6 +784,61 @@
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-end;
+  }
+
+  .search {
+    width: 100%;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .search input {
+    min-width: 0;
+    flex: 1 1 auto;
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .search button {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cartNotice {
+    width: min(300px, calc(100vw - 20px));
+    right: -2px;
+    top: calc(100% + 14px);
+    font-size: 13.5px;
+    gap: 10px;
+    padding: 12px 12px;
+  }
+
+  .cartNotice::before {
+    top: -10px;
+    border-left-width: 10px;
+    border-right-width: 10px;
+    border-bottom-width: 10px;
+  }
+
+  .cartNotice::after {
+    top: -8px;
+    border-left-width: 8px;
+    border-right-width: 8px;
+    border-bottom-width: 8px;
+  }
+
+  .cartNoticeActions {
+    gap: 10px;
+  }
+
+  .cartNoticeBtn {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 
   .centerInfo {

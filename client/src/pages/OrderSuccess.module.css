@@ -114,3 +114,34 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+@media (max-width: 600px) {
+  .wrapper {
+    margin: 16px auto;
+    padding: 22px 14px;
+    border-radius: 14px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .actions {
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .btn {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  .btn:hover {
+    transform: none;
+  }
+
+  .btnDanger {
+    display: none;
+  }
+}

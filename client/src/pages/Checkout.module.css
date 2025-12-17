@@ -147,6 +147,10 @@
     padding: 14px;
   }
 
+  .linkBtn {
+    font-size: 13px;
+  }
+
   .sectionHeader {
     flex-direction: column;
     align-items: flex-start;
@@ -159,10 +163,21 @@
 
   .voucherRow input {
     width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
   }
 
   .secondaryBtn {
     width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  .placeBtn {
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 14px;
   }
 
   .itemRow {

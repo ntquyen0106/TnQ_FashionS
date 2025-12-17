@@ -39,6 +39,8 @@ const STATUS_KEYS = [
   'RETURNED',
   'ALL',
 ];
+
+const SHOW_COUNT_TABS = new Set(['PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERING']);
 const PM_LABEL = {
   COD: 'Thanh toán khi nhận hàng',
   BANK: 'Thanh toán online',
@@ -65,6 +67,23 @@ export default function MyOrders() {
       }
     })();
   }, []);
+
+  const statusCounts = useMemo(() => {
+    const counts = Object.create(null);
+    for (const key of STATUS_KEYS) {
+      if (key !== 'ALL') counts[key] = 0;
+    }
+
+    for (const o of orders || []) {
+      const st = String(o?.status || '').toUpperCase();
+      if (counts[st] != null) counts[st] += 1;
+
+      // Tab PENDING cũng hiển thị các đơn AWAITING_PAYMENT
+      if (st === 'AWAITING_PAYMENT' && counts.PENDING != null) counts.PENDING += 1;
+    }
+
+    return counts;
+  }, [orders]);
 
   // Load reviewed orders
   useEffect(() => {
@@ -93,13 +112,13 @@ export default function MyOrders() {
       const namesJoined = (o.items || []).map((it) => it?.nameSnapshot || it?.name || '').join(' ');
       const namesNorm = normalize(namesJoined);
       const byText = !term || codeNorm.includes(term) || namesNorm.includes(term);
-      
+
       // When filtering by PENDING, also show AWAITING_PAYMENT orders
       let byStatus = filter === 'ALL' || String(o.status) === filter;
       if (filter === 'PENDING' && String(o.status) === 'AWAITING_PAYMENT') {
         byStatus = true;
       }
-      
+
       return byText && byStatus;
     });
   }, [orders, q, filter]);
@@ -130,7 +149,10 @@ export default function MyOrders() {
                 className={`${styles.tab} ${filter === s ? styles.active : ''}`}
                 onClick={() => setFilter(s)}
               >
-                {s === 'ALL' ? 'Tất cả' : STATUS_LABEL[s]}
+                <span>{s === 'ALL' ? 'Tất cả' : STATUS_LABEL[s]}</span>
+                {SHOW_COUNT_TABS.has(s) && (
+                  <span className={styles.tabCount}>{statusCounts[s] || 0}</span>
+                )}
               </button>
             ))}
           </div>
@@ -218,6 +240,11 @@ export default function MyOrders() {
                     </div>
                   </div>
                   <div className={`${styles.chip} ${styles[`st_${status}`]}`}>{label}</div>
+                </div>
+
+                <div className={styles.mobileMeta}>
+                  Phương thức:{' '}
+                  <strong>{PM_LABEL[o.paymentMethod] || o.paymentMethod || '—'}</strong>
                 </div>
 
                 <div className={styles.rowMid}>
