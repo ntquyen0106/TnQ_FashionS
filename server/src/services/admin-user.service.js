@@ -44,7 +44,7 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
   } else {
     const phoneRegex = /^(0[3|5|7|8|9])[0-9]{8}$/;
     if (!phoneRegex.test(phoneNumber.trim())) {
-      errors.phoneNumber = 'Số điện thoại không hợp lệ (VD: 0901234567)';
+      errors.phoneNumber = 'Số điện thoại không hợp lệ';
     } else {
       // Check phone exists
       try {
@@ -55,8 +55,8 @@ const validateUserData = async (data, isUpdate = false, currentUserId = null) =>
         const existedUser = await User.findOne(query);
         if (existedUser) {
           errors.phoneNumber = isUpdate
-            ? 'Số điện thoại này đã được sử dụng bởi user khác'
-            : 'Số điện thoại đã tồn tại trong hệ thống';
+            ? 'Số điện thoại đã tồn tại'
+            : 'Số điện thoại đã tồn tại';
         }
       } catch (error) {
         errors.phoneNumber = 'Lỗi kiểm tra số điện thoại';
@@ -184,7 +184,7 @@ const validateUpdateData = async (updates, currentUserId) => {
     } else {
       const phoneRegex = /^(0[3|5|7|8|9])[0-9]{8}$/;
       if (!phoneRegex.test(phoneNumber.trim())) {
-        errors.phoneNumber = 'Số điện thoại không hợp lệ (VD: 0901234567)';
+        errors.phoneNumber = 'Số điện thoại không hợp lệ';
       } else {
         // Check phone exists for other users
         try {
@@ -193,7 +193,7 @@ const validateUpdateData = async (updates, currentUserId) => {
             _id: { $ne: currentUserId },
           });
           if (existedUser) {
-            errors.phoneNumber = 'Số điện thoại này đã được sử dụng bởi user khác';
+            errors.phoneNumber = 'Số điện thoại đã tồn tại';
           }
         } catch (error) {
           errors.phoneNumber = 'Lỗi kiểm tra số điện thoại';
@@ -314,7 +314,7 @@ export const updateUser = async (id, updates) => {
   if (!hasChanges) {
     throw {
       status: 400,
-      message: 'Không có thay đổi nào được phát hiện',
+      message: 'Không có thay đổi nào',
       errors: { general: 'Dữ liệu mới phải khác với dữ liệu hiện tại' },
     };
   }
