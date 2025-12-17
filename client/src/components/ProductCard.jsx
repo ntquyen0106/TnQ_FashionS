@@ -122,7 +122,7 @@ export default function ProductCard({ product }) {
         )}
       </div>
       <div style={styles.body}>
-        <h3 style={styles.title} title={product.name}>
+        <h3 className="product-card__title" style={styles.title} title={product.name}>
           {product.name}
         </h3>
         {price ? (
@@ -138,7 +138,7 @@ export default function ProductCard({ product }) {
           <div style={styles.priceMuted}>Liên hệ</div>
         )}
         {!!promos.length && (
-          <div style={styles.promoRow}>
+          <div className="product-card__promos" style={styles.promoRow}>
             {promos.map((p) => (
               <span key={p.code} style={styles.promoTag} title={`Khuyến mãi: ${p.code}`}>
                 {p.code}

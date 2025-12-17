@@ -362,16 +362,10 @@ export default function Products() {
                         {discountAmount > 0 ? (
                           <>
                             <div className={s.priceNow}>{formatVND(finalPrice)}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div className={s.priceOldWrap}>
                               <div className={s.priceOld}>{formatVND(rawPrice)}</div>
                               {!isPercentPromo && (
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: '#dc2626',
-                                    fontWeight: 600,
-                                  }}
-                                >
+                                <span className={s.discountNote}>
                                   (Giảm {formatVND(discountAmount)})
                                 </span>
                               )}
@@ -384,16 +378,7 @@ export default function Products() {
                     ) : (
                       <div className={s.price}>Liên hệ</div>
                     )}
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 12.5,
-                        color: '#6b7280',
-                        display: 'flex',
-                        gap: 8,
-                        alignItems: 'center',
-                      }}
-                    >
+                    <div className={s.metaRow}>
                       {Number(p.ratingCount || 0) > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ color: '#f59e0b', fontWeight: 700 }}>★</span>
@@ -409,7 +394,7 @@ export default function Products() {
                       </div>
                     </div>
                     {!!promosByProduct[p._id]?.length && (
-                      <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <div className={s.promoRow}>
                         {promosByProduct[p._id].map((promo) => (
                           <span
                             key={promo.code}

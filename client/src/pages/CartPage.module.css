@@ -161,6 +161,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .prod img {
   width: 64px;
@@ -177,6 +178,7 @@ h2 {
 
 .name {
   font-weight: 600;
+  word-break: break-word;
 }
 .variant {
   font-size: 12px;
@@ -356,6 +358,17 @@ button:disabled {
   .lineTotal,
   .actions {
     justify-content: space-between;
+  }
+
+  .price,
+  .lineTotal {
+    display: flex;
+    align-items: center;
+  }
+
+  .variantSelect,
+  .prod select {
+    max-width: 100%;
   }
   .footer {
     grid-template-columns: 1fr;

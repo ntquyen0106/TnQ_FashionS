@@ -138,6 +138,75 @@
   cursor: not-allowed;
 }
 
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 16px 12px;
+  }
+
+  .section {
+    padding: 14px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .voucherRow {
+    flex-direction: column;
+  }
+
+  .voucherRow input {
+    width: 100%;
+  }
+
+  .secondaryBtn {
+    width: 100%;
+  }
+
+  .itemRow {
+    grid-template-columns: 56px 1fr;
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .itemRow img {
+    width: 56px;
+    height: 56px;
+    grid-row: 1 / span 2;
+  }
+
+  .itemInfo {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .itemName {
+    word-break: break-word;
+  }
+
+  .itemQty {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .itemPrice {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  .row,
+  .rowGrand {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+}
+
 @media (min-width: 800px) {
   .section:last-child {
     position: sticky;

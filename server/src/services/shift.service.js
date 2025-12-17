@@ -60,7 +60,6 @@ const ensureNoOverlap = async ({ staffId, date, start, end, excludeId }) => {
 
 // Overtime & hours constraints
 const MAX_DAILY_MINUTES = 12 * 60; // 12h/ngày
-const MAX_MONTHLY_MINUTES = 40 * 60; // 40h/tháng (giờ làm thêm tổng)
 const MAX_YEARLY_MINUTES = 300 * 60; // 300h/năm (giờ làm thêm tổng)
 
 const MINUTES_IN_DAY = 24 * 60;
@@ -82,14 +81,6 @@ const ensureHourLimits = async ({ staffId, date, start, end, excludeId }) => {
   dayStart.setUTCHours(0, 0, 0, 0);
   const dayEnd = new Date(dayStart);
   dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
-
-  const monthStart = new Date(date);
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-  const monthEnd = new Date(monthStart);
-  monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
-  monthEnd.setUTCDate(0); // last day of previous incremented month
-  monthEnd.setUTCHours(23, 59, 59, 999);
 
   const yearStart = new Date(date);
   yearStart.setUTCMonth(0, 1);
@@ -118,26 +109,7 @@ const ensureHourLimits = async ({ staffId, date, start, end, excludeId }) => {
     dayTotal += computeShiftDuration({ start: es, end: ee });
   }
   if (dayTotal + duration > MAX_DAILY_MINUTES)
-    throw new Error('Vượt quá tổng giờ làm thêm tối đa trong ngày (12h)');
-
-  const existingMonth = await StaffShift.find({
-    ...baseQuery,
-    date: { $gte: monthStart, $lte: monthEnd },
-    status: { $nin: ['cancelled'] },
-  })
-    .populate('shiftTemplate', 'startTime endTime')
-    .lean();
-  let monthTotal = 0;
-  for (const s of existingMonth) {
-    const { start: es, end: ee } = await resolveShiftTimes({
-      shiftTemplate: s.shiftTemplate,
-      customStart: s.customStart,
-      customEnd: s.customEnd,
-    });
-    monthTotal += computeShiftDuration({ start: es, end: ee });
-  }
-  if (monthTotal + duration > MAX_MONTHLY_MINUTES)
-    throw new Error('Vượt quá tổng giờ làm thêm tối đa trong tháng (40h)');
+    throw new Error('Vượt quá tổng giờ làm tối đa trong ngày (12h)');
 
   const existingYear = await StaffShift.find({
     ...baseQuery,

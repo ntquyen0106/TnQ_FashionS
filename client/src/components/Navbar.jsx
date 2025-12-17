@@ -275,6 +275,52 @@ export default function Navbar({
   const [reviewNoticeData, setReviewNoticeData] = useState(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileRootPath, setMobileRootPath] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      try {
+        setIsMobile(window.innerWidth <= 600);
+      } catch {
+        setIsMobile(false);
+      }
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  useEffect(() => {
+    // When switching back to desktop, ensure panel is closed
+    if (!isMobile) setMobileMenuOpen(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    // Close the mobile panel after route changes
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    // Lock scroll behind the overlay
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!mobileMenuOpen) return;
+    const roots = Array.isArray(tree) ? tree : [];
+    if (!roots.length) return;
+    if (!mobileRootPath) setMobileRootPath(String(roots[0].path || ''));
+  }, [isMobile, mobileMenuOpen, tree, mobileRootPath]);
+
   const isDashboard = location.pathname.startsWith('/dashboard');
   const isStaffOrAdmin = user && (user.role === 'staff' || user.role === 'admin');
 
@@ -499,6 +545,9 @@ export default function Navbar({
     e.preventDefault();
     const value = q.trim();
     if (!value) return;
+
+    if (isMobile) setMobileMenuOpen(false);
+
     const matchedCategory = findCategoryMatch(value);
     if (matchedCategory?.path) {
       nav(P(matchedCategory.path));
@@ -506,6 +555,19 @@ export default function Navbar({
     }
     nav(`/products?q=${encodeURIComponent(value)}`);
   };
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const mobileRoots = useMemo(() => {
+    const roots = Array.isArray(tree) ? tree : [];
+    return roots.filter(Boolean);
+  }, [tree]);
+
+  const activeMobileRoot = useMemo(() => {
+    if (!mobileRoots.length) return null;
+    const key = mobileRootPath || String(mobileRoots[0]?.path || '');
+    return mobileRoots.find((r) => String(r.path) === String(key)) || mobileRoots[0];
+  }, [mobileRoots, mobileRootPath]);
 
   const staleInfo = cart?.staleInfo;
   const staleItems = Array.isArray(staleInfo?.items) ? staleInfo.items : [];
@@ -702,11 +764,41 @@ export default function Navbar({
   return (
     <header className={`${s.wrap} ${compact ? s.compact : ''}`}>
       <div className={`container ${s.inner}`}>
-        {/* Logo */}
-        <Link to="/" className={s.brand} aria-label="TNQ Fashion">
-          <span className={s.logoPrimary}>TNQ</span>
-          <span className={s.logoSecondary}>Fashion</span>
-        </Link>
+        <div className={s.leftGroup}>
+          {!isDashboard && !hideMenu && isMobile ? (
+            <button
+              type="button"
+              className={s.mobileToggle}
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label={mobileMenuOpen ? 'Đóng danh mục' : 'Mở danh mục'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="tnq-mobile-panel"
+              title={mobileMenuOpen ? 'Đóng' : 'Danh mục'}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 7h16M4 12h16M4 17h16"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+
+          {/* Logo */}
+          <Link to="/" className={s.brand} aria-label="TNQ Fashion" onClick={closeMobileMenu}>
+            <span className={s.logoPrimary}>TNQ</span>
+            <span className={s.logoSecondary}>Fashion</span>
+          </Link>
+        </div>
 
         {/* Center role/name for staff/admin */}
         <div className={s.centerInfo} aria-live="polite">
@@ -718,7 +810,7 @@ export default function Navbar({
         </div>
 
         {/* Menu (ẩn nếu muốn dùng trên dashboard) */}
-        {!isDashboard && !hideMenu && (
+        {!isDashboard && !hideMenu && !isMobile && (
           <nav className={s.nav} aria-label="Main">
             <ul className={s.menu}>
               {loadingCats && (
@@ -764,7 +856,7 @@ export default function Navbar({
 
         {/* Search + icons */}
         <div className={s.actions}>
-          {showSearch && (
+          {showSearch && !isMobile && (
             <form onSubmit={onSearch} className={s.search}>
               <input
                 value={q}
@@ -844,6 +936,139 @@ export default function Navbar({
           )}
         </div>
       </div>
+
+      {/* Mobile panel: danh mục + tìm kiếm (mở bằng nút 3 gạch) */}
+      {!isDashboard && !hideMenu && isMobile && mobileMenuOpen ? (
+        <div className={s.mobilePanel} id="tnq-mobile-panel" role="dialog" aria-modal="true">
+          <div className={`container ${s.mobilePanelInner}`}>
+            <div className={s.mobilePanelTop}>
+              <div className={s.mobilePanelTopRow}>
+                <div className={s.mobilePanelTitle}>DANH MỤC</div>
+                <button
+                  type="button"
+                  className={s.mobileClose}
+                  onClick={closeMobileMenu}
+                  aria-label="Đóng danh mục"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M6 6l12 12M18 6L6 18"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {showSearch ? (
+                <form onSubmit={onSearch} className={s.search}>
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Tìm kiếm..."
+                    aria-label="Tìm kiếm"
+                  />
+                  <button type="submit" aria-label="Tìm kiếm">
+                    <IconSearch />
+                  </button>
+                </form>
+              ) : null}
+
+              <div className={s.mobileTabs} role="tablist" aria-label="Danh mục chính">
+                {mobileRoots.map((root) => {
+                  const active = String(activeMobileRoot?.path || '') === String(root?.path || '');
+                  return (
+                    <button
+                      key={root.path}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={`${s.mobileTab} ${active ? s.mobileTabActive : ''}`}
+                      onClick={() => setMobileRootPath(String(root.path || ''))}
+                    >
+                      {String(root.name || '').toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={s.mobileSection}>
+              {loadingCats ? (
+                <div style={{ opacity: 0.6, fontWeight: 600 }}>Đang tải…</div>
+              ) : !activeMobileRoot ? (
+                <div style={{ opacity: 0.6, fontWeight: 600 }}>Chưa có danh mục.</div>
+              ) : (
+                <>
+                  <Link
+                    to={P(activeMobileRoot.path)}
+                    className={s.mobileAllLink}
+                    onClick={closeMobileMenu}
+                  >
+                    Xem tất cả {activeMobileRoot.name}
+                  </Link>
+
+                  {(activeMobileRoot.children || []).map((child) => {
+                    const links = toLinks(child);
+                    return (
+                      <details key={child.path} className={s.mobileAccordion}>
+                        <summary className={s.mobileSummary}>
+                          <span>{child.name}</span>
+                          <span style={{ opacity: 0.6 }}>
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M6 9l6 6 6-6"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        </summary>
+                        <div className={s.mobileLinks}>
+                          <Link
+                            to={P(child.path)}
+                            className={`${s.mobileLink} ${s.mobileLinkStrong}`}
+                            onClick={closeMobileMenu}
+                          >
+                            Tất cả {child.name}
+                          </Link>
+                          {links.map((it) => (
+                            <Link
+                              key={it.to}
+                              to={it.to}
+                              className={s.mobileLink}
+                              onClick={closeMobileMenu}
+                            >
+                              {it.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </details>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Modal tách riêng */}
       <AccountModal

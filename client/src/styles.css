@@ -155,3 +155,19 @@ video {
 .product-card:hover img {
   transform: scale(1.08);
 }
+
+@media (max-width: 420px) {
+  .product-card__promos {
+    display: none !important;
+  }
+
+  .product-card__title {
+    white-space: normal !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.25;
+    min-height: 2.5em;
+  }
+}
