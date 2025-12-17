@@ -73,10 +73,10 @@ export default function Checkout() {
   }, [itemsRaw, selectedIds, selectedSet]);
 
   const selectedItemsPayload = useMemo(() => {
-    // When nothing is explicitly selected, treat as "all items" by omitting the field
-    if (!selectedIds.length) return undefined;
+    // ✅ Luôn map từ items đã được filter (không bao giờ undefined hoặc rỗng)
+    if (!items.length) return [];
     return items.map((it) => ({ productId: String(it.productId), variantSku: it.variantSku }));
-  }, [items, selectedIds]);
+  }, [items]);
 
   // Helper function để tính số tiền giảm từ voucher
   const calculateVoucherDiscount = (voucher, subtotal) => {
@@ -164,15 +164,15 @@ export default function Checkout() {
         // Tự động áp voucher tốt nhất
         if (bestVoucher) {
           autoAppliedRef.current = true;
-          await handleApplyVoucher(bestVoucher.code);
+          await handleApplyVoucher(bestVoucher.code, true); // ✅ Pass isAutoApply = true
           toast.success(`Đã tự động áp mã giảm giá: ${bestVoucher.code}`, {
             duration: 3000,
             icon: '🎉',
           });
         }
       } catch (error) {
+        // ✅ Không hiện lỗi cho user khi auto-apply, chỉ log
         console.error('Lỗi khi tự động áp voucher:', error);
-        // Không hiện lỗi cho user, chỉ log
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,20 +211,16 @@ export default function Checkout() {
       );
 
       try {
-        // Gọi BE /cart/total: nếu không chọn gì thì tính cho toàn bộ
-        const t = await getTotal(
-          selectedItemsPayload && selectedItemsPayload.length
-            ? { selectedItems: selectedItemsPayload }
-            : {},
-        );
+        // ✅ Gọi BE /cart/total: CHỈ tính cho sản phẩm được chọn
+        // QUAN TRỌNG: Luôn truyền selectedItems ngay cả khi là array rỗng
+        const t = await getTotal({ selectedItems: selectedItemsPayload });
 
-        // Chuẩn hóa dữ liệu trả về; nếu BE trả 0 nhưng cart có subtotal > 0 thì fallback
-        let subtotal = Number(t?.subtotal);
-        let discount = Number(t?.discount);
-        if (!subtotal && Number(cart?.subtotal) > 0) subtotal = Number(cart.subtotal);
-        if (!discount && Number(cart?.discount) > 0) discount = Number(cart.discount);
+        // ✅ CHỈ lấy subtotal/discount của items được chọn (KHÔNG fallback về cart.subtotal toàn bộ)
+        let subtotal = Number(t?.subtotal) || 0;
+        let discount = Number(t?.discount) || 0;
+        
+        // Nếu BE trả 0 mà FE tính có subtotal, dùng fallback từ items đã chọn
         if (!subtotal && fallbackSubtotal > 0) subtotal = fallbackSubtotal;
-        if (!discount) discount = 0;
 
         // ✅ Ship fee dựa vào địa chỉ hiện tại + subtotal
         const shippingFee =
@@ -258,18 +254,17 @@ export default function Checkout() {
     // ✅ Chỉ phụ thuộc những thứ thực sự ảnh hưởng kết quả
   }, [items, selectedItemsPayload, currentAddress, getTotal]);
 
-  const handleApplyVoucher = async (code) => {
+  const handleApplyVoucher = async (code, isAutoApply = false) => {
     if (!code) {
-      toast('Nhập mã trước khi áp dụng');
+      if (!isAutoApply) toast('Nhập mã trước khi áp dụng');
       return;
     }
     try {
       const res = await applyPromotion({
         code,
-        selectedItems:
-          selectedItemsPayload && selectedItemsPayload.length ? selectedItemsPayload : undefined,
+        selectedItems: selectedItemsPayload,
       });
-      if (!res) return; // applyPromotion đã toast lỗi nếu có
+      // ✅ Áp dụng thành công, cập nhật totals
       const subtotal = Number(res.subtotal) || 0;
       const discount = Number(res.discount) || 0;
       const shippingFee =
@@ -279,9 +274,16 @@ export default function Checkout() {
       const grandTotal = Math.max(subtotal - discount, 0) + shippingFee;
       setTotals({ subtotal, discount, shippingFee, grandTotal });
       if (res.promotion) setAppliedPromo(res.promotion);
-      // Không cần hiện toast thành công khi áp dụng
+      
+      // ✅ Hiện toast thành công nếu KHÔNG phải auto-apply
+      if (!isAutoApply) {
+        toast.success(`Đã áp mã ${code}`);
+      }
     } catch (e) {
-      // applyPromotion đã xử lý toast
+      // ✅ Chỉ hiện lỗi nếu KHÔNG phải auto-apply
+      if (!isAutoApply) {
+        toast.error(e?.message || 'Không thể áp dụng mã giảm giá');
+      }
     }
   };
 

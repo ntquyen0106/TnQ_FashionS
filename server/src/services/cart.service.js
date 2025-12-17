@@ -82,12 +82,14 @@ export const getCart = async ({
 
   const items = cart.items.map((it) => {
     const p = it.productId;
-    const name = it.nameSnapshot || p?.name || '';
+    
+    // ✅ LẤY THÔNG TIN MỚI NHẤT TỪ PRODUCT (không dùng snapshot)
+    const name = p?.name || it.nameSnapshot || '';
 
     const imageSnapshot =
-      (typeof it.imageSnapshot === 'string' && it.imageSnapshot) ||
       p?.images?.find((im) => im.isPrimary)?.publicId ||
       p?.images?.[0]?.publicId ||
+      (typeof it.imageSnapshot === 'string' && it.imageSnapshot) ||
       '';
 
     const variantFromSku = Array.isArray(p?.variants)
@@ -131,13 +133,16 @@ export const getCart = async ({
         }))
       : [];
 
+    // ✅ LẤY GIÁ MỚI NHẤT TỪ VARIANT (không dùng priceSnapshot)
+    const currentPrice = Number(variantFromSku?.price ?? it.priceSnapshot ?? 0);
+    
     return {
       _id: it._id,
       productId: p?._id || it.productId,
-      slug: it.slugSnapshot || p?.slug || null,
+      slug: p?.slug || it.slugSnapshot || null,
       name,
       imageSnapshot,
-      price: Number(it.priceSnapshot) || 0,
+      price: currentPrice, // ✅ Giá realtime từ product
       quantity: Number(it.qty) || 1,
       variantSku: it.variantSku,
       variantName,
@@ -292,36 +297,54 @@ export const addToCart = async ({ userId, sessionId, productId, variantSku, qty 
 export const getCartTotal = async ({ userId, sessionId, selectedItems }) => {
   let cart;
   if (userId) {
-    cart = await Cart.findOne({ userId, status: 'active' }).populate('promotion');
+    cart = await Cart.findOne({ userId, status: 'active' })
+      .populate('items.productId', 'name variants') // ✅ Populate product để lấy giá realtime
+      .populate('promotion');
   } else if (sessionId) {
-    cart = await Cart.findOne({ sessionId, status: 'active' }).populate('promotion');
+    cart = await Cart.findOne({ sessionId, status: 'active' })
+      .populate('items.productId', 'name variants')
+      .populate('promotion');
   }
 
   if (!cart) return { items: [], subtotal: 0, discount: 0, total: 0, promotion: null };
 
   let items = cart.items;
+  
+  // ✅ CHỈ filter nếu selectedItems là array có phần tử
   if (Array.isArray(selectedItems) && selectedItems.length > 0) {
-    items = cart.items.filter((item) =>
-      selectedItems.some(
+    items = cart.items.filter((item) => {
+      // item.productId là populated object sau khi .populate(), cần lấy _id
+      const itemProductId = String(item.productId?._id || item.productId);
+      return selectedItems.some(
         (sel) =>
-          String(item.productId) === String(sel.productId) && item.variantSku === sel.variantSku,
-      ),
-    );
+          itemProductId === String(sel.productId) && item.variantSku === sel.variantSku,
+      );
+    });
   }
 
-  // Chuẩn hóa để client có cùng shape với getCart()
-  const normalized = items.map((it) => ({
-    _id: it._id,
-    productId: it.productId,
-    price: Number(it.priceSnapshot) || 0,
-    quantity: Number(it.qty) || 1,
-    variantSku: it.variantSku,
-    name: it.nameSnapshot || '',
-    imageSnapshot: it.imageSnapshot || '',
-    variantName: it.variantName || '',
-    color: it.color ?? null,
-    size: it.size ?? null,
-  }));
+  // ✅ Chuẩn hóa với giá REALTIME từ product
+  const normalized = items.map((it) => {
+    const p = it.productId;
+    const variantFromSku = Array.isArray(p?.variants)
+      ? p.variants.find((v) => v.sku === it.variantSku)
+      : null;
+    
+    // ✅ Lấy giá mới nhất từ variant, fallback về snapshot
+    const currentPrice = Number(variantFromSku?.price ?? it.priceSnapshot ?? 0);
+    
+    return {
+      _id: it._id,
+      productId: it.productId,
+      price: currentPrice, // ✅ Giá realtime
+      quantity: Number(it.qty) || 1,
+      variantSku: it.variantSku,
+      name: p?.name || it.nameSnapshot || '',
+      imageSnapshot: it.imageSnapshot || '',
+      variantName: it.variantName || '',
+      color: it.color ?? null,
+      size: it.size ?? null,
+    };
+  });
 
   const subtotal = normalized.reduce((s, it) => s + it.price * it.quantity, 0);
 

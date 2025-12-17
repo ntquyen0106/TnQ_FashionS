@@ -66,10 +66,13 @@ export default function CartProvider({ children }) {
     }
   };
 
-  // TÍNH TỔNG: không gửi selectedItems nếu rỗng/undefined, và luôn trả số
+  // TÍNH TỔNG: luôn truyền selectedItems nếu có (kể cả array rỗng)
   const total = useCallback(async ({ selectedItems } = {}) => {
     try {
-      const body = Array.isArray(selectedItems) && selectedItems.length ? { selectedItems } : {};
+      const body = {};
+      if (Array.isArray(selectedItems)) {
+        body.selectedItems = selectedItems;
+      }
       const data = await cartApi.total(body); // { subtotal, discount, total, promotion }
       return {
         subtotal: Number(data?.subtotal) || 0,
@@ -86,8 +89,11 @@ export default function CartProvider({ children }) {
   // ÁP VOUCHER: BE trả về getCartTotal; refresh để đồng bộ promotion trong giỏ
   const applyPromotion = async ({ code, selectedItems }) => {
     try {
-      const body =
-        Array.isArray(selectedItems) && selectedItems.length ? { code, selectedItems } : { code };
+      // ✅ Luôn truyền selectedItems nếu có (kể cả array rỗng)
+      const body = { code };
+      if (Array.isArray(selectedItems)) {
+        body.selectedItems = selectedItems;
+      }
       const data = await cartApi.applyPromotion(body);
       await refresh();
       return {
@@ -97,8 +103,9 @@ export default function CartProvider({ children }) {
         promotion: data?.promotion || null,
       };
     } catch (e) {
-      toast.error(e?.response?.data?.message || 'Không thể áp dụng mã giảm giá');
-      return null;
+      // ✅ Throw error để caller quyết định có hiện toast hay không
+      const message = e?.response?.data?.message || 'Không thể áp dụng mã giảm giá';
+      throw new Error(message);
     }
   };
 
@@ -173,12 +180,23 @@ export default function CartProvider({ children }) {
     })();
   }, [user, refresh]);
 
-  // Refresh cart every 30 seconds to check for stale items in real-time
+  // Auto-refresh cart để cập nhật giá/tên sản phẩm mới nhất
   useEffect(() => {
+    // 1. Refresh mỗi 30s
     const interval = setInterval(() => {
       refresh();
     }, 30000); // 30 seconds
-    return () => clearInterval(interval);
+
+    // 2. Refresh khi user focus lại window (để cập nhật ngay khi quay lại tab)
+    const handleFocus = () => {
+      refresh();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [refresh]);
 
   return (
