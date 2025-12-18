@@ -1,6 +1,7 @@
 import * as auth from '../services/auth.service.js';
 import User from '../models/User.js';
 import validator from 'validator';
+import jwt from 'jsonwebtoken';
 
 export const COOKIE_NAME = 'token';
 const ONE_DAY = 1000 * 60 * 60 * 24;
@@ -52,6 +53,19 @@ export const postLogout = async (req, res) => {
 // ME (đã có requireAuth ở routes nên dùng req.user)
 export const getMe = async (req, res) => {
   return res.json({ user: req.user });
+};
+
+// Mint a short-lived token for Socket.IO auth.
+// Needed in production because the app uses same-origin cookies on Vercel, while Socket.IO connects to the backend origin.
+export const getSocketToken = async (req, res) => {
+  const uid = req.user?._id;
+  if (!uid) return res.status(401).json({ message: 'Unauthenticated' });
+
+  const token = jwt.sign({ sub: String(uid), role: req.user?.role }, process.env.JWT_SECRET, {
+    expiresIn: '15m',
+  });
+
+  return res.json({ token });
 };
 
 /* -------------------- REGISTER + OTP + PHONE VERIFICATION -------------------- */

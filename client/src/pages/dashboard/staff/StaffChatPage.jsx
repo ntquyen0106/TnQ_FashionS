@@ -4,15 +4,19 @@ import { useAuth } from '@/auth/AuthProvider';
 import io from 'socket.io-client';
 import ProductPickerModal from '@/components/ProductPickerModal';
 import { productsApi } from '@/api/products-api';
-import { getApiOrigin } from '@/api/apiBase';
+import { authApi } from '@/api/auth-api';
 import styles from './StaffChatPage.module.css';
 
-const SOCKET_URL = (() => {
-  const origin = getApiOrigin();
-  return /^https?:\/\//i.test(origin) ? origin : undefined;
-})();
-
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+
+const BACKEND_SOCKET_ORIGIN = (() => {
+  const configured = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL;
+  if (configured && /^https?:\/\//i.test(configured)) return configured;
+  // Dev fallback
+  if (!import.meta.env.PROD) return 'http://localhost:5000';
+  // Prod fallback (matches client/vercel.json proxy target)
+  return 'https://tnq-fashions.onrender.com';
+})();
 
 const normalizeTimestamp = (value) => {
   const parsed = new Date(value || Date.now());
@@ -295,66 +299,89 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
 
     console.log('[Staff Chat] Initializing socket for user:', user.name);
 
-    const socketOptions = {
-      withCredentials: true, // Send cookies
-      transports: ['websocket', 'polling'],
-    };
+    let alive = true;
 
-    const newSocket = SOCKET_URL ? io(SOCKET_URL, socketOptions) : io(socketOptions);
+    (async () => {
+      try {
+        const tokenRes = await authApi.socketToken();
+        const token = tokenRes?.token;
 
-    newSocket.on('connect', () => {
-      console.log('[Staff Chat] ✅ Connected to WebSocket');
-      console.log('[Staff Chat] Socket ID:', newSocket.id);
-    });
+        const socketOptions = {
+          transports: ['websocket', 'polling'],
+          auth: token ? { token } : undefined,
+        };
 
-    newSocket.on('connect_error', (error) => {
-      console.error('[Staff Chat] ❌ Connection error:', error);
-    });
+        const newSocket = io(BACKEND_SOCKET_ORIGIN, socketOptions);
 
-    // Confirm joined staff room
-    newSocket.on('staff_room_joined', (info) => {
-      console.log('[Staff Chat] Joined staff room:', info);
-    });
+        newSocket.on('connect', () => {
+          console.log('[Staff Chat] ✅ Connected to WebSocket');
+          console.log('[Staff Chat] Socket ID:', newSocket.id);
+        });
 
-    newSocket.on('new_staff_request', (data) => {
-      console.log('[Staff Chat] 🔔 New request:', data);
-      // Play notification sound
-      playNotificationSound();
-      // Refresh sessions list and counts
-      loadSessionsRef.current();
-      loadCountsRef.current();
-    });
+        newSocket.on('connect_error', (error) => {
+          console.error('[Staff Chat] ❌ Connection error:', error);
+        });
 
-    // NOTE: new_message listener moved to separate effect to avoid stale selectedSession closure
+        // Confirm joined staff room
+        newSocket.on('staff_room_joined', (info) => {
+          console.log('[Staff Chat] Joined staff room:', info);
+        });
 
-    // Optional ack when a customer emits request_staff
-    newSocket.on('staff_request_ack', (ack) => {
-      console.log('[Staff Chat] Staff request ack:', ack);
-      if (ack?.sessionId) {
-        loadSessionsRef.current();
-        loadCountsRef.current();
+        newSocket.on('new_staff_request', (data) => {
+          console.log('[Staff Chat] 🔔 New request:', data);
+          // Play notification sound
+          playNotificationSound();
+          // Refresh sessions list and counts
+          loadSessionsRef.current();
+          loadCountsRef.current();
+        });
+
+        // NOTE: new_message listener moved to separate effect to avoid stale selectedSession closure
+
+        // Optional ack when a customer emits request_staff
+        newSocket.on('staff_request_ack', (ack) => {
+          console.log('[Staff Chat] Staff request ack:', ack);
+          if (ack?.sessionId) {
+            loadSessionsRef.current();
+            loadCountsRef.current();
+          }
+        });
+
+        // When any staff accepts a session, update my list
+        newSocket.on('session_accepted', (data) => {
+          console.log('[Staff Chat] Session accepted broadcast:', data);
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.sessionId === data.sessionId
+                ? { ...s, status: 'with_staff', assignedStaffId: data.staffId }
+                : s,
+            ),
+          );
+          if (filterRef.current === 'waiting_staff') loadSessionsRef.current();
+          loadCountsRef.current(); // Update counts when session is accepted
+        });
+
+        if (!alive) {
+          newSocket.disconnect();
+          return;
+        }
+        setSocket(newSocket);
+      } catch (error) {
+        console.error('[Staff Chat] ❌ Failed to init socket:', error);
       }
-    });
-
-    // When any staff accepts a session, update my list
-    newSocket.on('session_accepted', (data) => {
-      console.log('[Staff Chat] Session accepted broadcast:', data);
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.sessionId === data.sessionId
-            ? { ...s, status: 'with_staff', assignedStaffId: data.staffId }
-            : s,
-        ),
-      );
-      if (filterRef.current === 'waiting_staff') loadSessionsRef.current();
-      loadCountsRef.current(); // Update counts when session is accepted
-    });
-
-    setSocket(newSocket);
+    })();
 
     return () => {
       console.log('[Staff Chat] Disconnecting socket');
-      newSocket.disconnect();
+      alive = false;
+      setSocket((prev) => {
+        try {
+          prev?.disconnect();
+        } catch {
+          // ignore
+        }
+        return null;
+      });
     };
   }, [user]);
 

@@ -16,7 +16,7 @@ router.post('/resend-otp', authController.postResendOtp); // { email }
 // Social Login
 router.post('/firebase-login', authController.postFirebaseLogin); // { idToken, remember? }
 router.post('/facebook-login', authController.postFacebookLogin); // { accessToken, remember? }
-router.post('/add-phone', requireAuth, authController.postAddPhoneToGoogleUser); // {firebaseIdToken, phoneNumber } - Add phone to Google account 
+router.post('/add-phone', requireAuth, authController.postAddPhoneToGoogleUser); // {firebaseIdToken, phoneNumber } - Add phone to Google account
 
 // Password Reset
 router.post('/forgot', authController.postForgotPassword); // { email }
@@ -26,6 +26,7 @@ router.post('/forgot/reset', authController.postForgotReset); // { email, newPas
 
 // Session Management
 router.get('/me', requireAuth, authController.getMe); // Get current user
+router.get('/socket-token', requireAuth, authController.getSocketToken); // Get short-lived token for Socket.IO
 router.post('/logout', requireAuth, authController.postLogout);
 
 router.post('/change-password-first', requireAuth, authController.postChangePasswordFirst);

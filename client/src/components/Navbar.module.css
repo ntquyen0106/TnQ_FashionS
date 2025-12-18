@@ -384,6 +384,8 @@
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
+/* Base icon button */
+/* Base icon button */
 .icon {
   font-size: 20px;
   color: #111827;
@@ -400,24 +402,44 @@
   transition: all 0.2s ease;
 }
 
-/* iOS Safari: make sure inline SVG icons actually paint */
+/* Make SVG paint reliably on iOS */
 .icon svg {
   display: block;
   width: 22px;
   height: 22px;
+}
+
+/* Let both stroke + fill follow currentColor */
+.icon svg,
+.icon svg * {
   color: inherit;
 }
 
-.icon svg,
-.icon svg * {
+/* Stroke icons */
+.icon svg path,
+.icon svg circle,
+.icon svg rect,
+.icon svg line,
+.icon svg polyline,
+.icon svg polygon {
   stroke: currentColor;
 }
+
+/* Fill icons */
+.icon svg [fill]:not([fill='none']) {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* Hover: chỉ đổi color là đủ */
 .icon:hover {
   color: #2563eb;
   border-color: #2563eb;
   background: #eff6ff;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
+
+/* Muted: dùng color để áp dụng cho cả stroke + fill */
 .iconMuted {
   color: #9ca3af;
   border-color: #e5e7eb;
@@ -431,6 +453,7 @@
   background: #f9fafb;
   box-shadow: none;
 }
+
 .cartWrap {
   position: relative;
   display: inline-flex;

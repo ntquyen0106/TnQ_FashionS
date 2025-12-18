@@ -7,18 +7,20 @@ import { useCart } from '@/contexts/CartProvider';
 import { useAuth } from '@/auth/AuthProvider';
 import { showAddToCartToast } from '@/components/showAddToCartToast';
 import io from 'socket.io-client';
-import { getApiOrigin } from '@/api/apiBase';
 import styles from './ChatbotWidget.module.css';
-
-const SOCKET_URL = (() => {
-  const origin = getApiOrigin();
-  // If origin is absolute (http/https), connect there. Otherwise ('' or relative), use same-origin.
-  return /^https?:\/\//i.test(origin) ? origin : undefined;
-})();
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UNAVAILABLE_STORAGE_KEY = 'chatbot_ai_missing_products';
+
+const BACKEND_SOCKET_ORIGIN = (() => {
+  const configured = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL;
+  if (configured && /^https?:\/\//i.test(configured)) return configured;
+  // Dev fallback
+  if (!import.meta.env.PROD) return 'http://localhost:5000';
+  // Prod fallback (matches client/vercel.json proxy target)
+  return 'https://tnq-fashions.onrender.com';
+})();
 
 // Helper functions for Cloudinary images
 const encodePublicId = (pid) => (pid ? pid.split('/').map(encodeURIComponent).join('/') : '');
@@ -393,7 +395,7 @@ export default function ChatbotWidget() {
       transports: ['websocket', 'polling'],
     };
 
-    const newSocket = SOCKET_URL ? io(SOCKET_URL, socketOptions) : io(socketOptions);
+    const newSocket = io(BACKEND_SOCKET_ORIGIN, socketOptions);
 
     newSocket.on('connect', () => {
       newSocket.emit('join_chat', sessionId);
