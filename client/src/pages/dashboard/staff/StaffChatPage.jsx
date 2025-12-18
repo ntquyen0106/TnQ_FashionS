@@ -4,9 +4,14 @@ import { useAuth } from '@/auth/AuthProvider';
 import io from 'socket.io-client';
 import ProductPickerModal from '@/components/ProductPickerModal';
 import { productsApi } from '@/api/products-api';
+import { getApiOrigin } from '@/api/apiBase';
 import styles from './StaffChatPage.module.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = (() => {
+  const origin = getApiOrigin();
+  return /^https?:\/\//i.test(origin) ? origin : undefined;
+})();
+
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
 const normalizeTimestamp = (value) => {
@@ -290,10 +295,12 @@ export default function StaffChatPage({ onCountsChange, initialCounts }) {
 
     console.log('[Staff Chat] Initializing socket for user:', user.name);
 
-    const newSocket = io(API_URL, {
+    const socketOptions = {
       withCredentials: true, // Send cookies
       transports: ['websocket', 'polling'],
-    });
+    };
+
+    const newSocket = SOCKET_URL ? io(SOCKET_URL, socketOptions) : io(socketOptions);
 
     newSocket.on('connect', () => {
       console.log('[Staff Chat] ✅ Connected to WebSocket');
