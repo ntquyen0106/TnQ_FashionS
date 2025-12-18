@@ -15,7 +15,7 @@ export const requireAuth = async (req, res, next) => {
     if (!uid) return res.status(401).json({ message: 'Invalid token' });
 
     const user = await User.findById(uid)
-      .select('_id name email role status mustChangePassword')
+      .select('_id name email phoneNumber role status mustChangePassword')
       .lean();
     if (!user || user.status !== 'active') {
       return res.status(401).json({ message: 'Unauthenticated' });
@@ -83,7 +83,7 @@ export const optionalAuth = async (req, res, next) => {
     if (!uid) return next();
 
     const user = await User.findById(uid)
-      .select('_id name email role status mustChangePassword')
+      .select('_id name email phoneNumber role status mustChangePassword')
       .lean();
     if (user && user.status === 'active') {
       req.userId = String(user._id);

@@ -5,104 +5,86 @@ export const removeDiacritics = (s = '') =>
   (s || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd') // ✅ fix
     .toLowerCase()
     .trim();
 
 const normalizePlace = (s = '') => {
-  const x = removeDiacritics(s)
-    .replace(/^(tp|tinh|thanh pho)\.?\s+/, '')
-    .replace(/[-_]+/g, ' ')
+  const raw = removeDiacritics(s)
+    .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return x;
+
+  return raw.replace(/^(tp|tinh|thanh pho)\s*/, '').trim();
+};
+
+const isHcmCity = (city = '') => {
+  const c = normalizePlace(city);
+  const cNoSpace = c.replace(/\s+/g, '');
+  return (
+    c === 'hcm' || cNoSpace === 'hcm' || c.includes('ho chi minh') || cNoSpace.includes('hochiminh')
+  );
 };
 
 // Đơn giản: chỉ phân chia theo miền (South/Central/North)
 
 const sets = {
-  remote: new Set(
-    [
-      'ha giang',
-      'cao bang',
-      'bac kan',
-      'tuyen quang',
-      'yen bai',
-      'lao cai',
-      'lai chau',
-      'dien bien',
-      'son la',
-      'kon tum',
-      'gia lai',
-      'dak lak',
-      'dak nong',
-      'lam dong',
-    ].map(removeDiacritics),
-  ),
   south: new Set(
     [
-      'ho chi minh',
-      'binh duong',
       'dong nai',
-      'ba ria vung tau',
       'tay ninh',
-      'long an',
-      'tien giang',
       'vinh long',
-      'ben tre',
-      'tra vinh',
       'dong thap',
       'an giang',
-      'kien giang',
-      'hau giang',
-      'soc trang',
-      'bac lieu',
       'ca mau',
-      'binh phuoc',
       'can tho',
+      // TP.HCM được xử lý riêng (0đ)
+      'ho chi minh',
     ].map(removeDiacritics),
   ),
   central: new Set(
     [
-      'da nang',
-      'quang nam',
-      'quang ngai',
-      'binh dinh',
-      'phu yen',
-      'khanh hoa',
-      'ninh thuan',
-      'binh thuan',
-      'thua thien hue',
+      'thanh hoa',
+      'nghe an',
+      'ha tinh',
       'quang tri',
-      'quang binh',
+      'hue',
+      'da nang',
+      'quang ngai',
+      'gia lai',
+      'dak lak',
+      'khanh hoa',
+      'lam dong',
     ].map(removeDiacritics),
   ),
   north: new Set(
     [
       'ha noi',
-      'hai phong',
-      'quang ninh',
+      'thai nguyen',
+      'tuyen quang',
+      'lao cai',
+      'phu tho',
       'bac ninh',
       'hung yen',
-      'ha nam',
-      'nam dinh',
-      'thai binh',
+      'hai phong',
       'ninh binh',
-      'vinh phuc',
-      'bac giang',
-      'phu tho',
-      'thai nguyen',
-      'hoa binh',
-      'hai duong',
-      'nghe an',
-      'thanh hoa',
+      'lai chau',
+      'dien bien',
+      'son la',
+      'lang son',
+      'quang ninh',
+      'cao bang',
     ].map(removeDiacritics),
   ),
 };
 
 const isInRegion = (cityRaw, regionSet) => {
   const c = normalizePlace(cityRaw);
+  const cNoSpace = c.replace(/\s+/g, '');
   for (const name of regionSet) {
     if (c.includes(name)) return true;
+    const nameNoSpace = String(name).replace(/\s+/g, '');
+    if (cNoSpace.includes(nameNoSpace)) return true;
   }
   return false;
 };
@@ -111,14 +93,17 @@ export function computeShippingDetail(city = '', district = '', subtotal = 0) {
   const sub = Number(subtotal) || 0;
   if (sub <= 0) return { fee: 0, method: 'none' };
 
+  // Rule yêu cầu: TP.HCM luôn 0đ ship
+  if (isHcmCity(city)) return { fee: 0, method: 'region' };
+
   const c = normalizePlace(city);
 
   // Miền Nam: 25k
   if (isInRegion(c, sets.south)) return { fee: 25000, method: 'region' };
-  
+
   // Miền Trung: 35k
   if (isInRegion(c, sets.central)) return { fee: 35000, method: 'region' };
-  
+
   // Miền Bắc: 45k
   if (isInRegion(c, sets.north)) return { fee: 45000, method: 'region' };
 

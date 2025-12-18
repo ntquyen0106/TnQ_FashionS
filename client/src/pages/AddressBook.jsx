@@ -4,7 +4,11 @@ import authApi from '../api/auth-api.js';
 import styles from './AddressBook.module.css';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/EmptyState';
-import AddressAutocomplete from '@/components/AddressAutocomplete';
+import {
+  provinces as vnProvinces,
+  findProvinceByName,
+  findWardByName,
+} from '../constants/vnLocations.js';
 
 export default function AddressBook() {
   const navigate = useNavigate();
@@ -24,66 +28,12 @@ export default function AddressBook() {
     line1: '',
   });
   const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
   const [selectedWardCode, setSelectedWardCode] = useState('');
-  const [addressSearch, setAddressSearch] = useState(''); // Địa chỉ chi tiết search
-  
-  // Lấy dữ liệu từ provinces API
-  const [provincesData, setProvincesData] = useState([]);
-  const [loadingProvinces, setLoadingProvinces] = useState(true);
-  const [wardsCache, setWardsCache] = useState({}); // Cache wards by district code
 
-  // Load provinces + districts data từ public API v1 (CHƯA SÁT NHẬP - depth=2)
-  useEffect(() => {
-    const fetchProvinces = async () => {
-      try {
-        const response = await fetch('https://provinces.open-api.vn/api/v1/?depth=2');
-        if (!response.ok) throw new Error('Failed to fetch provinces');
-        const data = await response.json();
-        console.log('✅ Loaded provinces data (63 provinces):', data.length);
-        if (data.length > 0) {
-          console.log('Sample province:', data[0].name, 'code:', data[0].code);
-          console.log('Districts count:', data[0].districts?.length);
-          console.log('Sample district:', data[0].districts?.[0]?.name);
-        }
-        setProvincesData(data);
-      } catch (error) {
-        console.error('❌ Error loading provinces:', error);
-        toast.error('Không thể tải danh sách tỉnh/thành phố');
-      } finally {
-        setLoadingProvinces(false);
-      }
-    };
-    fetchProvinces();
-  }, []);
-
-  // Lazy load wards khi user chọn district
-  const loadWardsForDistrict = async (districtCode) => {
-    if (wardsCache[districtCode]) return; // Already cached
-    
-    try {
-      const response = await fetch(`https://provinces.open-api.vn/api/v1/d/${districtCode}?depth=2`);
-      if (!response.ok) throw new Error('Failed to fetch wards');
-      const district = await response.json();
-      console.log('✅ Loaded wards for district:', districtCode, '→', district.wards?.length, 'wards');
-      
-      // Cache wards data
-      setWardsCache(prev => ({
-        ...prev,
-        [districtCode]: district.wards || []
-      }));
-      
-      // Update provincesData with wards
-      setProvincesData(prev => prev.map(p => ({
-        ...p,
-        districts: p.districts?.map(d => 
-          d.code === districtCode ? { ...d, wards: district.wards } : d
-        )
-      })));
-    } catch (error) {
-      console.error('❌ Error loading wards:', error);
-    }
-  };
+  const selectedProvince = useMemo(
+    () => vnProvinces.find((p) => String(p.code) === String(selectedProvinceCode)),
+    [selectedProvinceCode],
+  );
 
   const load = async () => {
     try {
@@ -117,81 +67,16 @@ export default function AddressBook() {
         }
       : { fullName: '', phone: '', city: '', district: '', ward: '', line1: '' };
     setForm(base);
-    
-    // Set address search value
-    if (addr && addr.line1) {
-      setAddressSearch(addr.line1);
-    } else {
-      setAddressSearch('');
-    }
-    
-    // Try to map to combo if possible (only if provinces loaded)
-    if (provincesData.length > 0) {
-      const p = provincesData.find((p) => p.name === base.city);
-      if (p) {
-        setSelectedProvinceCode(p.code);
-        const d = p.districts?.find((d) => d.name === base.district);
-        if (d) {
-          setSelectedDistrictCode(d.code);
-          // Lazy load wards cho district này
-          if (!d.wards || d.wards.length === 0) {
-            loadWardsForDistrict(d.code);
-          }
-          const w = d.wards?.find((w) => w.name === base.ward);
-          if (w) setSelectedWardCode(w.code);
-          else setSelectedWardCode('');
-        } else {
-          setSelectedDistrictCode('');
-          setSelectedWardCode('');
-        }
-      } else {
-        setSelectedProvinceCode('');
-        setSelectedDistrictCode('');
-        setSelectedWardCode('');
-      }
-    } else {
-      setSelectedProvinceCode('');
-      setSelectedDistrictCode('');
-      setSelectedWardCode('');
-    }
-  };
 
-  // Handler khi user chọn địa chỉ từ autocomplete
-  const handleAddressSelect = (suggestion) => {
-    console.log('Autocomplete selected:', suggestion);
-    
-    // Update form with selected address
-    setForm({
-      ...form,
-      city: suggestion.city || '',
-      district: suggestion.district || '',
-      ward: suggestion.ward || '',
-      line1: suggestion.display || '',
-    });
-
-    // Set codes cho select dropdowns
-    if (suggestion.cityCode) {
-      setSelectedProvinceCode(suggestion.cityCode);
-    }
-    if (suggestion.districtCode) {
-      setSelectedDistrictCode(suggestion.districtCode);
-      // Lazy load wards for this district
-      loadWardsForDistrict(suggestion.districtCode);
-    }
-    if (suggestion.wardCode) {
-      setSelectedWardCode(suggestion.wardCode);
-    }
+    // Map name -> code using local dataset (vnLocations.js)
+    const province = findProvinceByName(base.city);
+    const ward = findWardByName(province, base.ward);
+    setSelectedProvinceCode(province?.code ? String(province.code) : '');
+    setSelectedWardCode(ward?.code ? String(ward.code) : '');
   };
 
   const onSave = async () => {
-    if (
-      !form.fullName ||
-      !form.phone ||
-      !form.city ||
-      !form.district ||
-      !form.ward ||
-      !form.line1
-    ) {
+    if (!form.fullName || !form.phone || !form.city || !form.ward || !form.line1) {
       toast.error('Vui lòng nhập đầy đủ thông tin');
       return;
     }
@@ -307,22 +192,8 @@ export default function AddressBook() {
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </div>
-            {/* Địa chỉ chi tiết với autocomplete */}
-            <div className={styles.field} style={{ gridColumn: '1 / -1' }}>
-              <label className={styles.label}>Địa chỉ chi tiết <small style={{ color: '#9ca3af', fontWeight: 'normal' }}></small></label>
-              <AddressAutocomplete
-                value={addressSearch}
-                onChange={(val) => {
-                  setAddressSearch(val);
-                  setForm({ ...form, line1: val });
-                }}
-                onAddressSelect={handleAddressSelect}
-                placeholder="VD: Phường Bến Nghé, Quận 1..."
-                provinces={provincesData}
-              />
-            </div>
 
-            {/* Các select dropdowns cascade - Province → District → Ward */}
+            {/* Các select dropdowns - Tỉnh/TP → Phường/Xã */}
             <div className={styles.selectRow}>
               <div className={styles.field}>
                 <label className={styles.label}>Tỉnh/Thành phố</label>
@@ -330,55 +201,19 @@ export default function AddressBook() {
                   className={styles.select}
                   value={selectedProvinceCode}
                   onChange={(e) => {
-                    const code = Number(e.target.value);
-                    console.log('Province selected:', code);
+                    const code = String(e.target.value || '');
                     setSelectedProvinceCode(code);
-                    setSelectedDistrictCode('');
                     setSelectedWardCode('');
-                    const p = provincesData.find((x) => x.code === code);
-                    console.log('Found province:', p?.name, '- districts:', p?.districts?.length);
+                    const p = vnProvinces.find((x) => String(x.code) === code);
                     setForm({ ...form, city: p?.name || '', district: '', ward: '' });
                   }}
-                  disabled={loadingProvinces}
                 >
-                  <option value="">{loadingProvinces ? 'Đang tải...' : 'Chọn Tỉnh/Thành phố'}</option>
-                  {provincesData.map((p) => (
+                  <option value="">Chọn Tỉnh/Thành phố</option>
+                  {vnProvinces.map((p) => (
                     <option key={p.code} value={p.code}>
                       {p.name}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Quận/Huyện</label>
-                <select
-                  className={styles.select}
-                  value={selectedDistrictCode}
-                  onChange={(e) => {
-                    const code = Number(e.target.value);
-                    console.log('District selected:', code);
-                    setSelectedDistrictCode(code);
-                    setSelectedWardCode('');
-                    const p = provincesData.find((x) => x.code === selectedProvinceCode);
-                    const d = p?.districts?.find((x) => x.code === code);
-                    console.log('Found district:', d?.name);
-                    setForm({ ...form, district: d?.name || '', ward: '' });
-                    
-                    // Lazy load wards for selected district
-                    if (code) {
-                      loadWardsForDistrict(code);
-                    }
-                  }}
-                  disabled={!selectedProvinceCode || loadingProvinces}
-                >
-                  <option value="">Chọn Quận/Huyện</option>
-                  {provincesData
-                    .find((p) => p.code === selectedProvinceCode)
-                    ?.districts?.map((d) => (
-                      <option key={d.code} value={d.code}>
-                        {d.name}
-                      </option>
-                    ))}
                 </select>
               </div>
               <div className={styles.field}>
@@ -387,28 +222,31 @@ export default function AddressBook() {
                   className={styles.select}
                   value={selectedWardCode}
                   onChange={(e) => {
-                    const code = Number(e.target.value);
-                    console.log('Ward selected:', code);
+                    const code = String(e.target.value || '');
                     setSelectedWardCode(code);
-                    const p = provincesData.find((x) => x.code === selectedProvinceCode);
-                    const d = p?.districts?.find((x) => x.code === selectedDistrictCode);
-                    const w = d?.wards?.find((x) => x.code === code);
-                    console.log('Found ward:', w?.name);
+                    const w = selectedProvince?.wards?.find((x) => String(x.code) === code);
                     setForm({ ...form, ward: w?.name || '' });
                   }}
-                  disabled={!selectedDistrictCode || loadingProvinces}
+                  disabled={!selectedProvinceCode}
                 >
                   <option value="">Chọn Phường/Xã</option>
-                  {provincesData
-                    .find((p) => p.code === selectedProvinceCode)
-                    ?.districts?.find((d) => d.code === selectedDistrictCode)
-                    ?.wards?.map((w) => (
-                      <option key={w.code} value={w.code}>
-                        {w.name}
-                      </option>
-                    ))}
+                  {selectedProvince?.wards?.map((w) => (
+                    <option key={w.code} value={w.code}>
+                      {w.name}
+                    </option>
+                  ))}
                 </select>
               </div>
+            </div>
+
+            {/* Địa chỉ chi tiết (ở cuối) */}
+            <div className={styles.field} style={{ gridColumn: '1 / -1' }}>
+              <label className={styles.label}>Địa chỉ chi tiết</label>
+              <input
+                placeholder="VD: Ấp..., thôn..., số nhà..., tên đường..."
+                value={form.line1}
+                onChange={(e) => setForm({ ...form, line1: e.target.value })}
+              />
             </div>
           </div>
           <div className={styles.formActions}>
@@ -443,7 +281,7 @@ export default function AddressBook() {
                 {a._id === defaultId && <span className={styles.badgeDefault}>Mặc định</span>}
               </div>
               <div className={styles.addrLine}>
-                {a.line1 || a.street}, {a.ward}, {a.district}, {a.city}
+                {[a.line1 || a.street, a.ward, a.district, a.city].filter(Boolean).join(', ')}
               </div>
               <div className={styles.cardActions}>
                 <button

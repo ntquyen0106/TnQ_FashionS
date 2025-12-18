@@ -18,12 +18,9 @@ export default function AccountProfile() {
 
   const save = async () => {
     if (!name.trim()) return toast.error('Vui lòng nhập họ tên');
-    if (!email.trim()) return toast.error('Vui lòng nhập email');
-    const emailRe = /.+@.+\..+/;
-    if (!emailRe.test(email.trim())) return toast.error('Email không hợp lệ');
     setSaving(true);
     try {
-      const res = await authApi.updateProfile({ name: name.trim(), email: email.trim() });
+      const res = await authApi.updateProfile({ name: name.trim() });
       if (res?.user) setUser(res.user);
       toast.success('Cập nhật thành công');
       setIsEditing(false);
@@ -33,8 +30,6 @@ export default function AccountProfile() {
       setSaving(false);
     }
   };
-
-  const initial = (user?.name || user?.email || 'U').trim().charAt(0).toUpperCase();
 
   return (
     <div className={styles.wrap}>
@@ -73,6 +68,10 @@ export default function AccountProfile() {
               <div className={styles.k}>Email</div>
               <div className={styles.v}>{user?.email || '-'}</div>
             </div>
+            <div className={styles.infoRow}>
+              <div className={styles.k}>SĐT</div>
+              <div className={styles.v}>{user?.phoneNumber || '-'}</div>
+            </div>
           </div>
         ) : (
           <>
@@ -91,8 +90,17 @@ export default function AccountProfile() {
                 <input
                   className={styles.input}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
+                  disabled
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label}>SĐT</label>
+                <input
+                  className={styles.input}
+                  value={user?.phoneNumber || ''}
+                  placeholder=""
+                  disabled
                 />
               </div>
             </div>

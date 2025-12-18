@@ -27,6 +27,7 @@ export default function Checkout() {
   const preserveVoucherRef = useRef(false);
   const autoAppliedRef = useRef(false); // Track nếu đã tự động áp voucher
   const userRemovedVoucherRef = useRef(false); // Track nếu user đã chủ động bỏ voucher
+  const autoAppliedNotifiedRef = useRef(null); // Track which auto-applied code we've already shown toast for
 
   const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const buildImageUrl = (snap, w = 120) => {
@@ -81,7 +82,7 @@ export default function Checkout() {
   // Helper function để tính số tiền giảm từ voucher
   const calculateVoucherDiscount = (voucher, subtotal) => {
     if (!voucher || subtotal <= 0) return 0;
-    
+
     if (voucher.type === 'percent') {
       const discount = (subtotal * voucher.value) / 100;
       return voucher.maxDiscount ? Math.min(discount, voucher.maxDiscount) : discount;
@@ -125,7 +126,12 @@ export default function Checkout() {
     // 2. Chưa có voucher đang áp dụng (cart.promotion = null)
     // 3. Đã có subtotal > 0
     // 4. User CHƯA chủ động bỏ voucher (userRemovedVoucherRef.current = false)
-    if (autoAppliedRef.current || cart?.promotion?.code || totals.subtotal <= 0 || userRemovedVoucherRef.current) {
+    if (
+      autoAppliedRef.current ||
+      cart?.promotion?.code ||
+      totals.subtotal <= 0 ||
+      userRemovedVoucherRef.current
+    ) {
       return;
     }
 
@@ -133,9 +139,7 @@ export default function Checkout() {
       try {
         // Lấy danh sách voucher khả dụng
         const productIds = items.map((it) => it.productId);
-        const categoryIds = items
-          .map((it) => it.categoryId)
-          .filter(Boolean);
+        const categoryIds = items.map((it) => it.categoryId).filter(Boolean);
 
         const vouchers = await promotionsApi.available(totals.subtotal, {
           all: true,
@@ -149,7 +153,7 @@ export default function Checkout() {
 
         // Lọc voucher đủ điều kiện (eligible & applicable)
         const eligibleVouchers = vouchers.filter((v) => v.eligible && v.applicable);
-        
+
         if (eligibleVouchers.length === 0) {
           return; // Không có voucher đủ điều kiện
         }
@@ -165,10 +169,14 @@ export default function Checkout() {
         if (bestVoucher) {
           autoAppliedRef.current = true;
           await handleApplyVoucher(bestVoucher.code, true); // ✅ Pass isAutoApply = true
-          toast.success(`Đã tự động áp mã giảm giá: ${bestVoucher.code}`, {
-            duration: 3000,
-            icon: '🎉',
-          });
+          // Avoid duplicate notifications (StrictMode or rapid re-runs)
+          if (autoAppliedNotifiedRef.current !== bestVoucher.code) {
+            autoAppliedNotifiedRef.current = bestVoucher.code;
+            toast.success(`Đã tự động áp mã giảm giá: ${bestVoucher.code}`, {
+              duration: 3000,
+              icon: '🎉',
+            });
+          }
         }
       } catch (error) {
         // ✅ Không hiện lỗi cho user khi auto-apply, chỉ log
@@ -191,6 +199,7 @@ export default function Checkout() {
           } catch {}
         })();
         setAppliedPromo(null);
+        autoAppliedNotifiedRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,7 +227,7 @@ export default function Checkout() {
         // ✅ CHỈ lấy subtotal/discount của items được chọn (KHÔNG fallback về cart.subtotal toàn bộ)
         let subtotal = Number(t?.subtotal) || 0;
         let discount = Number(t?.discount) || 0;
-        
+
         // Nếu BE trả 0 mà FE tính có subtotal, dùng fallback từ items đã chọn
         if (!subtotal && fallbackSubtotal > 0) subtotal = fallbackSubtotal;
 
@@ -274,7 +283,7 @@ export default function Checkout() {
       const grandTotal = Math.max(subtotal - discount, 0) + shippingFee;
       setTotals({ subtotal, discount, shippingFee, grandTotal });
       if (res.promotion) setAppliedPromo(res.promotion);
-      
+
       // ✅ Hiện toast thành công nếu KHÔNG phải auto-apply
       if (!isAutoApply) {
         toast.success(`Đã áp mã ${code}`);
@@ -388,8 +397,14 @@ export default function Checkout() {
               <strong>{currentAddress.fullName}</strong> · {currentAddress.phone}
             </div>
             <div className={styles.addrLine}>
-              {currentAddress.line1 || currentAddress.street}, {currentAddress.ward},{' '}
-              {currentAddress.district}, {currentAddress.city}
+              {[
+                currentAddress.line1 || currentAddress.street,
+                currentAddress.ward,
+                currentAddress.district,
+                currentAddress.city,
+              ]
+                .filter(Boolean)
+                .join(', ')}
             </div>
           </div>
         ) : (
@@ -431,10 +446,10 @@ export default function Checkout() {
               // Fallback: suy luận ETA theo mức phí nếu thiếu etaDays (tránh "đang xác định")
               const inferEtaByFee = (fee) => {
                 const f = Number(fee) || 0;
+                if (f === 0) return { min: 1, max: 2, regionName: 'TP.HCM' };
                 if (f === 25000) return { min: 1, max: 2, regionName: 'Miền Nam' };
-                if (f === 30000) return { min: 3, max: 4, regionName: 'Miền Trung' };
-                if (f === 35000) return { min: 3, max: 4, regionName: 'Miền Bắc' };
-                if (f === 45000) return { min: 3, max: 4, regionName: 'Miền Bắc/Trung' };
+                if (f === 35000) return { min: 3, max: 4, regionName: 'Miền Trung' };
+                if (f === 45000) return { min: 3, max: 4, regionName: 'Miền Bắc' };
                 return null;
               };
               const effectiveEta = det?.etaDays
@@ -482,13 +497,18 @@ export default function Checkout() {
         {appliedPromo?.code && totals.discount > 0 && (
           <div
             className={styles.note}
-            style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+            style={{
+              marginBottom: 8,
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
           >
             <span>
               Đang áp dụng mã: <strong>{appliedPromo.code}</strong>
               {autoAppliedRef.current && (
-                <span style={{ color: '#16a34a', marginLeft: 4, fontSize: '0.9em' }}>
-                </span>
+                <span style={{ color: '#16a34a', marginLeft: 4, fontSize: '0.9em' }}></span>
               )}
               {appliedPromo?.eligible === false && (
                 <>

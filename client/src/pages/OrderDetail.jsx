@@ -397,7 +397,7 @@ export default function OrderDetail() {
                 <strong>{addr.fullName}</strong> · {addr.phone}
               </div>
               <div className={styles.addrLine}>
-                {addr.line1}, {addr.ward}, {addr.district}, {addr.city}
+                {[addr.line1, addr.ward, addr.district, addr.city].filter(Boolean).join(', ')}
               </div>
             </div>
           </section>

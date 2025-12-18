@@ -61,7 +61,16 @@ export const putProfile = async (req, res, next) => {
     }
 
     await user.save();
-    res.json({ user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      },
+    });
   } catch (e) {
     next(e);
   }
