@@ -61,11 +61,9 @@ export const getSocketToken = async (req, res) => {
   const uid = req.user?._id;
   if (!uid) return res.status(401).json({ message: 'Unauthenticated' });
 
-  const token = jwt.sign(
-    { sub: String(uid), role: req.user?.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' },
-  );
+  const token = jwt.sign({ sub: String(uid), role: req.user?.role }, process.env.JWT_SECRET, {
+    expiresIn: '15m',
+  });
 
   return res.json({ token });
 };

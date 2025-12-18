@@ -16,7 +16,7 @@ router.post('/resend-otp', authController.postResendOtp); // { email }
 // Social Login
 router.post('/firebase-login', authController.postFirebaseLogin); // { idToken, remember? }
 router.post('/facebook-login', authController.postFacebookLogin); // { accessToken, remember? }
-router.post('/add-phone', requireAuth, authController.postAddPhoneToGoogleUser); // {firebaseIdToken, phoneNumber } - Add phone to Google account 
+router.post('/add-phone', requireAuth, authController.postAddPhoneToGoogleUser); // {firebaseIdToken, phoneNumber } - Add phone to Google account
 
 // Password Reset
 router.post('/forgot', authController.postForgotPassword); // { email }
