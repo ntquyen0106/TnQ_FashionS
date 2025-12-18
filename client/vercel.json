@@ -1,6 +1,14 @@
 {
   "routes": [
     {
+      "src": "/socket.io",
+      "dest": "https://tnq-fashions.onrender.com/socket.io"
+    },
+    {
+      "src": "/socket.io/(.*)",
+      "dest": "https://tnq-fashions.onrender.com/socket.io/$1"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "https://tnq-fashions.onrender.com/api/$1"
     },

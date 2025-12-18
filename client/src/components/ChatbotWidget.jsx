@@ -7,7 +7,14 @@ import { useCart } from '@/contexts/CartProvider';
 import { useAuth } from '@/auth/AuthProvider';
 import { showAddToCartToast } from '@/components/showAddToCartToast';
 import io from 'socket.io-client';
+import { getApiOrigin } from '@/api/apiBase';
 import styles from './ChatbotWidget.module.css';
+
+const SOCKET_URL = (() => {
+  const origin = getApiOrigin();
+  // If origin is absolute (http/https), connect there. Otherwise ('' or relative), use same-origin.
+  return /^https?:\/\//i.test(origin) ? origin : undefined;
+})();
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -381,9 +388,12 @@ export default function ChatbotWidget() {
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io(API_BASE_URL, {
+    const socketOptions = {
+      withCredentials: true,
       transports: ['websocket', 'polling'],
-    });
+    };
+
+    const newSocket = SOCKET_URL ? io(SOCKET_URL, socketOptions) : io(socketOptions);
 
     newSocket.on('connect', () => {
       newSocket.emit('join_chat', sessionId);

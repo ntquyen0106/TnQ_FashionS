@@ -399,6 +399,19 @@
   background: #fff;
   transition: all 0.2s ease;
 }
+
+/* iOS Safari: make sure inline SVG icons actually paint */
+.icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  color: inherit;
+}
+
+.icon svg,
+.icon svg * {
+  stroke: currentColor;
+}
 .icon:hover {
   color: #2563eb;
   border-color: #2563eb;
