@@ -534,10 +534,10 @@ export const deleteUser = async (id) => {
 
   const user = await User.findByIdAndDelete(id);
   if (!user) {
-    throw { status: 404, message: 'User not found' };
+    throw { status: 404, message: 'Không tìm thấy người dùng' };
   }
 
-  return { message: 'User deleted successfully' };
+  return { message: 'Xóa người dùng thành công' };
 };
 
 // Utility function for sanitizing user data
