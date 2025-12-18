@@ -26,6 +26,7 @@ router.post('/forgot/reset', authController.postForgotReset); // { email, newPas
 
 // Session Management
 router.get('/me', requireAuth, authController.getMe); // Get current user
+router.get('/socket-token', requireAuth, authController.getSocketToken); // Get short-lived token for Socket.IO
 router.post('/logout', requireAuth, authController.postLogout);
 
 router.post('/change-password-first', requireAuth, authController.postChangePasswordFirst);

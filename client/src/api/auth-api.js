@@ -3,6 +3,7 @@ import http from './http';
 
 export const authApi = {
   me: () => http.get('/auth/me').then((r) => r.data.user), // ← luôn trả user
+  socketToken: () => http.get('/auth/socket-token', { _noAutoToast: true }).then((r) => r.data),
   logout: () => http.post('/auth/logout').then((r) => r.data),
 
   login: (body) => http.post('/auth/login', body).then((r) => r.data),
