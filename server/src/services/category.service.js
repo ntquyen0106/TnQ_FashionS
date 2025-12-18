@@ -86,14 +86,14 @@ export async function breadcrumb(query = {}) {
       { path: 1 },
     ).lean();
     if (!doc) {
-      const err = new Error('Category not found');
+      const err = new Error('Không tìm thấy danh mục');
       err.status = 404;
       throw err;
     }
     thePath = doc.path;
   }
   if (!thePath) {
-    const err = new Error('Missing categoryId or path');
+    const err = new Error('Thiếu đường dẫn danh mục');
     err.status = 400;
     throw err;
   }
@@ -114,7 +114,7 @@ export async function create(data = {}) {
 
   // 1) Validate cơ bản
   if (!name || !String(name).trim()) {
-    const err = new Error('Name is required');
+    const err = new Error('Tên danh mục là bắt buộc');
     err.status = 400;
     throw err;
   }
@@ -131,7 +131,7 @@ export async function create(data = {}) {
 
   const rawSlug = (data.slug && String(data.slug).trim()) || toSlug(name);
   if (!rawSlug) {
-    const err = new Error('Slug is required');
+    const err = new Error('Slug là bắt buộc');
     err.status = 400;
     throw err;
   }
@@ -143,7 +143,7 @@ export async function create(data = {}) {
   if (data.parentId) {
     parent = await Category.findById(data.parentId);
     if (!parent) {
-      const err = new Error('Parent not found');
+      const err = new Error('Không tìm thấy danh mục cha');
       err.status = 400;
       throw err;
     }
@@ -153,7 +153,7 @@ export async function create(data = {}) {
   // 4) Chống trùng path → trả 409
   const exists = await Category.exists({ path });
   if (exists) {
-    const err = new Error('Category path already exists');
+    const err = new Error('Đường dẫn danh mục đã tồn tại');
     err.status = 409;
     throw err;
   }
@@ -189,7 +189,7 @@ export async function create(data = {}) {
 export async function update(id, data = {}) {
   const doc = await Category.findById(id);
   if (!doc) {
-    const err = new Error('Category not found');
+    const err = new Error('Không tìm thấy danh mục');
     err.status = 404;
     throw err;
   }
@@ -214,7 +214,7 @@ export async function update(id, data = {}) {
     if (parentIdToSet) {
       const p = await Category.findById(parentIdToSet, { path: 1 });
       if (!p) {
-        const err = new Error('Parent not found');
+        const err = new Error('Không tìm thấy danh mục cha');
         err.status = 400;
         throw err;
       }
@@ -226,7 +226,7 @@ export async function update(id, data = {}) {
     // Kiểm tra trùng path mới (trừ chính node hiện tại)
     const dup = await Category.findOne({ _id: { $ne: doc._id }, path: newPath }, { _id: 1 });
     if (dup) {
-      const err = new Error('Category path already exists');
+      const err = new Error('Đường dẫn danh mục đã tồn tại');
       err.status = 409;
       throw err;
     }
@@ -251,11 +251,11 @@ export async function update(id, data = {}) {
 export async function remove(id) {
   const doc = await Category.findById(id);
   if (!doc) {
-    const err = new Error('Category not found');
+    const err = new Error('Không tìm thấy danh mục');
     err.status = 404;
     throw err;
   }
   const re = new RegExp(`^${esc(doc.path)}(?:/|$)`);
   await Category.deleteMany({ path: re });
-  return { message: 'Deleted branch' };
+  return { message: 'Đã xóa nhánh' };
 }

@@ -192,9 +192,9 @@ export const updateQty = async ({ userId, sessionId, cartItemId, qty }) => {
   if (!qty || qty < 1) throw new Error('Số lượng không hợp lệ');
   const q = userId ? { userId, status: 'active' } : { sessionId, status: 'active' };
   const cart = await Cart.findOne(q);
-  if (!cart) throw new Error('Cart not found');
+  if (!cart) throw new Error('Không tìm thấy giỏ hàng');
   const it = cart.items.id(cartItemId);
-  if (!it) throw new Error('Item not found');
+  if (!it) throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
   it.qty = qty;
   it.touchedAt = new Date();
   await cart.save();
@@ -210,7 +210,7 @@ export const updateVariant = async ({ userId, sessionId, cartItemId, variantSku 
 
   const p = it.productId;
   const v = Array.isArray(p?.variants) ? p.variants.find((x) => x.sku === variantSku) : null;
-  if (!v) throw new Error('Variant not found');
+  if (!v) throw new Error('Không tìm thấy biến thể sản phẩm');
 
   it.variantSku = v.sku;
   it.priceSnapshot = v.price;
@@ -394,7 +394,7 @@ export const applyPromotion = async ({ userId, sessionId, code, selectedItems })
   } else if (sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' });
   }
-  if (!cart) throw new Error('Cart not found');
+  if (!cart) throw new Error('Không tìm thấy giỏ hàng');
 
   // Kiểm tra minOrder trên tổng các sản phẩm được chọn (nếu có),
   // nếu không chọn gì thì kiểm tra toàn bộ giỏ
@@ -467,9 +467,9 @@ export const removeItem = async ({ userId, sessionId, cartItemId }) => {
   if (!cart && sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' });
   }
-  if (!cart) throw new Error('Cart not found');
+  if (!cart) throw new Error('Không tìm thấy giỏ hàng');
   const it = cart.items.id(cartItemId);
-  if (!it) throw new Error('Item not found');
+  if (!it) throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
   it.deleteOne();
   await cart.save();
   return await getCart({ userId, sessionId });
@@ -484,7 +484,7 @@ export const removeMany = async ({ userId, sessionId, ids = [] }) => {
   if (!cart && sessionId) {
     cart = await Cart.findOne({ sessionId, status: 'active' });
   }
-  if (!cart) throw new Error('Cart not found');
+  if (!cart) throw new Error('Không tìm thấy giỏ hàng');
   if (!Array.isArray(ids) || ids.length === 0) return await getCart({ userId, sessionId });
   cart.items = cart.items.filter((it) => !ids.some((id) => String(it._id) === String(id)));
   await cart.save();
@@ -495,7 +495,7 @@ export const clearPromotion = async ({ userId, sessionId }) => {
   let cart = null;
   if (userId) cart = await Cart.findOne({ userId, status: 'active' });
   else if (sessionId) cart = await Cart.findOne({ sessionId, status: 'active' });
-  if (!cart) throw new Error('Cart not found');
+  if (!cart) throw new Error('Không tìm thấy giỏ hàng');
   cart.promotion = null;
   await cart.save();
   return await getCart({ userId, sessionId });

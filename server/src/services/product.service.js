@@ -234,7 +234,7 @@ export const getBySlug = async (slug, { includeHidden = false } = {}) => {
   if (!includeHidden) f.status = 'active';
   const doc = await Product.findOne(f);
   if (!doc) {
-    const err = new Error('Product not found');
+    const err = new Error('Không tìm thấy sản phẩm');
     err.status = 404;
     throw err;
   }
@@ -245,7 +245,7 @@ export const create = async (data) => {
   if (data.variants?.length) {
     const skus = data.variants.map((v) => v.sku);
     if (new Set(skus).size !== skus.length) {
-      const err = new Error('SKU variants must be unique');
+      const err = new Error('SKU variants phải là duy nhất');
       err.status = 400;
       throw err;
     }
@@ -262,7 +262,7 @@ export const update = async (id, data) => {
   if (data.variants?.length) {
     const skus = data.variants.map((v) => v.sku);
     if (new Set(skus).size !== skus.length) {
-      const err = new Error('SKU variants must be unique');
+      const err = new Error('SKU variants phải là duy nhất');
       err.status = 400;
       throw err;
     }
@@ -274,7 +274,7 @@ export const update = async (id, data) => {
   const doc = await Product.findByIdAndUpdate(id, patch, { new: true, runValidators: true });
 
   if (!doc) {
-    const err = new Error('Product not found');
+    const err = new Error('Không tìm thấy sản phẩm');
     err.status = 404;
     throw err;
   }
@@ -284,11 +284,11 @@ export const update = async (id, data) => {
 export const remove = async (id) => {
   const doc = await Product.findByIdAndDelete(id);
   if (!doc) {
-    const err = new Error('Product not found');
+    const err = new Error('Không tìm thấy sản phẩm');
     err.status = 404;
     throw err;
   }
-  return { message: 'Deleted' };
+  return { message: 'Đã xóa' };
 };
 
 export const searchByKeyword = async (
