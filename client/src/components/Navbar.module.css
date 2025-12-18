@@ -408,9 +408,22 @@
   color: inherit;
 }
 
+/* Prefer currentColor, but include explicit fallback for iOS Safari quirks */
 .icon svg,
 .icon svg * {
+  fill: none;
   stroke: currentColor;
+  stroke: #111827;
+}
+
+.icon:hover svg,
+.icon:hover svg * {
+  stroke: #2563eb;
+}
+
+.iconMuted svg,
+.iconMuted svg * {
+  stroke: #9ca3af;
 }
 .icon:hover {
   color: #2563eb;
