@@ -17,13 +17,13 @@ export default function Login() {
 
   const fromPath = location.state?.from?.pathname || '/';
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
+  // Hàm login chung để tái sử dụng
+  const performLogin = async (loginIdentifier, loginPassword) => {
     setMsg('');
     setLoading(true);
 
     try {
-      await authApi.login({ identifier, password, remember: true });
+      await authApi.login({ identifier: loginIdentifier, password: loginPassword, remember: true });
 
       // Đợi cookie được set rồi mới gọi me(); retry nhẹ nếu cần
       let me = null;
@@ -58,6 +58,16 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    await performLogin(identifier, password);
+  };
+
+  // Hàm login nhanh với tài khoản demo
+  const handleDemoLogin = async () => {
+    await performLogin('u@gmail.com', 'user');
   };
 
   // --- Google ---
@@ -173,6 +183,22 @@ export default function Login() {
             </Link>
           </div>
         </form>
+
+        {/* Demo Login Button */}
+        <div className={styles.demoLogin}>
+          <button 
+            className={styles.btnDemo} 
+            onClick={handleDemoLogin} 
+            type="button"
+            disabled={loading}
+          >
+            <span className={styles.demoIcon}>👤</span>
+            <span className={styles.demoText}>
+              <strong>Dùng thử tài khoản demo</strong>
+              <small>u@gmail.com / user</small>
+            </span>
+          </button>
+        </div>
 
         {/* Social login: chỉ bật nếu BE đang mở /auth/firebase-login */}
         <div className={styles.divider}>Hoặc</div>
