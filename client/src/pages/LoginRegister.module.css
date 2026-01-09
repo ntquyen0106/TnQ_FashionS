@@ -270,6 +270,85 @@
   text-decoration: underline;
 }
 
+/* Demo Login Section */
+.demoLogin {
+  margin: 20px 0;
+}
+
+.btnDemo {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 1.5px solid #e5e7eb;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #fafafa;
+  color: #374151;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.btnDemo:hover {
+  background: #f5f5f5;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btnDemo:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btnDemo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.demoIcon {
+  font-size: 22px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid #e5e7eb;
+}
+
+.demoText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  flex: 1;
+}
+
+.demoText strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  letter-spacing: 0.2px;
+}
+
+.demoText small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
 /* Horizontal Divider - Clean */
 .divider {
   display: flex;
@@ -502,6 +581,25 @@
 
   .divider {
     margin: 24px 0;
+  }
+
+  .btnDemo {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .demoIcon {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .demoText strong {
+    font-size: 13px;
+  }
+
+  .demoText small {
+    font-size: 11px;
   }
 }
 

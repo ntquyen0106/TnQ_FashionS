@@ -100,8 +100,8 @@ export const chatbotService = {
 
         const attrs = p.attributes
           ? Object.entries(p.attributes)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(', ')
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ')
           : '';
 
         // Get primary image publicId or first image
@@ -512,13 +512,13 @@ export const chatbotService = {
       if (realProducts.length > 0) {
         productContext = `\n\n**DANH SÁCH SẢN PHẨM THỰC TẾ TỪ DATABASE:**
 ${realProducts
-  .map(
-    (p, i) =>
-      `${i + 1}. "${p.name}" - slug: "${p.slug}" - Giá: ${p.price.toLocaleString(
-        'vi-VN',
-      )}đ - Rating: ${p.rating}/5 - Còn hàng: ${p.inStock ? 'Có' : 'Hết'}`,
-  )
-  .join('\n')}
+            .map(
+              (p, i) =>
+                `${i + 1}. "${p.name}" - slug: "${p.slug}" - Giá: ${p.price.toLocaleString(
+                  'vi-VN',
+                )}đ - Rating: ${p.rating}/5 - Còn hàng: ${p.inStock ? 'Có' : 'Hết'}`,
+            )
+            .join('\n')}
 
 QUAN TRỌNG: 
 - CHỈ sử dụng các sản phẩm trong danh sách trên

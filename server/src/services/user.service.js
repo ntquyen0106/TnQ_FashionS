@@ -26,7 +26,7 @@ export const addAddress = async (userId, addressData) => {
 
 export const setDefaultAddress = async (userId, addressId) => {
   const user = await User.findById(userId);
-  if (!user) throw new Error('User not found');
+  if (!user) throw new Error('Không tìm thấy người dùng');
 
   user.addresses = user.addresses.map((addr) => ({
     ...addr.toObject(),
@@ -39,15 +39,15 @@ export const setDefaultAddress = async (userId, addressId) => {
 
 export const getAddresses = async (userId) => {
   const user = await User.findById(userId).select('addresses').lean();
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw { status: 404, message: 'Không tìm thấy người dùng' };
   return user.addresses || [];
 };
 
 export const updateAddress = async (userId, addressId, data) => {
   const user = await User.findById(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw { status: 404, message: 'Không tìm thấy người dùng' };
   const addr = user.addresses.id(addressId);
-  if (!addr) throw { status: 404, message: 'Address not found' };
+  if (!addr) throw { status: 404, message: 'Không tìm thấy địa chỉ' };
 
   const allowed = ['fullName', 'phone', 'line1', 'ward', 'district', 'city', 'isDefault'];
   for (const k of allowed) if (k in data) addr[k] = data[k];
@@ -65,20 +65,20 @@ export const updateAddress = async (userId, addressId, data) => {
 
 export const deleteAddress = async (userId, addressId) => {
   const user = await User.findById(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw { status: 404, message: 'Không tìm thấy người dùng' };
   const addr = user.addresses.id(addressId);
-  if (!addr) throw { status: 404, message: 'Address not found' };
+  if (!addr) throw { status: 404, message: 'Không tìm thấy địa chỉ' };
   addr.deleteOne();
   await user.save();
-  return { message: 'Address deleted', addresses: user.addresses };
+  return { message: 'Đã xóa địa chỉ', addresses: user.addresses };
 };
 
 export const clearAddresses = async (userId) => {
   const user = await User.findById(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw { status: 404, message: 'Không tìm thấy người dùng' };
   user.addresses = [];
   await user.save();
-  return { message: 'All addresses deleted', addresses: [] };
+  return { message: 'Đã xóa tất cả địa chỉ', addresses: [] };
 };
 
 export const changePassword = async (id, { oldPassword, newPassword }) => {
