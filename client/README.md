@@ -4,9 +4,37 @@ This template provides a minimal setup to get React working in Vite with HMR and
 
 Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+# Client (Web UI)
+
+Thư mục `client/` chứa giao diện web của dự án (React + Vite).
+
+## Yêu cầu
+
+- Node.js `>= 18.18.0`
+- npm `>= 9.0.0`
+
+## Chạy local
+
+```bash
+npm install
+npm run dev
+```
+
+## Build (trước khi deploy)
+
+```bash
+npm run build
+```
+
+## Cấu hình API
+
+Client gọi API từ server thông qua các file trong `src/api/`.
+Nếu cần đổi môi trường (local/staging/production), hãy kiểm tra nơi khai báo base URL (thường nằm trong `src/api/apiBase.js` hoặc `src/api/http.js`).
+
+## Tài liệu tổng quan
+
+Xem README ở thư mục gốc của dự án để hiểu kiến trúc hệ thống và checklist kiểm tra sau deploy.
